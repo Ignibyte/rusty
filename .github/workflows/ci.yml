@@ -15,6 +15,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # The desktop app is cxx-qt on Qt 6; the runner needs the Qt dev packages and qmake.
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools \
+            libgl-dev libegl-dev
+      - run: echo "QMAKE=/usr/lib/qt6/bin/qmake" >> "$GITHUB_ENV"
       # The brain vault commits to git as pages change; a runner has no identity.
       - run: |
           git config --global user.name "Rusty CI"
