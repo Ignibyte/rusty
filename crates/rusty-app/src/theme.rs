@@ -33,6 +33,7 @@ mod qobject {
         #[qproperty(QString, host_name)]
         #[qproperty(QString, facts)]
         #[qproperty(i32, start_tab)]
+        #[qproperty(bool, debug)]
         type Theme = super::ThemeRust;
 
         /// Re-read the Omarchy theme, font and scheme.
@@ -59,6 +60,7 @@ pub struct ThemeRust {
     host_name: QString,
     facts: QString,
     start_tab: i32,
+    debug: bool,
 }
 
 impl Default for ThemeRust {
@@ -79,6 +81,7 @@ impl Default for ThemeRust {
             host_name: QString::from(&host_name()),
             facts: QString::default(),
             start_tab: start_tab_from_env(),
+            debug: std::env::var_os("RUSTY_DEBUG").is_some_and(|v| !v.is_empty()),
         };
         theme.apply(&Look::gather());
         theme

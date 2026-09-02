@@ -136,29 +136,63 @@ ApplicationWindow {
                 id: termSession
                 initialWorkingDirectory: tab.startDir
                 shellProgram: "tmux"
-                shellProgramArgs: ["new-session", "-A", "-s", tab.session, "-c", tab.startDir, terminals.commandFor(tab.program)]
+                // After the session is up, tmux forwards the pane title (what Claude Code or
+                // Codex set) to us, which the rail shows under the tab name.
+                shellProgramArgs: ["new-session", "-A", "-s", tab.session, "-c", tab.startDir, terminals.commandFor(tab.program),
+                                   ";", "set-option", "-t", tab.session, "set-titles", "on",
+                                   ";", "set-option", "-t", tab.session, "set-titles-string", "#T"]
             }
             // An empty session name would make tmux attach to whatever session it used last.
             Component.onCompleted: { if (tab.session.length > 0) termSession.startShellProgram(); term.forceActiveFocus() }
             QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: theme.accent; opacity: 0.4; radius: 4 } }
         }
         function focusTerminal() { term.forceActiveFocus() }
-        function markUnread() { if (!tab.isCurrent) tabs.setProperty(tab.index, "unread", true) }
+        function markUnread() {
+            if (tab.isCurrent) return
+            if (!tabs.get(tab.index).unread && theme.debug) console.log("rusty: unread tab", tab.index, tabs.get(tab.index).name)
+            tabs.setProperty(tab.index, "unread", true)
+        }
+        // A bell in a tab that is not showing, or while the window is not focused, gets a
+        // desktop notification; a bell in the tab you are looking at does not.
+        function rang() {
+            tab.markUnread()
+            if (!tab.isCurrent || !win.active) terminals.notify(tabs.get(tab.index).name, "rang the bell")
+            if (theme.debug) console.log("rusty: bell in tab", tab.index)
+        }
+        // Codex and Claude Code announce attention through the title ("[ ! ] Action
+        // Required", "needs your input"); the bell does not reach us through tmux. A tab
+        // that is not showing, or a window that is not focused, turns that into a
+        // desktop notification, once per title.
+        property string lastAlert: ""
+        function titled() {
+            const t = termSession.title || ""
+            tabs.setProperty(tab.index, "title", t)
+            if (theme.debug) console.log("rusty: title of tab", tab.index, JSON.stringify(t))
+            const wantsYou = /\[ ! \]|action required|needs your|waiting for you|permission/i.test(t)
+            if (wantsYou && t !== lastAlert && (!tab.isCurrent || !win.active)) {
+                lastAlert = t
+                terminals.notify(tabs.get(tab.index).name, t)
+                if (theme.debug) console.log("rusty: attention in tab", tab.index)
+            }
+            if (!wantsYou) lastAlert = ""
+        }
         // The widget and its session each expose some of these; unknown ones are ignored.
         Connections {
             target: termSession
             ignoreUnknownSignals: true
-            function onTitleChanged() { tabs.setProperty(tab.index, "title", termSession.title || "") }
+            function onTitleChanged() { tab.titled() }
             function onActivity() { tab.markUnread() }
-            function onBell() { tab.markUnread() }
+            function onBell() { tab.rang() }
             function onReceivedData() { tab.markUnread() }
         }
         Connections {
             target: term
             ignoreUnknownSignals: true
+            // imagePainted fires whenever the emulation has new output, shown or not.
+            function onImagePainted() { tab.markUnread() }
             function onActivity() { tab.markUnread() }
-            function onBell() { tab.markUnread() }
-            function onNotifyBell() { tab.markUnread() }
+            function onBell() { tab.rang() }
+            function onNotifyBell() { tab.rang() }
         }
     }
 

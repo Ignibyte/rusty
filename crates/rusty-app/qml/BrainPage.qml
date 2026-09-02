@@ -53,7 +53,7 @@ Item {
             page.notice = ""
             if (kind === "types") page.types = JSON.parse(json).filter(t => t.count > 0)
             else if (kind.startsWith("pages:")) { const m = page.pagesByType; m[kind.slice(6)] = JSON.parse(json); page.pagesByType = m }
-            else if (kind === "recent") page.recent = JSON.parse(json)
+            else if (kind === "recent") { page.recent = JSON.parse(json); if (page.theme.debug) console.log("rusty: brain recent", page.recent.length) }
             else if (kind === "search") { page.results = JSON.parse(json); page.hit = page.results.length > 0 ? 0 : -1 }
             else if (kind === "capture") { captureField.text = ""; const r = JSON.parse(json); page.notice = "captured to " + r.slug }
         }

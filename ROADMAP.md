@@ -176,16 +176,19 @@ What using the app every day asks for, added as it comes up.
 
 - [x] Terminal tabs start in a working directory (typed or picked when the tab is made, saved
       with the tab; verified: a tab made for `/srv/stacks/rusty-v3` opened its shell there)
-- [ ] A tab that gets output or a bell while another tab is showing is marked in the rail;
-      the mark clears when it is shown (built 2026-09-02 on the session's data and bell
-      signals; needs a hands-on check)
-- [ ] The terminal's title (what Claude Code or Codex set) shows under the tab name (built;
-      tmux's default title, the host name, is hidden; needs a hands-on check with Claude Code)
+- [x] A tab that gets output while another tab is showing is marked in the rail (the
+      widget's `imagePainted` fires on new output, shown or not); the mark clears when the tab
+      is shown. Verified from the debug log with a scratch tab
+- [x] The terminal's title shows under the tab name: tmux is started with `set-titles on`
+      and `#T`, so "✳ Claude Code" and Codex's "[ ! ] Action Required" come through; the
+      host-name default is hidden
 - [x] The window remembers its size and the last tab between runs
       (`~/.config/Ignibyte/rusty.conf`; `RUSTY_TAB` still overrides)
-- [ ] Brain tab: recently updated pages when idle; arrows and Enter open search results
-      (built; needs a hands-on check)
-- [ ] Desktop notification when an agent tab rings the bell while the window is not focused
+- [x] Brain tab: recently updated pages when idle (loads with the tab); Up, Down and Enter
+      move through and open search results
+- [x] Desktop notification when an agent tab asks for attention while it is not showing or
+      the window is not focused. The bell does not survive tmux, so the trigger is the title
+      ("[ ! ] Action Required", "needs your input"), once per title, through `notify-send`
 - [ ] Drag to reorder tasks and tabs
 
 ## Later

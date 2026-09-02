@@ -55,6 +55,10 @@ mod qobject {
         /// End a tmux session. Returns whether tmux agreed.
         #[qinvokable]
         fn end_session(self: &Terminals, session: &QString) -> bool;
+
+        /// Show a desktop notification (through `notify-send`, so mako shows it on Omarchy).
+        #[qinvokable]
+        fn notify(self: &Terminals, title: &QString, body: &QString);
     }
 }
 
@@ -255,6 +259,21 @@ impl qobject::Terminals {
     /// The command behind a program name.
     pub fn command_for(&self, program: &QString) -> QString {
         QString::from(&command_for(&program.to_string()))
+    }
+
+    /// Desktop notification; quietly does nothing where `notify-send` is missing.
+    pub fn notify(&self, title: &QString, body: &QString) {
+        let _ = Command::new("notify-send")
+            .args([
+                "--app-name=Rusty",
+                "--icon=com.ignibyte.rusty",
+                &title.to_string(),
+                &body.to_string(),
+            ])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
     }
 
     /// End a tmux session.
