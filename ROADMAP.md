@@ -111,11 +111,12 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       restore, inline rename (F2), reorder (Ctrl+Up/Down), delete; keyboard first (Enter,
       arrows, Space, Delete, Escape); live refresh on `dataChanged`; verified against the
       running service on the box
-- [ ] Settings page: paths, theme and terminal font shown; the first editable settings
-- [ ] Desktop entry, icon, stable `app_id`, `omarchy launch or focus rusty`, a default key
-      (entry `omarchy/com.ignibyte.rusty.desktop` and the app_id are in; icon, focus
-      command and key still to do)
-- [ ] Delete the prototype
+- [x] Settings page: theme, font, scheme, tabs file and back end shown; every setting
+      `rusty-mcp` stores is listed and editable in place (Enter saves), new keys can be added
+- [x] Desktop entry, icon, stable `app_id` (`com.ignibyte.rusty`), `omarchy-launch-or-focus
+      rusty`, and a key: `omarchy/hyprland-bindings.conf` binds SUPER+ALT+R (the installer
+      points at it rather than editing your bindings)
+- [x] Delete the prototype (2026-09-02, superseded by `crates/rusty-app`)
 
 ## M3. Knowledge tabs
 

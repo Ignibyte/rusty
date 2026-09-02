@@ -265,20 +265,7 @@ ApplicationWindow {
                     Text { anchors.centerIn: parent; text: modelData + " tab: data comes from rusty-mcp over local HTTP (M2, M3)"; color: theme.foreground; font.pixelSize: 16 }
                 }
             }
-            // Settings: kept as a page; the first real settings arrive with M2 (paths, theme,
-            // terminal font) and M4 (embedding provider).
-            Rectangle {
-                color: theme.background
-                ColumnLayout {
-                    anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 32
-                    spacing: 10
-                    Text { text: "Settings"; color: theme.foreground; font.pixelSize: 22; font.bold: true }
-                    Text { text: "Nothing to configure yet. Settings land with the features that need them: paths and theme (M2), embedding provider (M4), skills and secrets (M5)."; color: theme.foreground; opacity: 0.75; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.preferredWidth: 640 }
-                    Text { text: theme.facts + "\ntabs file: " + terminals.tabsPath + "\nback end: " + backend.url + " (" + backend.status + ")"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
-                    Text { text: "Ctrl+Shift+T new terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn switch"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12 }
-                    Button { text: "Re-read theme"; onClicked: theme.reload() }
-                }
-            }
+            SettingsPage { backend: backend; theme: theme; terminals: terminals }
         }
     }
 }

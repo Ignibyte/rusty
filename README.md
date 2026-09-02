@@ -15,7 +15,6 @@ crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + ind
 crates/rusty-mcp    the back end: an MCP server on rmcp, 57 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: a QML shell on cxx-qt with native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
-prototype/          a PySide6 spike for the terminal tab and Omarchy theming; deleted once the app exists
 docs/               architecture and vault rules
 omarchy/            the user service unit and MCP config snippets; installer, desktop entry and hooks arrive with M6
 ```
@@ -66,12 +65,6 @@ an older vault would change; without the flag it rewrites the pages, reindexes, 
 On Arch the package launcher passes `~/.config/obsidian/user-flags.conf` to every invocation,
 including CLI calls. A single-dash flag there (`-disable-gpu`, which Omarchy ships) reaches the
 CLI as a command; write it as `--disable-gpu` and the CLI drops it.
-
-## Prototype
-
-`python3 prototype/main.py` under Omarchy (needs `pyside6`, `qmltermwidget`, `qt6-wayland`,
-`tmux`). Claude and Codex tabs are embedded terminals attached to tmux sessions, coloured
-from the Omarchy theme's Alacritty palette. See `prototype/README.md`.
 
 ## License
 

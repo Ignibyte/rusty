@@ -21,6 +21,7 @@ cargo install --path "$repo/crates/rusty-cli" --root "$HOME/.local" --force --lo
 if pkg-config --exists Qt6Quick 2>/dev/null || command -v qmake6 >/dev/null 2>&1; then
   echo "==> building the desktop app (rusty)"
   cargo install --path "$repo/crates/rusty-app" --root "$HOME/.local" --force --locked
+  install -Dm644 "$here/com.ignibyte.rusty.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/com.ignibyte.rusty.svg"
   install -Dm644 "$here/com.ignibyte.rusty.desktop" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
   sed -i "s|^Exec=.*|Exec=$bin/rusty|" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
   command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
@@ -68,6 +69,12 @@ if command -v obsidian >/dev/null 2>&1; then
   fi
 else
   echo "    Obsidian is not installed; the obsidian_* tools will say so when called"
+fi
+
+echo "==> desktop"
+echo "    launch or focus:  omarchy-launch-or-focus rusty"
+if [ -f "$HOME/.config/hypr/bindings.conf" ] && ! grep -q 'omarchy-launch-or-focus rusty' "$HOME/.config/hypr/bindings.conf"; then
+  echo "    key binding:      append $here/hyprland-bindings.conf to ~/.config/hypr/bindings.conf (SUPER+ALT+R)"
 fi
 
 echo "==> MCP config"
