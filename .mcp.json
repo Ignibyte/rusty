@@ -1,0 +1,7 @@
+{
+  "_comment": "Project MCP servers for Claude Code. rusty is the store (59 tools); codegraph is the code graph the workflow uses at design and inspect (scripts/setup-pipeline-tools.sh installs it project-local).",
+  "mcpServers": {
+    "rusty": { "type": "stdio", "command": "rusty-mcp" },
+    "codegraph": { "type": "stdio", "command": "bash", "args": ["scripts/mcp-codegraph.sh"] }
+  }
+}

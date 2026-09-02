@@ -1,7 +1,8 @@
+.codegraph/
+.dev/
 dist
 .env
 .env.*
-.mcp.json
 node_modules
 packaging/pkg/
 packaging/*.pkg.tar.zst

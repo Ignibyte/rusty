@@ -37,6 +37,15 @@ Tasks, Brain, Notes, Memory, Skills, Secrets and Settings talk to the back end o
 `http://127.0.0.1:4174/mcp`, so a Claude session changing a task shows up in the app as it
 happens.
 
+## How work happens
+
+Spec-driven and phase-gated: `CONSTITUTION.md` is the law, `AGENTS.md` (and `CLAUDE.md`)
+route the work, `.claude/skills/rusty-workflow/` is the driving manual, and
+`docs/planning/` holds tickets, the active spec/notes pair, the knowledge register and the
+after-action reviews. `bin/gate.sh --diff` is the gate; green writes a receipt bound to the
+worktree, and gated files cannot be committed without one. CodeGraph
+(`scripts/setup-pipeline-tools.sh`) supplies structural evidence at design and inspect.
+
 ## Layout
 
 ```

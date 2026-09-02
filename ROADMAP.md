@@ -18,6 +18,8 @@ The shape is in `docs/architecture.md`.
 | M5 Skills, Secrets, Settings | done 2026-09-02 |
 | M6 Omarchy packaging and cutover | next (waits on Chad) |
 | M7 Daily use | done 2026-09-02 |
+| M8 Knowledge workspace | next (spec awaits seal) |
+| M9 Workflow | in progress |
 
 ## M0. Foundation (done 2026-09-02)
 
@@ -198,6 +200,31 @@ What using the app every day asks for, added as it comes up.
       one tab for the first agent found instead of a fixed Claude and Codex pair (Chad, 2026-09-02)
 - [x] Drag to reorder tasks (a handle on each row) and agent tabs (drag in the rail); built
       2026-09-02, keyboard paths stay; pointer drags await a hands-on check
+
+## M8. Knowledge workspace (Obsidian inside Rusty)
+
+Chad, 2026-09-02: skip the Obsidian API and remake Obsidian inside Rusty; the Replit mock
+(`docs/design/rusty-omarchy.html`) is the layout. The full feature inventory is
+`docs/planning/intake/INTAKE-knowledge-workspace.md`; work runs as tickets through the
+workflow in `CONSTITUTION.md`.
+
+- [ ] TICKET-002 Workspace shell: rail, real folder tree with file operations and link-safe
+      rename, document tabs, Rust markdown renderer (Obsidian flavour), source editor with
+      highlighting, backlinks/outgoing/unresolved/outline, quick switcher, command palette,
+      agent terminal as the right pane, theme tokens; replaces the Brain and Notes tabs
+- [ ] TICKET-003 Tags (inline and frontmatter) and a properties editor
+- [ ] TICKET-004 Global and local graph views with filters, groups and forces
+- [ ] TICKET-005 Search operators, bookmarks, hotkeys table
+- [ ] TICKET-006 Retire the Obsidian bridge once the tiers above are in daily use
+- [ ] Brain: tiered context (abstract, overview, details per page and folder) and
+      session-to-memory extraction, the two OpenViking ideas worth keeping
+
+## M9. Workflow
+
+- [x] TICKET-001 Spec-driven, phase-gated workflow with a local record, gate receipt,
+      hooks and CodeGraph (2026-09-02; `CONSTITUTION.md`, `docs/planning/`)
+- [ ] Enroll in `rw` (rustal-workflow) when rustal-brain runs on the box
+- [ ] Stop-hook claim checking and tool receipts (OmarchyGS has both)
 
 ## Later
 
