@@ -2,6 +2,7 @@
 //! and the paths the file watcher observes. Transport-agnostic by design: the
 //! MCP server, the CLI and the desktop app all build the same `Core`.
 
+use crate::brain::semantic::{resolve_embedder, Embedder};
 use crate::brain::BrainManager;
 use crate::engine::agent_manager::AgentManager;
 use crate::engine::db::Database;
@@ -16,7 +17,11 @@ use crate::events::EventBus;
 use crate::notes::NotesManager;
 use crate::skills::SkillsManager;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+/// The last resolved embedding provider and when it was resolved.
+type EmbedderCache = Mutex<Option<(Instant, Option<Arc<dyn Embedder>>)>>;
 
 /// Every manager Rusty has, ready to use.
 pub struct Core {
@@ -50,6 +55,8 @@ pub struct Core {
     pub brain_path: PathBuf,
     /// Resolved skills root (watched for changes).
     pub skills_root: PathBuf,
+    /// The embedding provider last resolved from settings, and when.
+    embedder_cache: EmbedderCache,
 }
 
 impl Core {
@@ -131,6 +138,24 @@ impl Core {
             notes_path: PathBuf::from(&notes_path),
             brain_path: PathBuf::from(&brain_path),
             skills_root,
+            embedder_cache: Mutex::new(None),
         }
+    }
+
+    /// The embedding provider the settings point at, resolved at most once a minute
+    /// (resolving may probe Ollama). `None` means full-text search only.
+    pub fn embedder(&self) -> Option<Arc<dyn Embedder>> {
+        if let Ok(cache) = self.embedder_cache.lock() {
+            if let Some((when, embedder)) = cache.as_ref() {
+                if when.elapsed() < Duration::from_secs(60) {
+                    return embedder.clone();
+                }
+            }
+        }
+        let resolved = resolve_embedder(&self.settings_manager, &self.secrets_manager);
+        if let Ok(mut cache) = self.embedder_cache.lock() {
+            *cache = Some((Instant::now(), resolved.clone()));
+        }
+        resolved
     }
 }

@@ -406,6 +406,25 @@ fn looks_secret(key: &str) -> bool {
         .any(|needle| k.contains(needle))
 }
 
+/// Parameters for `brain_reembed`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ReembedParams {
+    /// Embed every page again, not only the stale ones.
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// What `brain_semantic_status` returns.
+#[derive(serde::Serialize)]
+pub struct SemanticStatus {
+    /// `provider:model` in use, or `None` for full-text only.
+    pub provider: Option<String>,
+    /// Pages and chunks with vectors.
+    pub stats: rusty_core::brain::semantic::SemanticStats,
+    /// Pages whose vectors are missing or older than the page.
+    pub stale: usize,
+}
+
 /// Parameters for the Obsidian tools that name one page.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct ObsidianPathParams {
@@ -590,15 +609,72 @@ impl Rusty {
     #[tool(
         description = "Full-text search across the brain vault; results are slugs with snippets"
     )]
-    fn brain_search(
+    async fn brain_search(
         &self,
         Parameters(p): Parameters<BrainSearchParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.brain_manager.search(
-            &p.query,
-            p.limit.or(Some(10)),
-            p.page_type.as_deref(),
-        ))
+        let core = Arc::clone(&self.core);
+        let limit = p.limit.or(Some(10));
+        let results = tokio::task::spawn_blocking(move || match core.embedder() {
+            Some(embedder) => core.brain_manager.search_hybrid(
+                &p.query,
+                limit,
+                p.page_type.as_deref(),
+                embedder.as_ref(),
+            ),
+            None => core
+                .brain_manager
+                .search(&p.query, limit, p.page_type.as_deref()),
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r);
+        json_result(results)
+    }
+
+    #[tool(
+        description = "Semantic index state: the provider in use (none means full-text only), the model, pages and chunks indexed, pages waiting"
+    )]
+    async fn brain_semantic_status(&self) -> Result<CallToolResult, McpError> {
+        let core = Arc::clone(&self.core);
+        let status = tokio::task::spawn_blocking(move || {
+            let embedder = core.embedder();
+            let index = core.brain_manager.semantic();
+            let stats = index.stats()?;
+            let stale = match &embedder {
+                Some(e) => index.stale_slugs(&e.id())?.0.len(),
+                None => 0,
+            };
+            Ok::<_, String>(SemanticStatus {
+                provider: embedder.map(|e| e.id()),
+                stats,
+                stale,
+            })
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r);
+        json_result(status)
+    }
+
+    #[tool(
+        description = "Embed brain pages now: the stale ones, or every page with force; needs an embedding provider"
+    )]
+    async fn brain_reembed(
+        &self,
+        Parameters(p): Parameters<ReembedParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let core = Arc::clone(&self.core);
+        let report = tokio::task::spawn_blocking(move || {
+            let embedder = core.embedder().ok_or_else(|| {
+                "no embedding provider: set embedding_provider to ollama, or to openai with openai_api_key in the vault".to_string()
+            })?;
+            core.brain_manager.index_stale(embedder.as_ref(), p.force)
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r);
+        json_result(report)
     }
 
     #[tool(description = "Read one brain page by slug (folder included, e.g. projects/rusty)")]
@@ -1292,6 +1368,56 @@ impl ServerHandler for Rusty {
     }
 }
 
+/// Keep the vector index current: once at start and after every burst of changes,
+/// embed the pages whose vectors are missing or stale with the configured provider.
+/// Quiet when there is no provider, so full-text-only setups cost nothing.
+fn spawn_indexer(core: Arc<Core>, mut events: tokio::sync::broadcast::Receiver<AppEvent>) {
+    tokio::spawn(async move {
+        loop {
+            let worker = Arc::clone(&core);
+            let outcome = tokio::task::spawn_blocking(move || {
+                worker
+                    .embedder()
+                    .map(|e| worker.brain_manager.index_stale(e.as_ref(), false))
+            })
+            .await;
+            match outcome {
+                Ok(Some(Ok(r)))
+                    if r.pages_indexed > 0 || r.pages_removed > 0 || !r.pages_failed.is_empty() =>
+                {
+                    eprintln!(
+                        "rusty-mcp: semantic index ({}): {} pages embedded, {} chunks, {} removed, {} failed",
+                        r.model,
+                        r.pages_indexed,
+                        r.chunks_written,
+                        r.pages_removed,
+                        r.pages_failed.len()
+                    );
+                    for failure in r.pages_failed.iter().take(5) {
+                        eprintln!("rusty-mcp:   {failure}");
+                    }
+                }
+                Ok(Some(Err(e))) => eprintln!("rusty-mcp: semantic index: {e}"),
+                Err(e) => eprintln!("rusty-mcp: semantic index task: {e}"),
+                _ => {}
+            }
+            // Wait for the next change (or ten minutes), then let the burst settle.
+            loop {
+                match tokio::time::timeout(std::time::Duration::from_secs(600), events.recv()).await
+                {
+                    Ok(Ok(AppEvent::DataChanged)) => break,
+                    Ok(Ok(_)) => continue,
+                    Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => break,
+                    Ok(Err(_)) => return,
+                    Err(_) => break,
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            while events.try_recv().is_ok() {}
+        }
+    });
+}
+
 /// Forward every data change on the event bus to every connected client as a
 /// `resources/list_changed` notification, dropping peers that have gone away.
 fn spawn_change_notifier(mut events: tokio::sync::broadcast::Receiver<AppEvent>, peers: Peers) {
@@ -1329,6 +1455,7 @@ async fn main() -> anyhow::Result<()> {
         core.brain_path.clone(),
         core.skills_root.clone(),
     );
+    spawn_indexer(Arc::clone(&core), core.events.subscribe());
     spawn_change_notifier(core.events.subscribe(), Arc::clone(&peers));
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
@@ -1422,6 +1549,8 @@ mod tests {
         "brain_capture",
         "brain_page_types",
         "skill_update",
+        "brain_semantic_status",
+        "brain_reembed",
     ];
 
     #[test]

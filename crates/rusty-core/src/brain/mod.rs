@@ -7,10 +7,12 @@
 
 pub mod enrichment;
 pub mod frontmatter;
+pub mod semantic;
 pub mod vault;
 
 use crate::engine::db::Database;
 use frontmatter::{parse_page, render_body, render_page, split_raw, today_iso, BrainFrontmatter};
+use semantic::{Embedder, IndexReport, SemanticIndex};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -810,6 +812,148 @@ impl BrainManager {
                 count: counts.get(*t).copied().unwrap_or(0),
             })
             .collect())
+    }
+
+    // ── Semantic index ─────────────────────────────────────────────────
+
+    /// The vector index over this brain's pages.
+    pub fn semantic(&self) -> SemanticIndex {
+        SemanticIndex::new(Arc::clone(&self.db))
+    }
+
+    /// The text a page is embedded as: title, compiled truth, timeline.
+    fn embed_text(page: &BrainPage) -> String {
+        let mut text = page.title.clone();
+        if !page.compiled_truth.trim().is_empty() {
+            text.push_str("\n\n");
+            text.push_str(page.compiled_truth.trim());
+        }
+        if !page.timeline.trim().is_empty() {
+            text.push_str("\n\n");
+            text.push_str(page.timeline.trim());
+        }
+        text
+    }
+
+    fn content_hash_of(&self, slug: &str) -> Result<String, String> {
+        let conn = self.db.conn()?;
+        conn.query_row(
+            "SELECT COALESCE(content_hash, '') FROM brain_pages WHERE slug = ?1",
+            rusqlite::params![slug],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Query error: {e}"))
+    }
+
+    /// Embed every page whose vectors are missing, out of date, or from another model
+    /// (every page when `force`), and drop chunks of pages that no longer exist. One page
+    /// failing does not stop the pass; failures are listed in the report.
+    pub fn index_stale(&self, embedder: &dyn Embedder, force: bool) -> Result<IndexReport, String> {
+        let index = self.semantic();
+        let model = embedder.id();
+        let (stale, orphaned) = index.stale_slugs(&model)?;
+        let slugs: Vec<String> = if force {
+            self.list_pages(None, Some(100_000))?
+                .into_iter()
+                .map(|p| p.slug)
+                .collect()
+        } else {
+            stale
+        };
+        let mut report = IndexReport {
+            model,
+            ..Default::default()
+        };
+        for slug in orphaned {
+            index.remove(&slug)?;
+            report.pages_removed += 1;
+        }
+        for slug in slugs {
+            let page = match self.read_page(&slug) {
+                Ok(Some(page)) => page,
+                Ok(None) => {
+                    index.remove(&slug)?;
+                    report.pages_removed += 1;
+                    continue;
+                }
+                Err(e) => {
+                    report.pages_failed.push(format!("{slug}: {e}"));
+                    continue;
+                }
+            };
+            let hash = self.content_hash_of(&slug)?;
+            match index.index_page(embedder, &slug, &Self::embed_text(&page), &hash) {
+                Ok(n) => {
+                    report.pages_indexed += 1;
+                    report.chunks_written += n;
+                }
+                Err(e) => report.pages_failed.push(format!("{slug}: {e}")),
+            }
+        }
+        Ok(report)
+    }
+
+    /// Full-text and vector search merged by reciprocal rank fusion. Pages only the
+    /// vectors found get a snippet from their closest chunk.
+    pub fn search_hybrid(
+        &self,
+        query: &str,
+        limit: Option<usize>,
+        page_type: Option<&str>,
+        embedder: &dyn Embedder,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        let limit = limit.unwrap_or(10).max(1);
+        let fts = self.search(query, Some(limit * 2), page_type)?;
+        let hits = self.semantic().search(embedder, query, limit * 3)?;
+        let mut best_chunk: std::collections::HashMap<String, &semantic::VecHit> =
+            std::collections::HashMap::new();
+        let mut vec_order: Vec<String> = Vec::new();
+        for hit in &hits {
+            if !best_chunk.contains_key(&hit.slug) {
+                best_chunk.insert(hit.slug.clone(), hit);
+                vec_order.push(hit.slug.clone());
+            }
+        }
+        let fts_order: Vec<String> = fts.iter().map(|r| r.slug.clone()).collect();
+        let fused = semantic::fuse(&fts_order, &vec_order);
+        let by_slug: std::collections::HashMap<&str, &BrainSearchResult> =
+            fts.iter().map(|r| (r.slug.as_str(), r)).collect();
+        let mut out = Vec::new();
+        for (slug, score) in fused {
+            if out.len() >= limit {
+                break;
+            }
+            if let Some(r) = by_slug.get(slug.as_str()) {
+                let mut r = (*r).clone();
+                r.rank = -score;
+                out.push(r);
+                continue;
+            }
+            let Some(hit) = best_chunk.get(&slug) else {
+                continue;
+            };
+            let (title, kind) = {
+                let conn = self.db.conn()?;
+                conn.query_row(
+                    "SELECT title, page_type FROM brain_pages WHERE slug = ?1",
+                    rusqlite::params![slug],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .map_err(|e| format!("Query error: {e}"))?
+            };
+            if page_type.is_some_and(|t| t != kind) {
+                continue;
+            }
+            let snippet: String = hit.text.chars().take(200).collect();
+            out.push(BrainSearchResult {
+                slug: slug.clone(),
+                page_type: kind,
+                title,
+                snippet,
+                rank: -score,
+            });
+        }
+        Ok(out)
     }
 
     // ── Vault migration ────────────────────────────────────────────────

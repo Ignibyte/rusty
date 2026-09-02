@@ -13,6 +13,7 @@ impl Database {
     /// Open (or create) the SQLite database at `~/.rusty/rusty.db`.
     /// Runs migrations to ensure schema is up to date.
     pub fn open() -> Result<Self, String> {
+        Self::register_extensions();
         let db_path = Self::db_path();
 
         // Ensure directory exists
@@ -37,6 +38,28 @@ impl Database {
         db.migrate()?;
 
         Ok(db)
+    }
+
+    /// Register `sqlite-vec` for every connection opened after this call, so the
+    /// `vec0` virtual table exists for the semantic index. Idempotent; `open()` calls it,
+    /// tests that open their own in-memory connection call it first.
+    pub fn register_extensions() {
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            // SAFETY: `sqlite3_vec_init` is sqlite-vec's entry point. Its real C signature
+            // is the one `sqlite3_auto_extension` expects; the crate declares it without
+            // arguments, so the pointer is recast here exactly as the crate's own test
+            // does. It runs once, before any connection is opened.
+            unsafe {
+                let init: unsafe extern "C" fn() = sqlite_vec::sqlite3_vec_init;
+                let entry: unsafe extern "C" fn(
+                    *mut rusqlite::ffi::sqlite3,
+                    *mut *mut std::os::raw::c_char,
+                    *const rusqlite::ffi::sqlite3_api_routines,
+                ) -> std::os::raw::c_int = std::mem::transmute(init);
+                rusqlite::ffi::sqlite3_auto_extension(Some(entry));
+            }
+        });
     }
 
     /// Run schema migrations.
@@ -135,6 +158,23 @@ impl Database {
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+
+            -- Semantic index: page chunks; their vectors live in the vec0 table brain_vec,
+            -- created on first use because its width depends on the embedding model.
+            CREATE TABLE IF NOT EXISTS brain_chunks (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug          TEXT NOT NULL,
+                chunk_index   INTEGER NOT NULL,
+                text          TEXT NOT NULL,
+                content_hash  TEXT NOT NULL,
+                model         TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_brain_chunks_slug ON brain_chunks(slug);
+            CREATE TABLE IF NOT EXISTS brain_vec_meta (
+                id     INTEGER PRIMARY KEY,
+                model  TEXT NOT NULL,
+                dims   INTEGER NOT NULL
             );
 
             -- Brain engine tables

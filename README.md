@@ -12,7 +12,7 @@ from the earlier web version; the QML app is next. See `ROADMAP.md` for the plan
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 57 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 59 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: a QML shell on cxx-qt with native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -46,6 +46,19 @@ rusty-mcp --http                 # Streamable HTTP at http://127.0.0.1:4174/mcp
 On a machine that will run Rusty for real, `omarchy/install.sh` builds both binaries into
 `~/.local/bin`, installs and starts the `rusty-mcp` user service, and registers the brain with
 Obsidian when it is installed. Run it again after pulling; every step is idempotent.
+
+## Semantic search
+
+`brain_search` merges full-text hits with nearest neighbours from `sqlite-vec` when an embedding
+provider is configured; without one it stays full-text and nothing else changes. The settings
+(`settings_set`, or the Settings tab): `embedding_provider` is `auto` (the default: Ollama when
+it answers on this machine), `ollama`, `openai`, or `off`; `embedding_model` overrides the
+provider's default (`nomic-embed-text`, `text-embedding-3-small`); `ollama_url` defaults to
+`http://127.0.0.1:11434`. OpenAI needs `openai_api_key` in the secrets vault and sends page text
+to OpenAI, so it is never picked by itself. The server embeds new and changed pages a few
+seconds after they change; `rusty-cli brain embed --all` or the `brain_reembed` tool rebuilds,
+and `rusty-cli brain semantic` shows the state. Changing the provider or model rebuilds the
+index, because vectors from different models do not compare.
 
 ## Obsidian
 

@@ -14,8 +14,8 @@ The shape is in `docs/architecture.md`.
 | M1 The back end, complete | done 2026-09-02 |
 | M2 App shell, Terminals, Tasks | done 2026-09-02 |
 | M3 Knowledge tabs: Brain, Notes, Memory | done 2026-09-02 |
-| M4 Semantic search | next |
-| M5 Skills, Secrets, Settings | |
+| M4 Semantic search | done 2026-09-02 |
+| M5 Skills, Secrets, Settings | next |
 | M6 Omarchy packaging and cutover | |
 
 ## M0. Foundation (done 2026-09-02)
@@ -131,14 +131,21 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       `omarchy` CSS snippet (`rusty-cli obsidian configure`, run again by the app on every
       theme change); a theme without the file removes the snippet
 
-## M4. Semantic search
+## M4. Semantic search (done 2026-09-02)
 
-- [ ] `sqlite-vec` inside `rusty.db`: an embedding per page, note and memory chunk
-- [ ] Embedding provider trait; Ollama when it is running (default), OpenAI through the
-      secrets vault otherwise; no provider means no vectors and everything else still works
-- [ ] Hybrid retrieval, full text and vectors merged, behind `brain_search`
-- [ ] Incremental indexing from the watcher; a re-embed command
-- [ ] Settings entries for the provider and the model
+- [x] `sqlite-vec` inside `rusty.db`: an embedding per page chunk (`brain_chunks` + the `vec0`
+      table `brain_vec`, created at the model's width); notes and memories can follow the same
+      path when a tab needs them
+- [x] Embedding provider trait; Ollama when it is running (default), OpenAI only when the
+      setting says so and the vault has the key; no provider means no vectors and everything
+      else still works (verified with unit tests and a mock Ollama; the dev box has no provider
+      yet)
+- [x] Hybrid retrieval, full text and vectors merged by reciprocal rank fusion, behind
+      `brain_search`
+- [x] Incremental indexing: the server embeds stale pages after each burst of changes and
+      every ten minutes; `brain_reembed` and `rusty-cli brain embed [--all]` on demand
+- [x] Settings entries: `embedding_provider`, `embedding_model`, `ollama_url`; the key lives in
+      the secrets vault as `openai_api_key`
 
 ## M5. Skills, Secrets, Settings
 

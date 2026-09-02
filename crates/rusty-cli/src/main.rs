@@ -7,9 +7,11 @@
 //! this CLI deliberately covers only the brain, where the SQLite side is derived
 //! state that must stay in sync with the markdown vault.
 
+use rusty_core::brain::semantic;
 use rusty_core::brain::{BrainManager, CaptureTarget};
 use rusty_core::engine::conversation_archive::ConversationArchive;
 use rusty_core::engine::db::Database;
+use rusty_core::engine::secrets_manager::SecretsManager;
 use rusty_core::engine::settings_manager::SettingsManager;
 use rusty_core::obsidian::Obsidian;
 use rusty_core::skills::{self, SkillsManager};
@@ -32,6 +34,8 @@ USAGE:\n\
   rusty-cli brain types                       (page types, folders, counts)\n\
   rusty-cli brain migrate [--dry-run]         (timeline sections + vault-path links)\n\
   rusty-cli brain reindex\n\
+  rusty-cli brain embed [--all]               (vectors for stale pages, or every page)\n\
+  rusty-cli brain semantic                    (embedding provider and index state)\n\
   rusty-cli brain stats\n\
   rusty-cli skills list [--all]\n\
   rusty-cli skills view <name>\n\
@@ -98,6 +102,15 @@ fn configured_brain_path(db: &Arc<Database>) -> PathBuf {
             .get_or_default("brain_vault_path", &default_brain)
             .unwrap_or(default_brain),
     )
+}
+
+/// The embedding provider the settings and the secrets vault point at, if any.
+fn configured_embedder() -> Option<std::sync::Arc<dyn semantic::Embedder>> {
+    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
+    let settings = SettingsManager::new(Arc::clone(&db));
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let secrets = SecretsManager::new(home.join(".rusty").join(".secret"));
+    semantic::resolve_embedder(&settings, &secrets)
 }
 
 /// Open the database and a `BrainManager` rooted at the configured vault path.
@@ -441,6 +454,53 @@ fn run_brain(sub: &str, rest: &[String]) {
                     }
                     for u in &r.unresolved_links {
                         println!("  unresolved: {u}");
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        "embed" => {
+            let (_, flags) = parse_with_bools(rest, &["all"]);
+            let Some(embedder) = configured_embedder() else {
+                fail("no embedding provider: set embedding_provider to ollama, or to openai with openai_api_key in the vault")
+            };
+            match brain().index_stale(embedder.as_ref(), flags.contains_key("all")) {
+                Ok(r) => {
+                    println!(
+                        "{}: embedded {} pages ({} chunks), removed {}, failed {}",
+                        r.model,
+                        r.pages_indexed,
+                        r.chunks_written,
+                        r.pages_removed,
+                        r.pages_failed.len()
+                    );
+                    for f in &r.pages_failed {
+                        println!("  failed: {f}");
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        "semantic" => {
+            let provider = configured_embedder().map(|e| e.id());
+            let index = brain().semantic();
+            match index.stats() {
+                Ok(s) => {
+                    println!(
+                        "provider: {}",
+                        provider
+                            .clone()
+                            .unwrap_or_else(|| "none (full-text only)".to_string())
+                    );
+                    println!(
+                        "indexed with: {}",
+                        s.model.unwrap_or_else(|| "nothing yet".to_string())
+                    );
+                    println!("pages: {}  chunks: {}  dims: {}", s.pages, s.chunks, s.dims);
+                    if let Some(model) = provider {
+                        if let Ok((stale, _)) = index.stale_slugs(&model) {
+                            println!("waiting: {}", stale.len());
+                        }
                     }
                 }
                 Err(e) => fail(&e),
