@@ -167,8 +167,9 @@ Done when the app replaces a terminal for daily Claude and Codex use.
 - [x] A package: `packaging/PKGBUILD` (`rusty-git`) builds the three binaries, the desktop
       entry and icon, the user unit and the snippets, and passes `check()` under makepkg on the
       dev box (2026-09-02). Submitting it to the AUR waits for the first release
-- [ ] Retire the v2 web UI and server; swap the repo directories on the dev box (Chad's call:
-      the private repo keeps the ops handbook and machine commands either way)
+- [x] Retire the v2 web UI and server: the code left the private repo on 2026-09-02 (git history
+      keeps it) and that repo is the ops side only now; the directories stay as they are
+      (`/srv/stacks/rusty` ops, `/srv/stacks/rusty-v3` this repo). The Mac has no Rusty left
 - [ ] Docs, screenshots, first release (docs are current; screenshots need a scratch vault so
       no real data ships; the release tag is Chad's to cut)
 
