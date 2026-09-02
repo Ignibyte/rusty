@@ -87,11 +87,17 @@ pub fn terminal_font() -> String {
         .unwrap_or_else(|| "JetBrainsMono Nerd Font".to_string())
 }
 
-/// Where the generated scheme file goes: `~/.config/rusty/Omarchy.colorscheme`.
+/// The directory the terminal widget is pointed at for colour schemes:
+/// `~/.config/rusty/color-schemes`. qmltermwidget reads the `COLORSCHEMES_DIR`
+/// environment variable at load, which is how a user-owned file gets in without
+/// touching the plugin's own directory.
+pub fn scheme_dir() -> PathBuf {
+    home().join(".config/rusty/color-schemes")
+}
+
+/// Where the generated scheme file goes.
 pub fn scheme_path() -> PathBuf {
-    home()
-        .join(".config/rusty")
-        .join(format!("{SCHEME_NAME}.colorscheme"))
+    scheme_dir().join(format!("{SCHEME_NAME}.colorscheme"))
 }
 
 /// Write a Konsole-format colour scheme from the theme's `alacritty.toml` and return
@@ -161,8 +167,8 @@ pub struct Look {
     pub palette: Palette,
     /// Terminal font family.
     pub font: String,
-    /// The colour scheme to hand the terminal: the generated file's path, or the
-    /// widget's built-in `Linux` scheme when the theme gave us nothing.
+    /// The colour scheme name to hand the terminal: the generated `Omarchy` scheme,
+    /// or the widget's built-in `Linux` scheme when the theme gave us nothing.
     pub scheme: String,
     /// Extra values worth showing on the Settings page.
     pub facts: BTreeMap<String, String>,
@@ -173,9 +179,10 @@ impl Look {
     pub fn gather() -> Self {
         let palette = palette();
         let font = terminal_font();
-        let scheme = write_scheme()
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Linux".to_string());
+        let scheme = match write_scheme() {
+            Some(_) => SCHEME_NAME.to_string(),
+            None => "Linux".to_string(),
+        };
         let mut facts = BTreeMap::new();
         facts.insert(
             "theme dir".into(),

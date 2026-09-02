@@ -1313,6 +1313,7 @@ dependencies = [
  "cxx-qt-build",
  "cxx-qt-lib",
  "dirs",
+ "notify",
  "toml",
 ]
 

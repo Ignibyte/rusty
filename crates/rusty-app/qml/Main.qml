@@ -11,22 +11,89 @@ ApplicationWindow {
     height: 950
     title: "Rusty"
     color: theme.background
+    palette.window: theme.background
+    palette.windowText: theme.foreground
+    palette.base: Qt.darker(theme.background, 1.15)
+    palette.alternateBase: theme.background
+    palette.text: theme.foreground
+    palette.button: Qt.lighter(theme.background, 1.35)
+    palette.buttonText: theme.foreground
+    palette.highlight: theme.accent
+    palette.highlightedText: theme.background
+    palette.placeholderText: Qt.rgba(1, 1, 1, 0.35)
 
     Theme { id: theme }
+    Terminals { id: terminals }
 
-    readonly property var tabNames: ["Claude", "Codex", "Tasks", "Brain", "Notes", "Memory", "Skills", "Settings"]
+    // Agent tabs come first in the rail and the stack; the pages follow.
+    readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Settings"]
+    readonly property int tabCount: tabs.count + pageNames.length
+    function pageIndex(i) { return tabs.count + i }
+    function currentIsAgent() { return stack.currentIndex < tabs.count }
 
-    // Ctrl+PgUp / Ctrl+PgDn cycle tabs; neither is used by Claude Code or Codex.
-    Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabNames.length }
-    Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: stack.currentIndex = (stack.currentIndex + tabNames.length - 1) % tabNames.length }
+    ListModel { id: tabs }
+
+    Component.onCompleted: {
+        theme.watch()
+        const saved = JSON.parse(terminals.load())
+        for (const t of saved)
+            tabs.append({ name: t.name, session: t.session, program: t.program })
+        stack.currentIndex = Math.min(theme.startTab, tabCount - 1)
+    }
+
+    function saveTabs() {
+        const out = []
+        for (let i = 0; i < tabs.count; i++) {
+            const t = tabs.get(i)
+            out.push({ name: t.name, session: t.session, program: t.program })
+        }
+        terminals.save(JSON.stringify(out))
+    }
+
+    function takenSessions() {
+        const names = []
+        for (let i = 0; i < tabs.count; i++) names.push(tabs.get(i).session)
+        for (const s of terminals.sessions()) names.push(s)
+        return names
+    }
+
+    function addTab(name, program, session) {
+        const label = name.trim().length > 0 ? name.trim() : program.charAt(0).toUpperCase() + program.slice(1)
+        const sess = session.length > 0 ? session : terminals.sessionName(label, takenSessions())
+        tabs.append({ name: label, session: sess, program: program })
+        saveTabs()
+        stack.currentIndex = tabs.count - 1
+    }
+
+    function closeTab(i, endSession) {
+        if (i < 0 || i >= tabs.count) return
+        const sess = tabs.get(i).session
+        tabs.remove(i)
+        saveTabs()
+        if (endSession) terminals.endSession(sess)
+        if (stack.currentIndex >= tabCount) stack.currentIndex = tabCount - 1
+    }
+
+    function renameTab(i, name) {
+        if (i < 0 || i >= tabs.count || name.trim().length === 0) return
+        tabs.setProperty(i, "name", name.trim())
+        saveTabs()
+    }
+
+    // Ctrl+PgUp / Ctrl+PgDn cycle; Ctrl+Shift+T / Ctrl+Shift+W add and close agent tabs.
+    // None of these are used by Claude Code or Codex.
+    Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
+    Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: stack.currentIndex = (stack.currentIndex + tabCount - 1) % tabCount }
+    Shortcut { sequences: ["Ctrl+Shift+T"]; onActivated: newTabDialog.openFresh() }
+    Shortcut { sequences: ["Ctrl+Shift+W"]; onActivated: if (currentIsAgent()) closeTab(stack.currentIndex, false) }
+    Shortcut { sequences: ["F2"]; onActivated: if (currentIsAgent()) renameDialog.openFor(stack.currentIndex) }
 
     // One agent tab = one tmux session in the built-in terminal, coloured like Alacritty.
-    // Closing the window leaves the session running.
+    // Closing the tab or the window leaves the session running.
     component AgentTab: Item {
         id: tab
-        property string sessionName
-        property string program
-        property string label
+        required property string session
+        required property string program
         QMLTermWidget {
             id: term
             anchors.fill: parent
@@ -37,11 +104,84 @@ ApplicationWindow {
                 id: termSession
                 initialWorkingDirectory: theme.homeDir
                 shellProgram: "tmux"
-                shellProgramArgs: ["new-session", "-A", "-s", tab.sessionName, tab.program]
+                shellProgramArgs: ["new-session", "-A", "-s", tab.session, terminals.commandFor(tab.program)]
             }
-            Component.onCompleted: { termSession.startShellProgram(); term.forceActiveFocus() }
+            // An empty session name would make tmux attach to whatever session it used last.
+            Component.onCompleted: { if (tab.session.length > 0) termSession.startShellProgram(); term.forceActiveFocus() }
             QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: theme.accent; opacity: 0.4; radius: 4 } }
         }
+        function focusTerminal() { term.forceActiveFocus() }
+    }
+
+    component RailItem: Rectangle {
+        id: item
+        property string label
+        property int stackIndex
+        property bool agent: false
+        signal activated()
+        signal menuRequested()
+        Layout.fillWidth: true
+        height: 34
+        radius: 6
+        color: stack.currentIndex === stackIndex ? theme.accent : (hover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
+        Text {
+            anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12
+            anchors.right: parent.right; anchors.rightMargin: 8
+            text: item.label
+            elide: Text.ElideRight
+            color: stack.currentIndex === stackIndex ? theme.background : theme.foreground
+            font.pixelSize: 14
+        }
+        HoverHandler { id: hover }
+        TapHandler { acceptedButtons: Qt.LeftButton; onTapped: item.activated() }
+        TapHandler { acceptedButtons: Qt.RightButton; enabled: item.agent; onTapped: item.menuRequested() }
+    }
+
+    Menu {
+        id: tabMenu
+        property int tabIndex: -1
+        MenuItem { text: "Rename…"; onTriggered: renameDialog.openFor(tabMenu.tabIndex) }
+        MenuItem { text: "Close tab (keep session)"; onTriggered: closeTab(tabMenu.tabIndex, false) }
+        MenuItem { text: "Close tab and end session"; onTriggered: closeTab(tabMenu.tabIndex, true) }
+    }
+
+    Dialog {
+        id: newTabDialog
+        title: "New terminal"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        function openFresh() {
+            programBox.model = terminals.programs()
+            programBox.currentIndex = 0
+            sessionBox.model = ["new session"].concat(terminals.sessions())
+            sessionBox.currentIndex = 0
+            nameField.text = ""
+            open()
+            nameField.forceActiveFocus()
+        }
+        onAccepted: addTab(nameField.text, programBox.currentText, sessionBox.currentIndex > 0 ? sessionBox.currentText : "")
+        ColumnLayout {
+            spacing: 10
+            Label { text: "Name (optional)" }
+            TextField { id: nameField; Layout.preferredWidth: 320; placeholderText: "Claude 2, Codex for droost, Scratch shell"; onAccepted: newTabDialog.accept() }
+            Label { text: "Agent" }
+            ComboBox { id: programBox; Layout.preferredWidth: 320 }
+            Label { text: "Session" }
+            ComboBox { id: sessionBox; Layout.preferredWidth: 320 }
+        }
+    }
+
+    Dialog {
+        id: renameDialog
+        title: "Rename tab"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property int tabIndex: -1
+        function openFor(i) { tabIndex = i; renameField.text = tabs.get(i).name; open(); renameField.forceActiveFocus(); renameField.selectAll() }
+        onAccepted: renameTab(tabIndex, renameField.text)
+        TextField { id: renameField; width: 320; onAccepted: renameDialog.accept() }
     }
 
     RowLayout {
@@ -58,22 +198,35 @@ ApplicationWindow {
                 spacing: 4
                 Text { text: "Rusty"; color: theme.accent; font.pixelSize: 20; font.bold: true; Layout.bottomMargin: 10; Layout.leftMargin: 6 }
                 Repeater {
-                    model: tabNames
-                    delegate: Rectangle {
+                    model: tabs
+                    delegate: RailItem {
+                        required property int index
+                        required property string name
+                        label: name
+                        stackIndex: index
+                        agent: true
+                        onActivated: stack.currentIndex = index
+                        onMenuRequested: { tabMenu.tabIndex = index; tabMenu.popup() }
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 28
+                    radius: 6
+                    color: addHover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+                    Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12; text: "+ terminal"; color: theme.foreground; opacity: 0.7; font.pixelSize: 13 }
+                    HoverHandler { id: addHover }
+                    TapHandler { onTapped: newTabDialog.openFresh() }
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: theme.accent; opacity: 0.25; Layout.topMargin: 6; Layout.bottomMargin: 6 }
+                Repeater {
+                    model: pageNames
+                    delegate: RailItem {
                         required property int index
                         required property string modelData
-                        Layout.fillWidth: true
-                        height: 34
-                        radius: 6
-                        color: stack.currentIndex === index ? theme.accent : (hover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12
-                            text: modelData
-                            color: stack.currentIndex === index ? theme.background : theme.foreground
-                            font.pixelSize: 14
-                        }
-                        HoverHandler { id: hover }
-                        TapHandler { onTapped: stack.currentIndex = index }
+                        label: modelData
+                        stackIndex: pageIndex(index)
+                        onActivated: stack.currentIndex = pageIndex(index)
                     }
                 }
                 Item { Layout.fillHeight: true }
@@ -86,9 +239,17 @@ ApplicationWindow {
             id: stack
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: theme.startTab
-            AgentTab { sessionName: "rusty-claude"; program: "claude"; label: "Claude" }
-            AgentTab { sessionName: "rusty-codex"; program: "codex"; label: "Codex" }
+            onCurrentIndexChanged: {
+                if (currentIsAgent()) {
+                    const item = agentTabs.itemAt(currentIndex)
+                    if (item) item.focusTerminal()
+                }
+            }
+            Repeater {
+                id: agentTabs
+                model: tabs
+                delegate: AgentTab {}
+            }
             Repeater {
                 model: ["Tasks", "Brain", "Notes", "Memory", "Skills"]
                 delegate: Rectangle {
@@ -106,7 +267,8 @@ ApplicationWindow {
                     spacing: 10
                     Text { text: "Settings"; color: theme.foreground; font.pixelSize: 22; font.bold: true }
                     Text { text: "Nothing to configure yet. Settings land with the features that need them: paths and theme (M2), embedding provider (M4), skills and secrets (M5)."; color: theme.foreground; opacity: 0.75; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.preferredWidth: 640 }
-                    Text { text: theme.facts; color: theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
+                    Text { text: theme.facts + "\ntabs file: " + terminals.tabsPath; color: theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
+                    Text { text: "Ctrl+Shift+T new terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn switch"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12 }
                     Button { text: "Re-read theme"; onClicked: theme.reload() }
                 }
             }

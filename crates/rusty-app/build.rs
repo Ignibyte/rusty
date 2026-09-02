@@ -9,7 +9,7 @@ fn main() {
             .version(1, 0)
             .qml_file("qml/Main.qml"),
     )
-    .file("src/theme.rs")
+    .files(["src/theme.rs", "src/terminals.rs"])
     .qt_module("Quick")
     .qt_module("Qml");
     // SAFETY: the closure only adds a diagnostic flag. It touches no include paths,

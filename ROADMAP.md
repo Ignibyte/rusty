@@ -96,11 +96,14 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       prototype's QML ported, `Theme` served from Rust (binary `rusty`, app_id
       `com.ignibyte.rusty`)
 - [ ] MCP client over Streamable HTTP with typed models for the tabs
-- [ ] Terminals: qmltermwidget per tab, one tmux session per tab, new tab and rename, close,
-      pick the agent (Claude, Codex, shell), list existing sessions
-- [ ] Terminal colours from the Omarchy theme through a registered scheme directory, no
-      root-owned file; font from the Alacritty config
-- [ ] Live re-theme through `~/.config/omarchy/hooks/theme-set`
+- [x] Terminals: qmltermwidget per tab, one tmux session per tab, new tab and rename, close
+      (keeping or ending the session), pick the agent (Claude, Codex, shell), attach an
+      existing session; tabs persist in `~/.config/rusty/tabs.json`; Ctrl+Shift+T/W, F2
+- [x] Terminal colours from the Omarchy theme: the scheme is generated into
+      `~/.config/rusty/color-schemes` and the widget is pointed there with `COLORSCHEMES_DIR`,
+      no root-owned file; font from the Alacritty config
+- [x] Live re-theme: the app watches `~/.config/omarchy/current` and reloads when
+      `omarchy theme set` repoints the theme link (no hook script to install)
 - [ ] Tasks: lists, quick add, toggle, archive, rename, reorder, keyboard first, live updates
       from notifications
 - [ ] Settings page: paths, theme and terminal font shown; the first editable settings

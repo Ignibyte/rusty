@@ -7,6 +7,7 @@
 //! comes from `rusty-mcp` over local HTTP; the app holds no store of its own.
 
 mod omarchy;
+mod terminals;
 mod theme;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
@@ -15,6 +16,13 @@ fn main() {
     // Wayland first on Omarchy; Qt still falls back to X11 when there is no compositor.
     if std::env::var_os("QT_QPA_PLATFORM").is_none() {
         std::env::set_var("QT_QPA_PLATFORM", "wayland;xcb");
+    }
+    // The terminal widget lists colour schemes from the directory named by this
+    // variable, so the scheme generated from the Omarchy theme is found there.
+    if std::env::var_os("COLORSCHEMES_DIR").is_none() {
+        let dir = omarchy::scheme_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        std::env::set_var("COLORSCHEMES_DIR", &dir);
     }
     let mut app = QGuiApplication::new();
     if let Some(mut app) = app.as_mut() {

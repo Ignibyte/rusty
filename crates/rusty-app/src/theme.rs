@@ -3,7 +3,11 @@
 //! is what the theme-set hook will call when Omarchy changes theme.
 
 use core::pin::Pin;
+use std::time::Duration;
+
+use cxx_qt::Threading;
 use cxx_qt_lib::QString;
+use notify::Watcher;
 
 use crate::omarchy::Look;
 
@@ -33,7 +37,13 @@ mod qobject {
         /// Re-read the Omarchy theme, font and scheme.
         #[qinvokable]
         fn reload(self: Pin<&mut Theme>);
+
+        /// Follow `omarchy theme set`: watch the current-theme link and reload on change.
+        #[qinvokable]
+        fn watch(self: Pin<&mut Theme>);
     }
+
+    impl cxx_qt::Threading for Theme {}
 }
 
 /// The Rust side of [`qobject::Theme`].
@@ -98,6 +108,39 @@ fn start_tab_from_env() -> i32 {
 }
 
 impl qobject::Theme {
+    /// Watch `~/.config/omarchy/current` from a background thread. Omarchy repoints the
+    /// `theme` link there on `omarchy theme set`; every change is coalesced for a moment
+    /// and then `reload()` runs on the Qt thread. Safe to call once per object.
+    pub fn watch(self: Pin<&mut Self>) {
+        let qt_thread = self.qt_thread();
+        let dir = crate::omarchy::theme_dir()
+            .parent()
+            .map(std::path::Path::to_path_buf);
+        let Some(dir) = dir else {
+            return;
+        };
+        std::thread::spawn(move || {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let Ok(mut watcher) = notify::recommended_watcher(move |event| {
+                let _ = tx.send(event);
+            }) else {
+                return;
+            };
+            if watcher
+                .watch(&dir, notify::RecursiveMode::NonRecursive)
+                .is_err()
+            {
+                return;
+            }
+            while rx.recv().is_ok() {
+                // Omarchy touches several files per theme switch; wait for the burst to end.
+                std::thread::sleep(Duration::from_millis(400));
+                while rx.try_recv().is_ok() {}
+                let _ = qt_thread.queue(|theme| theme.reload());
+            }
+        });
+    }
+
     /// Re-read the desktop and push every property, so bindings update.
     pub fn reload(mut self: Pin<&mut Self>) {
         let look = Look::gather();
