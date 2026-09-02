@@ -13,6 +13,7 @@ from the earlier web version; the QML app is next. See `ROADMAP.md` for the plan
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
 crates/rusty-mcp    the back end: an MCP server on rmcp, 57 tools, stdio and local Streamable HTTP
+crates/rusty-app    the desktop app: a QML shell on cxx-qt with native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 prototype/          a PySide6 spike for the terminal tab and Omarchy theming; deleted once the app exists
 docs/               architecture and vault rules

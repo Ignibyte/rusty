@@ -18,6 +18,15 @@ need curl
 echo "==> building rusty-mcp and rusty-cli into $bin"
 cargo install --path "$repo/crates/rusty-mcp" --root "$HOME/.local" --force --locked
 cargo install --path "$repo/crates/rusty-cli" --root "$HOME/.local" --force --locked
+if pkg-config --exists Qt6Quick 2>/dev/null || command -v qmake6 >/dev/null 2>&1; then
+  echo "==> building the desktop app (rusty)"
+  cargo install --path "$repo/crates/rusty-app" --root "$HOME/.local" --force --locked
+  install -Dm644 "$here/com.ignibyte.rusty.desktop" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
+  sed -i "s|^Exec=.*|Exec=$bin/rusty|" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
+  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+else
+  echo "==> qt6-base and qt6-declarative are not installed; skipping the desktop app"
+fi
 case ":$PATH:" in
   *":$bin:"*) ;;
   *) echo "    note: $bin is not on PATH yet" ;;

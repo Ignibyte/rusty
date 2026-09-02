@@ -92,7 +92,9 @@ Cutover for the back end
 
 Done when the app replaces a terminal for daily Claude and Codex use.
 
-- [ ] `rusty-app` crate: cxx-qt on Qt 6, one window, side rail, tab stack
+- [x] `rusty-app` crate: cxx-qt 0.10 on Qt 6.11, one window, side rail, tab stack; the
+      prototype's QML ported, `Theme` served from Rust (binary `rusty`, app_id
+      `com.ignibyte.rusty`)
 - [ ] MCP client over Streamable HTTP with typed models for the tabs
 - [ ] Terminals: qmltermwidget per tab, one tmux session per tab, new tab and rename, close,
       pick the agent (Claude, Codex, shell), list existing sessions
@@ -103,6 +105,8 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       from notifications
 - [ ] Settings page: paths, theme and terminal font shown; the first editable settings
 - [ ] Desktop entry, icon, stable `app_id`, `omarchy launch or focus rusty`, a default key
+      (entry `omarchy/com.ignibyte.rusty.desktop` and the app_id are in; icon, focus
+      command and key still to do)
 - [ ] Delete the prototype
 
 ## M3. Knowledge tabs

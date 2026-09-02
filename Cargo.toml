@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["crates/rusty-core", "crates/rusty-mcp", "crates/rusty-cli"]
+members = ["crates/rusty-core", "crates/rusty-mcp", "crates/rusty-cli",
+    "crates/rusty-app"]
 
 [workspace.package]
 version = "3.0.0-alpha.1"
