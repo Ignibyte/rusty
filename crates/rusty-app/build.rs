@@ -14,6 +14,8 @@ fn main() {
                 "qml/BrainPage.qml",
                 "qml/NotesPage.qml",
                 "qml/MemoryPage.qml",
+                "qml/SkillsPage.qml",
+                "qml/SecretsPage.qml",
                 "qml/SettingsPage.qml",
             ]),
     )

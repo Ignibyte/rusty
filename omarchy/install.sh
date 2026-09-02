@@ -15,6 +15,24 @@ need cargo
 need systemctl
 need curl
 
+echo "==> dependencies"
+missing=()
+for pkg in tmux qt6-base qt6-declarative qmltermwidget; do
+  pacman -Q "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+done
+if [ "${#missing[@]}" -gt 0 ]; then
+  if command -v omarchy >/dev/null 2>&1; then
+    echo "    installing: ${missing[*]}"
+    omarchy pkg add "${missing[@]}"
+  else
+    echo "    install these first: ${missing[*]}" >&2
+    exit 1
+  fi
+else
+  echo "    tmux, qt6-base, qt6-declarative, qmltermwidget: present"
+fi
+command -v obsidian >/dev/null 2>&1 || echo "    obsidian: not installed (optional; the obsidian_* tools will say so)"
+
 echo "==> building rusty-mcp and rusty-cli into $bin"
 cargo install --path "$repo/crates/rusty-mcp" --root "$HOME/.local" --force --locked
 cargo install --path "$repo/crates/rusty-cli" --root "$HOME/.local" --force --locked

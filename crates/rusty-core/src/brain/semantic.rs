@@ -24,8 +24,11 @@ pub const SETTING_PROVIDER: &str = "embedding_provider";
 pub const SETTING_MODEL: &str = "embedding_model";
 /// Setting: where Ollama listens.
 pub const SETTING_OLLAMA_URL: &str = "ollama_url";
-/// Secret: the OpenAI key, read from the vault and never returned by any tool.
+/// Secret: the OpenAI key, read from the vault and never returned by any tool. The
+/// upper-case spelling many vaults already hold is accepted too.
 pub const SECRET_OPENAI_KEY: &str = "openai_api_key";
+/// The other spelling of [`SECRET_OPENAI_KEY`].
+pub const SECRET_OPENAI_KEY_UPPER: &str = "OPENAI_API_KEY";
 /// Ollama's default address.
 pub const DEFAULT_OLLAMA_URL: &str = "http://127.0.0.1:11434";
 /// Ollama's default embedding model.
@@ -200,12 +203,15 @@ pub fn resolve_embedder(
     match provider.trim().to_ascii_lowercase().as_str() {
         "off" | "none" | "false" => None,
         "ollama" => Some(ollama(model)),
-        "openai" => secrets.get(SECRET_OPENAI_KEY).map(|key| {
-            Arc::new(OpenAiEmbedder::new(
-                key,
-                model.unwrap_or_else(|| DEFAULT_OPENAI_MODEL.to_string()),
-            )) as Arc<dyn Embedder>
-        }),
+        "openai" => secrets
+            .get(SECRET_OPENAI_KEY)
+            .or_else(|| secrets.get(SECRET_OPENAI_KEY_UPPER))
+            .map(|key| {
+                Arc::new(OpenAiEmbedder::new(
+                    key,
+                    model.unwrap_or_else(|| DEFAULT_OPENAI_MODEL.to_string()),
+                )) as Arc<dyn Embedder>
+            }),
         _ => OllamaEmbedder::is_up(&ollama_url).then(|| ollama(model)),
     }
 }

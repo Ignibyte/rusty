@@ -27,7 +27,7 @@ ApplicationWindow {
     Backend { id: backend }
 
     // Agent tabs come first in the rail and the stack; the pages follow.
-    readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Settings"]
+    readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Secrets", "Settings"]
     readonly property int tabCount: tabs.count + pageNames.length
     function pageIndex(i) { return tabs.count + i }
     function currentIsAgent() { return stack.currentIndex < tabs.count }
@@ -255,6 +255,10 @@ ApplicationWindow {
                     notesPage.focusEntry()
                 } else if (currentIndex === pageIndex(3)) {
                     memoryPage.focusEntry()
+                } else if (currentIndex === pageIndex(4)) {
+                    skillsPage.focusEntry()
+                } else if (currentIndex === pageIndex(5)) {
+                    secretsPage.focusEntry()
                 }
             }
             Repeater {
@@ -266,14 +270,8 @@ ApplicationWindow {
             BrainPage { id: brainPage; backend: backend; theme: theme }
             NotesPage { id: notesPage; backend: backend; theme: theme }
             MemoryPage { id: memoryPage; backend: backend; theme: theme }
-            Repeater {
-                model: ["Skills"]
-                delegate: Rectangle {
-                    required property string modelData
-                    color: theme.background
-                    Text { anchors.centerIn: parent; text: modelData + " tab arrives with M5"; color: theme.foreground; font.pixelSize: 16 }
-                }
-            }
+            SkillsPage { id: skillsPage; backend: backend; theme: theme }
+            SecretsPage { id: secretsPage; backend: backend; theme: theme }
             SettingsPage { backend: backend; theme: theme; terminals: terminals }
         }
     }

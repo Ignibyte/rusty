@@ -15,8 +15,8 @@ The shape is in `docs/architecture.md`.
 | M2 App shell, Terminals, Tasks | done 2026-09-02 |
 | M3 Knowledge tabs: Brain, Notes, Memory | done 2026-09-02 |
 | M4 Semantic search | done 2026-09-02 |
-| M5 Skills, Secrets, Settings | next |
-| M6 Omarchy packaging and cutover | |
+| M5 Skills, Secrets, Settings | done 2026-09-02 |
+| M6 Omarchy packaging and cutover | next |
 
 ## M0. Foundation (done 2026-09-02)
 
@@ -147,17 +147,22 @@ Done when the app replaces a terminal for daily Claude and Codex use.
 - [x] Settings entries: `embedding_provider`, `embedding_model`, `ollama_url`; the key lives in
       the secrets vault as `openai_api_key`
 
-## M5. Skills, Secrets, Settings
+## M5. Skills, Secrets, Settings (done 2026-09-02)
 
-- [ ] Skills: editor inside the app, frontmatter as a form, body in an editor, staging and
-      approval, the safety scan, delete
-- [ ] Secrets: names listed, set and delete, a value never rendered after entry
-- [ ] Settings: every setting the earlier milestones introduced, in one place
+- [x] Skills: list with status and origin, description and body edited in place (Ctrl+S saves),
+      new skill (active or staged), safety scan with findings shown, approve (or approve
+      anyway), reject, delete
+- [x] Secrets: names listed, set or replace (typed into a password field), delete with confirm;
+      no value is ever rendered or returned
+- [x] Settings: every key the back end reads, with what it means and its default, editable in
+      place; other stored keys below; the machine's theme, font, scheme, tabs file and back end
 
 ## M6. Omarchy packaging and cutover
 
-- [ ] `omarchy/install.sh`: dependencies through `omarchy pkg add`, the desktop entry, a
-      keybinding snippet, the theme hook, the MCP config snippet, the user service
+- [x] `omarchy/install.sh`: dependencies through `omarchy pkg add`, the binaries, the desktop
+      entry and icon, the keybinding snippet (pointed at, not applied), the MCP config snippet,
+      the user service, the Obsidian registration; no theme hook is needed, the app watches
+      the theme link itself
 - [ ] A package for the Omarchy or AUR channel once the installer is boring
 - [ ] Retire the v2 web UI and server; swap the repo directories on the dev box
 - [ ] Docs, screenshots, first release
