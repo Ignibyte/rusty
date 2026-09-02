@@ -59,9 +59,11 @@ Tools and resources
 
 Transport and services
 
-- [ ] A `systemd --user` unit for `rusty-mcp --http`, enabled by the installer
-- [ ] MCP config snippets for Claude Code and Codex (stdio and HTTP)
-- [ ] `rusty-cli` ported onto `rusty-core` (brain, tasks, notes, refresh)
+- [x] A `systemd --user` unit for `rusty-mcp --http` (`omarchy/rusty-mcp.service`; running on
+      the dev box)
+- [ ] The installer enables it
+- [x] MCP config snippets for Claude Code and Codex (`omarchy/mcp-config.json`)
+- [x] `rusty-cli` ported onto `rusty-core`, installed over the v2 binary
 
 Obsidian and the vault
 
@@ -74,8 +76,8 @@ Obsidian and the vault
 
 Cutover for the back end
 
-- [ ] Parity check against v2's tool list
-- [ ] Switch the dev box's `.mcp.json` to v3 and retire the v2 `rusty-mcp`
+- [x] Parity check against v2's tool list: all 29 present
+- [x] Switch the dev box's `.mcp.json` to v3 and retire the v2 `rusty-mcp`
 
 ## M2. App shell, Terminals, Tasks
 
