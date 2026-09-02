@@ -1,0 +1,103 @@
+# Architecture
+
+*Set on 2026-09-02. A plan, not a spec; ROADMAP.md carries the sequence.*
+
+## The three decisions
+
+1. **The web UI goes.** React, Vite, the axum server, the password gate, TLS and the
+   PTY-over-WebSocket transport are retired. The front end is Qt Quick (QML).
+2. **The back end is a pure MCP server.** One `rusty-mcp` process owns tasks, notes,
+   memories, the brain index, skills and settings, and serves both the QML app and the
+   Claude and Codex sessions.
+3. **A tabbed QML app with native terminals.** The same tabs the web UI had (Tasks, Chat,
+   Brain, Notes, Memory, Skills, Secrets, Settings), where Chat is one or more real
+   terminals running `claude` or `codex`, as in Alacritty.
+
+## What Obsidian offers (checked 2026-09-02)
+
+- **Official CLI, shipped February 2026.** `obsidian <command> key=value`, available on Linux
+  as `~/.local/bin/obsidian` from Obsidian 1.12.4; this box runs 1.13.7. It talks to the
+  running app over a local socket, and the first command launches the app if it is not
+  running. Commands cover read, create, append, search (`format=json`), properties, tags,
+  links and backlinks, tasks, daily notes, templates, bookmarks, plugins, and running any
+  command-palette action by id. Vault selection is `vault=<name>`. Moving a file through
+  it rewrites wikilinks. A separate "Obsidian Headless" exists for sync only.
+- **No official MCP server.** The ecosystem is the community Local REST API plugin (HTTPS on
+  127.0.0.1:27124 with an API key) plus several MCP wrappers around it, and two plugins that
+  run an MCP server inside the app. All of them need the app open.
+- **A vault is a folder of markdown.** Frontmatter, `[[wikilinks]]`, folders. Rusty's brain
+  is already that: 237 pages under `~/.rusty/brain`, frontmatter with `title`, `type`,
+  `created`, `updated`, wikilinks in 65 pages. Obsidian can open it today; it would add a
+  `.obsidian/` folder for its own settings.
+
+So "Obsidian as the back end" resolves to: **the vault files are the back end**, Obsidian is
+the human editor, graph and (with Sync) the phone, and Rusty keeps its own index so the
+agents can search and write when Obsidian is closed. Where the app is open, Rusty can lean
+on the CLI for the things only the app knows well: opening a note in the editor, link
+rewrites on rename, backlinks as Obsidian resolves them, command-palette actions.
+
+## Proposed shape
+
+```
+ ┌──────────────────────── rusty (QML, cxx-qt) ─────────────────────────┐
+ │ Tasks │ Terminals (claude, codex) │ Brain │ Notes │ Memory │ Skills │ … │
+ └───────────────┬───────────────────────────────┬──────────────────────┘
+                 │ MCP client (rmcp, Streamable HTTP, localhost)          │ qmltermwidget
+                 ▼                                                        ▼ PTY
+        rusty-mcp (rmcp server: stdio for agents, HTTP for the app)   tmux sessions
+                 │ files + SQLite index + file watcher                    │ claude / codex
+                 ▼                                                        ▼ --mcp-config → rusty-mcp
+        ~/.rusty/brain (Obsidian vault) · notes · rusty.db · skills · .secret
+                 ▲
+        Obsidian app (editor, graph, mobile via Sync) · `obsidian` CLI when open
+```
+
+- **Back end.** Rebuild `rusty-mcp` on `rmcp` (the official Rust MCP SDK, 3.2 on
+  crates.io) with two transports: stdio, so a Claude or Codex session spawns it as today,
+  and Streamable HTTP on localhost, so the app and every terminal session share one live
+  process and one file watcher. Resources for pages, notes and tasks; tools for the writes;
+  `resources/updated` notifications replace the old WebSocket event bus. The existing
+  managers in `rusty_lib` carry over; `web.rs`, `auth.rs`, `tls.rs` and the frontend go.
+- **Front end.** QML on Qt 6 with `cxx-qt` exposing Rust models: task list, note tree, page
+  search results, memory list, skills catalog, settings. The Brain tab is search plus a
+  rendered read view (QML `TextArea` renders markdown; anything richer opens in Obsidian
+  through the CLI). Theme colours come from `~/.config/omarchy/current/theme/colors.toml`.
+- **Terminals.** `qmltermwidget` (Konsole's emulator, Qt 6, in Arch extra) per terminal tab.
+  Each tab attaches to a tmux session (`tmux new -A -s rusty-<name> claude`), so sessions
+  survive an app restart and are reachable from any terminal or over SSH, the way the
+  `ssh_mac` and `ssh_ai` wrappers already work. That retires `ignibyte-bridge` from Rusty's
+  hot path; the bridge stays a separate tool. Codex is the same tab with a different command.
+- **Obsidian.** Register `~/.rusty/brain` as a vault, commit `.obsidian/` or gitignore it
+  (decide), keep Rusty's brain writer producing Obsidian-clean markdown, and add a handful
+  of MCP tools that shell out to the CLI when the app is open: `open_in_obsidian`,
+  `rename_page` (link-safe), `backlinks`.
+
+## What has to change in the vault rules
+
+- Rusty treats a body `---` as the Timeline delimiter (brain rule 1 in
+  the v2 vault notes). Obsidian users type `---` for a horizontal rule. v3 should
+  store the timeline as a normal `## Timeline` section and drop the delimiter trick.
+- Wikilinks: Rusty uses `[[folder/slug]]`; Obsidian resolves both bare names and paths, but
+  the "shortest path when possible" default would write `[[slug]]`. Set the vault's link
+  format to relative or absolute path so both writers agree.
+
+## Phases
+
+1. **Prototype the two unknowns in a day**, in Python: PySide6 window, `qmltermwidget`
+   running `claude` inside tmux, one placeholder data tab, Omarchy theme colours. Install
+   `qt6-wayland` first. This settles terminal quality and the tmux attach flow before any
+   Rust is written.
+2. **Back end first.** `rusty-mcp` on `rmcp` with both transports, resources and
+   notifications, plus the CLI-backed Obsidian tools. The old server keeps running until
+   the app replaces it. Gates stay: fmt, clippy, tests, docs.
+3. **The app**, one tab at a time, starting with Terminals and Tasks. `.desktop` entry, icon,
+   `app_id` for Hyprland rules, `omarchy launch or focus rusty`, a key.
+4. **Retire the web stack** and the launchd-era scripts; update `docs/ops` and CLAUDE.md.
+
+## Open decisions
+
+- tmux as the session substrate (proposed) versus the bridge or plain PTYs.
+- cxx-qt in Rust for the app versus PySide6 for good; the prototype will show whether
+  Python is enough for the models, and Rust wins if the MCP client and the app share code.
+- Where secrets live once the Secrets tab is native: keep `~/.rusty/.secret` as is.
+- Whether the Mac gets the app at all (Qt builds fine there) or stays a Codex and browser box.

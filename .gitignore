@@ -1,0 +1,9 @@
+/target
+/prototype/__pycache__
+*.pyc
+.venv
+node_modules
+dist
+.env
+.env.*
+.mcp.json

@@ -1,0 +1,1782 @@
+//! Brain engine: entity-centric knowledge base with FTS5 search.
+//!
+//! Combines a markdown vault on disk (`~/.rusty/brain/`) with a SQLite index
+//! for fast full-text search, graph queries, and metadata lookups. Markdown files
+//! are the source of truth; the database is a derived index that can be rebuilt
+//! from the vault at any time.
+
+pub mod enrichment;
+pub mod frontmatter;
+pub mod vault;
+
+use crate::engine::db::Database;
+use frontmatter::{parse_page, render_page, BrainFrontmatter};
+use sha2::{Digest, Sha256};
+use std::path::PathBuf;
+use std::sync::Arc;
+use vault::{title_to_slug, type_to_dir, VaultManager};
+
+/// A full brain page with parsed content.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BrainPage {
+    /// Canonical slug (e.g., "people/sarah-chen").
+    pub slug: String,
+    /// Entity type (person, company, project, etc.).
+    pub page_type: String,
+    /// Page title.
+    pub title: String,
+    /// Synthesized knowledge (above the separator).
+    pub compiled_truth: String,
+    /// Append-only evidence log (below the separator).
+    pub timeline: String,
+    /// Parsed YAML frontmatter.
+    pub frontmatter: BrainFrontmatter,
+    /// SHA-256 hash of the raw file content.
+    pub content_hash: String,
+    /// Unix timestamp of creation.
+    pub created_at: i64,
+    /// Unix timestamp of last update.
+    pub updated_at: i64,
+}
+
+/// Summary of a brain page for list views.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BrainPageSummary {
+    /// Canonical slug.
+    pub slug: String,
+    /// Entity type.
+    pub page_type: String,
+    /// Page title.
+    pub title: String,
+    /// Unix timestamp of last update.
+    pub updated_at: i64,
+}
+
+/// A search result from FTS5 queries.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BrainSearchResult {
+    /// Page slug.
+    pub slug: String,
+    /// Entity type.
+    pub page_type: String,
+    /// Page title.
+    pub title: String,
+    /// Matching text snippet.
+    pub snippet: String,
+    /// BM25 relevance rank (lower is more relevant).
+    pub rank: f64,
+}
+
+/// A timeline entry for a brain page.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TimelineEntry {
+    /// Row ID.
+    pub id: i64,
+    /// Page slug.
+    pub slug: String,
+    /// ISO date of the event.
+    pub date: String,
+    /// Source of the entry (conversation, meeting, manual, etc.).
+    pub source: String,
+    /// Short summary.
+    pub summary: String,
+    /// Detailed content.
+    pub detail: String,
+    /// Unix timestamp when this entry was created.
+    pub created_at: i64,
+}
+
+/// A link between two brain pages.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LinkEntry {
+    /// Source page slug.
+    pub from_slug: String,
+    /// Target page slug.
+    pub to_slug: String,
+    /// Link type (reference, works_at, invested_in, etc.).
+    pub link_type: String,
+    /// Context text.
+    pub context: String,
+}
+
+/// Outbound links and backlinks for a page.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PageLinks {
+    /// Links from this page to other pages.
+    pub outbound: Vec<LinkEntry>,
+    /// Links from other pages to this page.
+    pub backlinks: Vec<LinkEntry>,
+}
+
+/// Brain statistics.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BrainStats {
+    /// Total number of pages.
+    pub page_count: i64,
+    /// Total number of links.
+    pub link_count: i64,
+    /// Number of distinct tags.
+    pub tag_count: i64,
+    /// Total timeline entries.
+    pub timeline_count: i64,
+    /// Pages grouped by type.
+    pub pages_by_type: std::collections::HashMap<String, i64>,
+}
+
+/// Manages brain pages: CRUD, search, and sync between vault and SQLite index.
+pub struct BrainManager {
+    db: Arc<Database>,
+    vault: VaultManager,
+}
+
+impl BrainManager {
+    /// Create a new BrainManager.
+    pub fn new(db: Arc<Database>, vault_path: PathBuf) -> Self {
+        Self {
+            db,
+            vault: VaultManager::new(vault_path),
+        }
+    }
+
+    /// Ensure all vault directories exist and default templates are created.
+    pub fn ensure_vault(&self) -> Result<(), String> {
+        self.vault.ensure_dirs()?;
+        self.write_default_templates();
+        Ok(())
+    }
+
+    /// Wait for pending vault git commits to finish.
+    ///
+    /// Brain writes auto-commit in a background thread; a short-lived process
+    /// (rusty-cli) must call this before exit so the commit isn't dropped.
+    pub fn flush_commits(&self) {
+        self.vault.flush_commits();
+    }
+
+    /// The shared database handle, for components that need direct access to the
+    /// same connection (e.g. the conversation archive).
+    pub fn db(&self) -> Arc<crate::engine::db::Database> {
+        Arc::clone(&self.db)
+    }
+
+    /// Create a new brain page.
+    ///
+    /// Generates a slug from the type and title, writes the markdown file,
+    /// and indexes it in SQLite.
+    pub fn create_page(
+        &self,
+        page_type: &str,
+        title: &str,
+        content: &str,
+    ) -> Result<BrainPage, String> {
+        let dir = type_to_dir(page_type)?;
+        let base_slug = title_to_slug(title)?;
+        let slug = self.unique_slug(dir, &base_slug)?;
+
+        let fm = BrainFrontmatter::new(page_type, title);
+        // Use template content if no content provided
+        let page_content = if content.is_empty() {
+            self.load_template(page_type).unwrap_or_default()
+        } else {
+            content.to_string()
+        };
+        let raw = render_page(&fm, &page_content, "")?;
+
+        // Write to vault
+        self.vault.write_page(&slug, &raw)?;
+
+        // Index in SQLite
+        let hash = compute_hash(&raw);
+        let now = unix_now();
+        self.index_page(&IndexEntry {
+            slug: &slug,
+            page_type,
+            title,
+            content: &page_content,
+            hash: &hash,
+            created_at: now,
+            updated_at: now,
+        })?;
+
+        // Index aliases and tags from frontmatter
+        self.sync_aliases(&slug, &fm.aliases)?;
+        self.sync_tags(&slug, &fm.tags)?;
+
+        // Auto-commit
+        self.vault
+            .git_commit(&format!("create: {title} ({page_type})"));
+
+        Ok(BrainPage {
+            slug,
+            page_type: page_type.to_string(),
+            title: title.to_string(),
+            compiled_truth: page_content,
+            timeline: String::new(),
+            frontmatter: fm,
+            content_hash: hash,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+
+    /// Read a brain page by slug.
+    ///
+    /// Reads from the filesystem and parses frontmatter + content sections.
+    pub fn read_page(&self, slug: &str) -> Result<Option<BrainPage>, String> {
+        let raw = match self.vault.read_page(slug)? {
+            Some(content) => content,
+            None => return Ok(None),
+        };
+
+        let parsed = parse_page(&raw)?;
+        let hash = compute_hash(&raw);
+
+        // Get timestamps from index (fall back to 0 if not indexed)
+        let (created_at, updated_at) = self.get_timestamps(slug).unwrap_or((0, 0));
+
+        Ok(Some(BrainPage {
+            slug: slug.to_string(),
+            page_type: parsed.frontmatter.page_type.clone(),
+            title: parsed.frontmatter.title.clone(),
+            compiled_truth: parsed.compiled_truth,
+            timeline: parsed.timeline,
+            frontmatter: parsed.frontmatter,
+            content_hash: hash,
+            created_at,
+            updated_at,
+        }))
+    }
+
+    /// Update a brain page's content.
+    ///
+    /// Snapshots the current version before overwriting.
+    pub fn update_page(&self, slug: &str, content: &str) -> Result<BrainPage, String> {
+        // Read current state
+        let current_raw = self
+            .vault
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found: {slug}"))?;
+
+        // Snapshot current version
+        let current_parsed = parse_page(&current_raw)?;
+        self.create_version(slug, &current_raw, &current_parsed.frontmatter)?;
+
+        // Update frontmatter's updated date
+        let mut fm = current_parsed.frontmatter;
+        let today = frontmatter::BrainFrontmatter::new("", "").updated;
+        fm.updated = today;
+
+        // Render and write
+        let raw = render_page(&fm, content, &current_parsed.timeline)?;
+        self.vault.write_page(slug, &raw)?;
+
+        // Re-index
+        let hash = compute_hash(&raw);
+        let now = unix_now();
+        let created = self.get_timestamps(slug).map(|(c, _)| c).unwrap_or(now);
+        self.remove_from_index(slug)?;
+        let full_content = if current_parsed.timeline.is_empty() {
+            content.to_string()
+        } else {
+            format!("{content}\n\n{}", current_parsed.timeline)
+        };
+        self.index_page(&IndexEntry {
+            slug,
+            page_type: &fm.page_type,
+            title: &fm.title,
+            content: &full_content,
+            hash: &hash,
+            created_at: created,
+            updated_at: now,
+        })?;
+
+        // Re-sync aliases and tags
+        self.sync_aliases(slug, &fm.aliases)?;
+        self.sync_tags(slug, &fm.tags)?;
+
+        // Auto-commit
+        self.vault.git_commit(&format!("update: {}", fm.title));
+
+        Ok(BrainPage {
+            slug: slug.to_string(),
+            page_type: fm.page_type.clone(),
+            title: fm.title.clone(),
+            compiled_truth: content.to_string(),
+            timeline: current_parsed.timeline,
+            frontmatter: fm,
+            content_hash: hash,
+            created_at: created,
+            updated_at: now,
+        })
+    }
+
+    /// Soft-delete a brain page (move to archive/, remove from index).
+    pub fn delete_page(&self, slug: &str) -> Result<(), String> {
+        self.vault.delete_page(slug)?;
+        self.remove_from_index(slug)?;
+        self.vault.git_commit(&format!("delete: {slug}"));
+        Ok(())
+    }
+
+    /// List brain pages with optional type filter.
+    pub fn list_pages(
+        &self,
+        page_type: Option<&str>,
+        limit: Option<usize>,
+    ) -> Result<Vec<BrainPageSummary>, String> {
+        let conn = self.db.conn()?;
+        let lim = limit.unwrap_or(50) as i64;
+
+        let mut pages = Vec::new();
+
+        if let Some(pt) = page_type {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT slug, page_type, title, updated_at FROM brain_pages \
+                     WHERE page_type = ?1 ORDER BY updated_at DESC LIMIT ?2",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let rows = stmt
+                .query_map(rusqlite::params![pt, lim], |row| {
+                    Ok(BrainPageSummary {
+                        slug: row.get(0)?,
+                        page_type: row.get(1)?,
+                        title: row.get(2)?,
+                        updated_at: row.get(3)?,
+                    })
+                })
+                .map_err(|e| format!("Query error: {e}"))?;
+            for page in rows.flatten() {
+                pages.push(page);
+            }
+        } else {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT slug, page_type, title, updated_at FROM brain_pages \
+                     ORDER BY updated_at DESC LIMIT ?1",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let rows = stmt
+                .query_map(rusqlite::params![lim], |row| {
+                    Ok(BrainPageSummary {
+                        slug: row.get(0)?,
+                        page_type: row.get(1)?,
+                        title: row.get(2)?,
+                        updated_at: row.get(3)?,
+                    })
+                })
+                .map_err(|e| format!("Query error: {e}"))?;
+            for page in rows.flatten() {
+                pages.push(page);
+            }
+        }
+
+        Ok(pages)
+    }
+
+    /// Full-text search across brain pages using FTS5.
+    pub fn search(
+        &self,
+        query: &str,
+        limit: Option<usize>,
+        page_type: Option<&str>,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        let conn = self.db.conn()?;
+        let lim = limit.unwrap_or(10) as i64;
+
+        let mut results = Vec::new();
+
+        if let Some(pt) = page_type {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT f.slug, f.page_type, p.title, \
+                     snippet(brain_fts, 2, '<b>', '</b>', '...', 32) as snip, \
+                     rank \
+                     FROM brain_fts f \
+                     JOIN brain_pages p ON p.slug = f.slug \
+                     WHERE brain_fts MATCH ?1 AND f.page_type = ?2 \
+                     ORDER BY rank LIMIT ?3",
+                )
+                .map_err(|e| format!("Search query error: {e}"))?;
+            let rows = stmt
+                .query_map(rusqlite::params![query, pt, lim], row_to_search_result)
+                .map_err(|e| format!("Search error: {e}"))?;
+            for r in rows.flatten() {
+                results.push(r);
+            }
+        } else {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT f.slug, f.page_type, p.title, \
+                     snippet(brain_fts, 2, '<b>', '</b>', '...', 32) as snip, \
+                     rank \
+                     FROM brain_fts f \
+                     JOIN brain_pages p ON p.slug = f.slug \
+                     WHERE brain_fts MATCH ?1 \
+                     ORDER BY rank LIMIT ?2",
+                )
+                .map_err(|e| format!("Search query error: {e}"))?;
+            let rows = stmt
+                .query_map(rusqlite::params![query, lim], row_to_search_result)
+                .map_err(|e| format!("Search error: {e}"))?;
+            for r in rows.flatten() {
+                results.push(r);
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Sync a single page from the filesystem into the SQLite index.
+    #[allow(dead_code)] // Public API for future phases (file watcher, manual sync)
+    pub fn sync_page(&self, slug: &str) -> Result<(), String> {
+        let raw = self
+            .vault
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page file not found: {slug}"))?;
+
+        let hash = compute_hash(&raw);
+
+        // Check if already indexed with the same hash
+        if let Some(existing_hash) = self.get_content_hash(slug) {
+            if existing_hash == hash {
+                return Ok(()); // No changes
+            }
+        }
+
+        let parsed = parse_page(&raw)?;
+        let now = unix_now();
+        let created = self.get_timestamps(slug).map(|(c, _)| c).unwrap_or(now);
+
+        let full_content = if parsed.timeline.is_empty() {
+            parsed.compiled_truth.clone()
+        } else {
+            format!("{}\n\n{}", parsed.compiled_truth, parsed.timeline)
+        };
+
+        self.remove_from_index(slug)?;
+        self.index_page(&IndexEntry {
+            slug,
+            page_type: &parsed.frontmatter.page_type,
+            title: &parsed.frontmatter.title,
+            content: &full_content,
+            hash: &hash,
+            created_at: created,
+            updated_at: now,
+        })?;
+
+        self.sync_aliases(slug, &parsed.frontmatter.aliases)?;
+        self.sync_tags(slug, &parsed.frontmatter.tags)?;
+
+        Ok(())
+    }
+
+    /// Sync all files in the vault to the SQLite index.
+    ///
+    /// Indexes new/changed files and removes orphan rows for deleted files.
+    #[allow(dead_code)] // Public API for future phases (full vault rebuild)
+    pub fn sync_all(&self) -> Result<usize, String> {
+        let files = self.vault.list_all_files()?;
+        let mut synced = 0;
+
+        // Collect valid slugs
+        let mut valid_slugs: Vec<String> = Vec::new();
+
+        for (slug, _path) in &files {
+            valid_slugs.push(slug.clone());
+            self.sync_page(slug)?;
+            synced += 1;
+        }
+
+        // Remove orphan index rows (pages in DB but not on disk)
+        let conn = self.db.conn()?;
+        let mut stmt = conn
+            .prepare("SELECT slug FROM brain_pages")
+            .map_err(|e| format!("Query error: {e}"))?;
+        let indexed_slugs: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+
+        for slug in &indexed_slugs {
+            if !valid_slugs.contains(slug) {
+                self.remove_from_index(slug)?;
+            }
+        }
+
+        Ok(synced)
+    }
+
+    // ── Timeline ───────────────────────────────────────────────────────
+
+    /// Add a timeline entry to a brain page.
+    ///
+    /// Writes through to **all live layers**, not just SQLite. The entry is
+    /// (1) inserted into the `brain_timeline` table for structured queries,
+    /// (2) appended to the page's markdown timeline section on disk, and
+    /// (3) re-indexed into FTS + the wiki-link graph and git-committed. Step (2)
+    /// also trips the vault file-watcher, refreshing the live GUI.
+    ///
+    /// This closes the historical "wrote to the DB but never pushed it live" gap:
+    /// captures via `/capture`, `/today`, `brain_add_timeline`, and conversation
+    /// enrichment used to land only in `brain_timeline`, invisible to `brain read`,
+    /// `brain search`, the GUI, and git. They are now durable and searchable.
+    pub fn add_timeline(
+        &self,
+        slug: &str,
+        date: &str,
+        source: &str,
+        summary: &str,
+        detail: Option<&str>,
+    ) -> Result<i64, String> {
+        // Read the current page — this both verifies existence and gives us the
+        // markdown sections to append to.
+        let current_raw = self
+            .vault
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found: {slug}"))?;
+        let parsed = parse_page(&current_raw)?;
+
+        // 1. Structured row in brain_timeline. Scope the connection guard so it is
+        //    dropped before the index helpers below acquire their own connection
+        //    (the DB is a single Mutex<Connection>; holding two would deadlock).
+        let now = unix_now();
+        let id = {
+            let conn = self.db.conn()?;
+            conn.execute(
+                "INSERT INTO brain_timeline (slug, entry_date, source, summary, detail, created_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![slug, date, source, summary, detail.unwrap_or(""), now],
+            )
+            .map_err(|e| format!("Failed to add timeline entry: {e}"))?;
+            conn.last_insert_rowid()
+        };
+
+        // 2. Append the entry to the markdown timeline section so it shows up in
+        //    `brain read`/the GUI and is searchable via FTS.
+        let entry_md = Self::format_timeline_entry(date, source, summary, detail);
+        let new_timeline = if parsed.timeline.trim().is_empty() {
+            entry_md
+        } else {
+            format!("{}\n\n{entry_md}", parsed.timeline.trim_end())
+        };
+        let raw = render_page(&parsed.frontmatter, &parsed.compiled_truth, &new_timeline)?;
+        self.vault.write_page(slug, &raw)?;
+
+        // 3. Refresh the FTS row + page hash so the captured text is searchable,
+        //    and additively record any [[wiki-links]] in the timeline. Unlike
+        //    index_page (used by create/update) this does NOT rebuild the page's
+        //    whole link set — appending an entry must not delete links the page
+        //    already has (e.g. explicit add_link edges or compiled-truth links).
+        let hash = compute_hash(&raw);
+        let full_content = if parsed.compiled_truth.trim().is_empty() {
+            new_timeline.clone()
+        } else {
+            format!("{}\n\n{new_timeline}", parsed.compiled_truth)
+        };
+        {
+            let conn = self.db.conn()?;
+            conn.execute(
+                "DELETE FROM brain_fts WHERE slug = ?1",
+                rusqlite::params![slug],
+            )
+            .map_err(|e| format!("Failed to refresh FTS: {e}"))?;
+            conn.execute(
+                "INSERT INTO brain_fts (slug, title, content, page_type) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    slug,
+                    parsed.frontmatter.title,
+                    full_content,
+                    parsed.frontmatter.page_type
+                ],
+            )
+            .map_err(|e| format!("Failed to index FTS: {e}"))?;
+            conn.execute(
+                "UPDATE brain_pages SET content_hash = ?1, updated_at = ?2 WHERE slug = ?3",
+                rusqlite::params![hash, now, slug],
+            )
+            .map_err(|e| format!("Failed to update page index: {e}"))?;
+
+            // Additive (INSERT OR IGNORE) so existing links are preserved.
+            for to_slug in parse_wiki_links(&new_timeline) {
+                if to_slug != slug {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
+                         VALUES (?1, ?2, 'reference', '', ?3)",
+                        rusqlite::params![slug, to_slug, now],
+                    )
+                    .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
+                }
+            }
+        }
+
+        // 4. Auto-commit (fire-and-forget) so the capture is durable in git.
+        self.vault.git_commit(&format!("timeline: {slug} ({date})"));
+
+        Ok(id)
+    }
+
+    /// Format a timeline entry as a markdown bullet for a page's timeline section.
+    ///
+    /// `- **<date>** (<source>) — <summary>` with optional indented detail lines.
+    fn format_timeline_entry(
+        date: &str,
+        source: &str,
+        summary: &str,
+        detail: Option<&str>,
+    ) -> String {
+        let mut entry = if source.trim().is_empty() {
+            format!("- **{date}** — {summary}")
+        } else {
+            format!("- **{date}** ({source}) — {summary}")
+        };
+        if let Some(d) = detail {
+            let d = d.trim();
+            if !d.is_empty() {
+                // Indent continuation lines so they render under the bullet.
+                let indented = d.replace('\n', "\n  ");
+                entry.push_str("\n  ");
+                entry.push_str(&indented);
+            }
+        }
+        entry
+    }
+
+    /// Get timeline entries for a brain page, ordered by date descending.
+    pub fn get_timeline(
+        &self,
+        slug: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<TimelineEntry>, String> {
+        let conn = self.db.conn()?;
+        let lim = limit.unwrap_or(50) as i64;
+
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, slug, entry_date, source, summary, detail, created_at \
+                 FROM brain_timeline WHERE slug = ?1 \
+                 ORDER BY entry_date DESC, id DESC LIMIT ?2",
+            )
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![slug, lim], |row| {
+                Ok(TimelineEntry {
+                    id: row.get(0)?,
+                    slug: row.get(1)?,
+                    date: row.get(2)?,
+                    source: row.get(3)?,
+                    summary: row.get(4)?,
+                    detail: row.get(5)?,
+                    created_at: row.get(6)?,
+                })
+            })
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        let mut entries = Vec::new();
+        for entry in rows.flatten() {
+            entries.push(entry);
+        }
+        Ok(entries)
+    }
+
+    // ── Links ─────────────────────────────────────────────────────────
+
+    /// Add a typed link between two pages.
+    pub fn add_link(
+        &self,
+        from_slug: &str,
+        to_slug: &str,
+        link_type: Option<&str>,
+        context: Option<&str>,
+    ) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        let lt = link_type.unwrap_or("reference");
+        let now = unix_now();
+
+        conn.execute(
+            "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![from_slug, to_slug, lt, context.unwrap_or(""), now],
+        )
+        .map_err(|e| format!("Failed to add link: {e}"))?;
+
+        Ok(())
+    }
+
+    /// Remove a link between two pages.
+    pub fn remove_link(&self, from_slug: &str, to_slug: &str) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "DELETE FROM brain_links WHERE from_slug = ?1 AND to_slug = ?2",
+            rusqlite::params![from_slug, to_slug],
+        )
+        .map_err(|e| format!("Failed to remove link: {e}"))?;
+        Ok(())
+    }
+
+    /// Get outbound links and backlinks for a page.
+    pub fn get_links(&self, slug: &str) -> Result<PageLinks, String> {
+        let conn = self.db.conn()?;
+
+        // Outbound links
+        let mut stmt = conn
+            .prepare(
+                "SELECT from_slug, to_slug, link_type, context FROM brain_links \
+                 WHERE from_slug = ?1",
+            )
+            .map_err(|e| format!("Query error: {e}"))?;
+        let outbound: Vec<LinkEntry> = stmt
+            .query_map(rusqlite::params![slug], |row| {
+                Ok(LinkEntry {
+                    from_slug: row.get(0)?,
+                    to_slug: row.get(1)?,
+                    link_type: row.get(2)?,
+                    context: row.get(3)?,
+                })
+            })
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+
+        // Backlinks
+        let mut stmt = conn
+            .prepare(
+                "SELECT from_slug, to_slug, link_type, context FROM brain_links \
+                 WHERE to_slug = ?1",
+            )
+            .map_err(|e| format!("Query error: {e}"))?;
+        let backlinks: Vec<LinkEntry> = stmt
+            .query_map(rusqlite::params![slug], |row| {
+                Ok(LinkEntry {
+                    from_slug: row.get(0)?,
+                    to_slug: row.get(1)?,
+                    link_type: row.get(2)?,
+                    context: row.get(3)?,
+                })
+            })
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+
+        Ok(PageLinks {
+            outbound,
+            backlinks,
+        })
+    }
+
+    // ── Tags ──────────────────────────────────────────────────────────
+
+    /// Add a tag to a page (also updates the frontmatter on disk).
+    pub fn add_tag(&self, slug: &str, tag: &str) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO brain_tags (slug, tag) VALUES (?1, ?2)",
+            rusqlite::params![slug, tag],
+        )
+        .map_err(|e| format!("Failed to add tag: {e}"))?;
+        Ok(())
+    }
+
+    /// Remove a tag from a page.
+    pub fn remove_tag(&self, slug: &str, tag: &str) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "DELETE FROM brain_tags WHERE slug = ?1 AND tag = ?2",
+            rusqlite::params![slug, tag],
+        )
+        .map_err(|e| format!("Failed to remove tag: {e}"))?;
+        Ok(())
+    }
+
+    /// Get all links in the brain (for graph visualization).
+    pub fn get_all_links(&self) -> Result<Vec<LinkEntry>, String> {
+        let conn = self.db.conn()?;
+        let mut stmt = conn
+            .prepare("SELECT from_slug, to_slug, link_type, context FROM brain_links")
+            .map_err(|e| format!("Query error: {e}"))?;
+        let links: Vec<LinkEntry> = stmt
+            .query_map([], |row| {
+                Ok(LinkEntry {
+                    from_slug: row.get(0)?,
+                    to_slug: row.get(1)?,
+                    link_type: row.get(2)?,
+                    context: row.get(3)?,
+                })
+            })
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+        Ok(links)
+    }
+
+    // ── Stats & Resolution ────────────────────────────────────────────
+
+    /// Get brain statistics: total pages, pages by type, total links, tags, timeline entries.
+    pub fn stats(&self) -> Result<BrainStats, String> {
+        let conn = self.db.conn()?;
+
+        let page_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM brain_pages", [], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        let link_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM brain_links", [], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        let tag_count: i64 = conn
+            .query_row("SELECT COUNT(DISTINCT tag) FROM brain_tags", [], |row| {
+                row.get(0)
+            })
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        let timeline_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM brain_timeline", [], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?;
+
+        // Pages by type
+        let mut stmt = conn
+            .prepare("SELECT page_type, COUNT(*) FROM brain_pages GROUP BY page_type")
+            .map_err(|e| format!("Query error: {e}"))?;
+        let mut pages_by_type = std::collections::HashMap::new();
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })
+            .map_err(|e| format!("Query error: {e}"))?;
+        for row in rows.flatten() {
+            pages_by_type.insert(row.0, row.1);
+        }
+
+        Ok(BrainStats {
+            page_count,
+            link_count,
+            tag_count,
+            timeline_count,
+            pages_by_type,
+        })
+    }
+
+    /// Resolve a partial name to matching slugs via aliases and title matching.
+    pub fn resolve_slug(&self, partial: &str) -> Result<Vec<String>, String> {
+        let conn = self.db.conn()?;
+        let pattern = format!("%{partial}%");
+        let mut results = Vec::new();
+
+        // Search aliases
+        let mut stmt = conn
+            .prepare("SELECT DISTINCT slug FROM brain_aliases WHERE alias LIKE ?1 LIMIT 10")
+            .map_err(|e| format!("Query error: {e}"))?;
+        let alias_matches: Vec<String> = stmt
+            .query_map(rusqlite::params![pattern], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+        results.extend(alias_matches);
+
+        // Search titles
+        let mut stmt = conn
+            .prepare(
+                "SELECT slug FROM brain_pages WHERE title LIKE ?1 AND slug NOT IN \
+                 (SELECT DISTINCT slug FROM brain_aliases WHERE alias LIKE ?1) LIMIT 10",
+            )
+            .map_err(|e| format!("Query error: {e}"))?;
+        let title_matches: Vec<String> = stmt
+            .query_map(rusqlite::params![pattern], |row| row.get(0))
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+        results.extend(title_matches);
+
+        Ok(results)
+    }
+
+    // ── Context Injection ──────────────────────────────────────────────
+
+    /// Maximum characters for the brain context block in the system prompt.
+    const MAX_BRAIN_CONTEXT_CHARS: usize = 4000;
+
+    /// Build a `<brain_context>` block for system prompt injection.
+    ///
+    /// Extracts significant words from the user's prompt, searches the brain
+    /// using FTS5, and returns a formatted block with compiled truth from
+    /// matching pages. Returns empty string if no matches are found.
+    pub fn build_context_for_prompt(&self, prompt: &str) -> String {
+        // Extract significant words (3+ chars, not common stop words) for FTS5 query
+        let query = Self::build_fts_query(prompt);
+        if query.is_empty() {
+            return String::new();
+        }
+
+        let results = match self.search(&query, Some(5), None) {
+            Ok(r) => r,
+            Err(_) => return String::new(),
+        };
+
+        if results.is_empty() {
+            return String::new();
+        }
+
+        let mut parts = vec!["<brain_context>".to_string()];
+        parts.push("## Relevant Brain Pages\n".to_string());
+        let mut total_chars = 0;
+
+        for result in &results {
+            // Read the full page to get compiled truth
+            let page = match self.read_page(&result.slug) {
+                Ok(Some(p)) => p,
+                _ => continue,
+            };
+
+            let section = format!(
+                "### {} ({})\n{}\n",
+                page.title, page.page_type, page.compiled_truth
+            );
+
+            total_chars += section.len();
+            if total_chars > Self::MAX_BRAIN_CONTEXT_CHARS {
+                break;
+            }
+
+            parts.push(section);
+        }
+
+        parts.push("</brain_context>".to_string());
+        parts.join("\n")
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────
+
+    /// Build an FTS5 OR query from a natural language prompt.
+    ///
+    /// Extracts significant words (3+ chars, alphanumeric only, not common
+    /// stop words) and joins them with OR for a broad FTS5 match.
+    fn build_fts_query(prompt: &str) -> String {
+        let stop_words = [
+            "the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was",
+            "one", "our", "out", "has", "have", "been", "some", "them", "than", "its", "over",
+            "also", "that", "this", "from", "with", "what", "when", "where", "which", "who",
+            "will", "would", "could", "should", "about", "into", "your", "just", "been", "more",
+            "tell", "know", "like", "does", "how",
+        ];
+
+        let words: Vec<String> = prompt
+            .split_whitespace()
+            .map(|w| {
+                w.chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .collect::<String>()
+                    .to_lowercase()
+            })
+            .filter(|w| w.len() >= 3 && !stop_words.contains(&w.as_str()))
+            .collect();
+
+        if words.is_empty() {
+            return String::new();
+        }
+
+        // Join with OR for broad matching
+        words.join(" OR ")
+    }
+
+    /// Load a template for a page type from `.templates/{type}.md`.
+    fn load_template(&self, page_type: &str) -> Option<String> {
+        let path = self.vault.root().join(format!(".templates/{page_type}.md"));
+        std::fs::read_to_string(path).ok()
+    }
+
+    /// Write default templates if they don't exist.
+    fn write_default_templates(&self) {
+        let templates_dir = self.vault.root().join(".templates");
+        let defaults = [
+            ("person", "## Key Context\n- \n\n## Links\n- "),
+            (
+                "company",
+                "## Overview\n\n## Products\n\n## Team\n\n## Links\n- ",
+            ),
+            (
+                "project",
+                "## Overview\n\n## Goals\n\n## Status\n\n## Links\n- ",
+            ),
+            (
+                "concept",
+                "## Definition\n\n## Key Points\n- \n\n## Links\n- ",
+            ),
+            (
+                "meeting",
+                "## Attendees\n- \n\n## Notes\n\n## Action Items\n- [ ] ",
+            ),
+            ("idea", "## Description\n\n## Why\n\n## Next Steps\n- "),
+            ("daily", "## Notes\n- \n\n## Tasks\n- [ ] \n\n## Links\n- "),
+        ];
+        for (page_type, content) in &defaults {
+            let path = templates_dir.join(format!("{page_type}.md"));
+            if !path.exists() {
+                let _ = std::fs::write(path, content);
+            }
+        }
+    }
+
+    /// Generate a unique slug, appending -2, -3, etc. on collision.
+    fn unique_slug(&self, dir: &str, base: &str) -> Result<String, String> {
+        let slug = format!("{dir}/{base}");
+        if !self.vault.page_exists(&slug) {
+            return Ok(slug);
+        }
+
+        for i in 2..100 {
+            let candidate = format!("{dir}/{base}-{i}");
+            if !self.vault.page_exists(&candidate) {
+                return Ok(candidate);
+            }
+        }
+
+        Err(format!("Too many slug collisions for {dir}/{base}"))
+    }
+
+    /// Insert a page into the brain_pages table and brain_fts index.
+    fn index_page(&self, entry: &IndexEntry) -> Result<(), String> {
+        let conn = self.db.conn()?;
+
+        conn.execute(
+            "INSERT OR REPLACE INTO brain_pages (slug, page_type, title, frontmatter, content_hash, created_at, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![entry.slug, entry.page_type, entry.title, "{}", entry.hash, entry.created_at, entry.updated_at],
+        )
+        .map_err(|e| format!("Failed to index page: {e}"))?;
+
+        conn.execute(
+            "INSERT INTO brain_fts (slug, title, content, page_type) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![entry.slug, entry.title, entry.content, entry.page_type],
+        )
+        .map_err(|e| format!("Failed to index FTS: {e}"))?;
+
+        // Parse wiki links from content and store in brain_links
+        // (inline to avoid deadlock — conn is already held)
+        conn.execute(
+            "DELETE FROM brain_links WHERE from_slug = ?1 AND link_type = 'reference'",
+            rusqlite::params![entry.slug],
+        )
+        .map_err(|e| format!("Failed to clear wiki links: {e}"))?;
+
+        let links = parse_wiki_links(entry.content);
+        let now = unix_now();
+        for to_slug in &links {
+            if *to_slug != entry.slug {
+                conn.execute(
+                    "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
+                     VALUES (?1, ?2, 'reference', '', ?3)",
+                    rusqlite::params![entry.slug, to_slug, now],
+                )
+                .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Remove a page from the brain_pages table, brain_fts, aliases, and tags.
+    fn remove_from_index(&self, slug: &str) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "DELETE FROM brain_fts WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to remove FTS: {e}"))?;
+        conn.execute(
+            "DELETE FROM brain_aliases WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to remove aliases: {e}"))?;
+        conn.execute(
+            "DELETE FROM brain_tags WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to remove tags: {e}"))?;
+        conn.execute(
+            "DELETE FROM brain_pages WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to remove page: {e}"))?;
+        Ok(())
+    }
+
+    /// Get the stored content hash for a slug.
+    #[allow(dead_code)] // Used by sync_page which is reserved for future phases
+    fn get_content_hash(&self, slug: &str) -> Option<String> {
+        let conn = self.db.conn().ok()?;
+        conn.query_row(
+            "SELECT content_hash FROM brain_pages WHERE slug = ?1",
+            rusqlite::params![slug],
+            |row| row.get(0),
+        )
+        .ok()
+    }
+
+    /// Get created_at and updated_at timestamps for a slug.
+    fn get_timestamps(&self, slug: &str) -> Option<(i64, i64)> {
+        let conn = self.db.conn().ok()?;
+        conn.query_row(
+            "SELECT created_at, updated_at FROM brain_pages WHERE slug = ?1",
+            rusqlite::params![slug],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .ok()
+    }
+
+    /// Create a version snapshot of the current page content.
+    fn create_version(
+        &self,
+        slug: &str,
+        content: &str,
+        fm: &BrainFrontmatter,
+    ) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        let fm_json = serde_json::to_string(fm).unwrap_or_default();
+        let now = unix_now();
+        conn.execute(
+            "INSERT INTO brain_versions (slug, content, frontmatter, snapshot_at) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![slug, content, fm_json, now],
+        )
+        .map_err(|e| format!("Failed to create version: {e}"))?;
+        Ok(())
+    }
+
+    /// Sync aliases from frontmatter into brain_aliases table.
+    fn sync_aliases(&self, slug: &str, aliases: &[String]) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "DELETE FROM brain_aliases WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to clear aliases: {e}"))?;
+
+        for alias in aliases {
+            conn.execute(
+                "INSERT OR IGNORE INTO brain_aliases (slug, alias) VALUES (?1, ?2)",
+                rusqlite::params![slug, alias],
+            )
+            .map_err(|e| format!("Failed to insert alias: {e}"))?;
+        }
+        Ok(())
+    }
+
+    /// Sync tags from frontmatter into brain_tags table.
+    fn sync_tags(&self, slug: &str, tags: &[String]) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        conn.execute(
+            "DELETE FROM brain_tags WHERE slug = ?1",
+            rusqlite::params![slug],
+        )
+        .map_err(|e| format!("Failed to clear tags: {e}"))?;
+
+        for tag in tags {
+            conn.execute(
+                "INSERT OR IGNORE INTO brain_tags (slug, tag) VALUES (?1, ?2)",
+                rusqlite::params![slug, tag],
+            )
+            .map_err(|e| format!("Failed to insert tag: {e}"))?;
+        }
+        Ok(())
+    }
+}
+
+/// Data needed to insert a page into the SQLite index.
+struct IndexEntry<'a> {
+    slug: &'a str,
+    page_type: &'a str,
+    title: &'a str,
+    content: &'a str,
+    hash: &'a str,
+    created_at: i64,
+    updated_at: i64,
+}
+
+/// Parse `[[slug]]` and `[[slug|display text]]` wiki links from markdown content.
+///
+/// Returns a deduplicated list of target slugs.
+fn parse_wiki_links(content: &str) -> Vec<String> {
+    let mut links = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut remaining = content;
+
+    while let Some(start) = remaining.find("[[") {
+        remaining = &remaining[start + 2..];
+        if let Some(end) = remaining.find("]]") {
+            let inner = &remaining[..end];
+            // [[slug|display text]] → take slug part
+            let slug = inner.split('|').next().unwrap_or("").trim();
+            if !slug.is_empty() && !seen.contains(slug) {
+                seen.insert(slug.to_string());
+                links.push(slug.to_string());
+            }
+            remaining = &remaining[end + 2..];
+        } else {
+            break;
+        }
+    }
+
+    links
+}
+
+/// Compute SHA-256 hash of content.
+fn compute_hash(content: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Get current Unix timestamp.
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
+}
+
+/// Row mapper for FTS5 search results.
+fn row_to_search_result(row: &rusqlite::Row) -> rusqlite::Result<BrainSearchResult> {
+    Ok(BrainSearchResult {
+        slug: row.get(0)?,
+        page_type: row.get(1)?,
+        title: row.get(2)?,
+        snippet: row.get(3)?,
+        rank: row.get(4)?,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::db::Database;
+    use rusqlite::Connection;
+    use std::fs;
+
+    fn test_brain(name: &str) -> (PathBuf, BrainManager) {
+        let dir =
+            std::env::temp_dir().join(format!("rusty_brain_test_{}_{name}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        let conn = Connection::open_in_memory().unwrap();
+        let db = Database::from_conn(conn);
+        db.migrate().unwrap();
+
+        let bm = BrainManager::new(Arc::new(db), dir.clone());
+        bm.ensure_vault().unwrap();
+        (dir, bm)
+    }
+
+    fn cleanup(dir: &std::path::Path) {
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn create_page_writes_file_and_index() {
+        let (dir, bm) = test_brain("create");
+        let page = bm
+            .create_page("person", "Sarah Chen", "She is a CTO.")
+            .unwrap();
+
+        assert_eq!(page.slug, "people/sarah-chen");
+        assert_eq!(page.page_type, "person");
+        assert_eq!(page.title, "Sarah Chen");
+        assert_eq!(page.compiled_truth, "She is a CTO.");
+
+        // File exists on disk
+        assert!(dir.join("people/sarah-chen.md").exists());
+
+        // Indexed in DB
+        let pages = bm.list_pages(None, None).unwrap();
+        assert_eq!(pages.len(), 1);
+        assert_eq!(pages[0].slug, "people/sarah-chen");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn read_page_returns_parsed_content() {
+        let (dir, bm) = test_brain("read");
+        bm.create_page(
+            "concept",
+            "Compiled Truth",
+            "A knowledge synthesis pattern.",
+        )
+        .unwrap();
+
+        let page = bm.read_page("concepts/compiled-truth").unwrap().unwrap();
+        assert_eq!(page.title, "Compiled Truth");
+        assert_eq!(page.page_type, "concept");
+        assert_eq!(page.compiled_truth, "A knowledge synthesis pattern.");
+        assert!(page.timeline.is_empty());
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn update_page_creates_version() {
+        let (dir, bm) = test_brain("update");
+        bm.create_page("person", "Alice", "Version 1.").unwrap();
+
+        let updated = bm.update_page("people/alice", "Version 2.").unwrap();
+        assert_eq!(updated.compiled_truth, "Version 2.");
+
+        // Version snapshot exists
+        let conn = bm.db.conn().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM brain_versions WHERE slug = ?1",
+                rusqlite::params!["people/alice"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn delete_page_soft_deletes() {
+        let (dir, bm) = test_brain("delete");
+        bm.create_page("idea", "Bad Idea", "This won't work.")
+            .unwrap();
+
+        assert!(bm.read_page("ideas/bad-idea").unwrap().is_some());
+        bm.delete_page("ideas/bad-idea").unwrap();
+
+        // File gone from vault, in archive
+        assert!(!dir.join("ideas/bad-idea.md").exists());
+        let archive_count = fs::read_dir(dir.join("archive"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .count();
+        assert_eq!(archive_count, 1);
+
+        // Gone from index
+        let pages = bm.list_pages(None, None).unwrap();
+        assert!(pages.is_empty());
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn list_pages_filters_by_type() {
+        let (dir, bm) = test_brain("list_filter");
+        bm.create_page("person", "Alice", "Person A.").unwrap();
+        bm.create_page("person", "Bob", "Person B.").unwrap();
+        bm.create_page("concept", "Testing", "A concept.").unwrap();
+
+        let people = bm.list_pages(Some("person"), None).unwrap();
+        assert_eq!(people.len(), 2);
+
+        let concepts = bm.list_pages(Some("concept"), None).unwrap();
+        assert_eq!(concepts.len(), 1);
+
+        let all = bm.list_pages(None, None).unwrap();
+        assert_eq!(all.len(), 3);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn search_fts5_basic() {
+        let (dir, bm) = test_brain("search");
+        bm.create_page(
+            "person",
+            "Sarah Chen",
+            "Expert in distributed systems and Rust programming.",
+        )
+        .unwrap();
+        bm.create_page(
+            "concept",
+            "MCP Protocol",
+            "Model Context Protocol for AI agents.",
+        )
+        .unwrap();
+
+        let results = bm.search("distributed", None, None).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].slug, "people/sarah-chen");
+
+        let results = bm.search("protocol", None, None).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].slug, "concepts/mcp-protocol");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn search_fts5_type_filter() {
+        let (dir, bm) = test_brain("search_filter");
+        bm.create_page("person", "Alice Rust", "Loves Rust programming.")
+            .unwrap();
+        bm.create_page(
+            "concept",
+            "Rust Language",
+            "A systems programming language called Rust.",
+        )
+        .unwrap();
+
+        // Search all types
+        let all = bm.search("Rust", None, None).unwrap();
+        assert_eq!(all.len(), 2);
+
+        // Filter to concepts only
+        let concepts = bm.search("Rust", None, Some("concept")).unwrap();
+        assert_eq!(concepts.len(), 1);
+        assert_eq!(concepts[0].slug, "concepts/rust-language");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn sync_page_updates_index() {
+        let (dir, bm) = test_brain("sync");
+        bm.create_page("person", "Sync Test", "Original content.")
+            .unwrap();
+
+        // Modify file externally
+        let path = dir.join("people/sync-test.md");
+        let raw = fs::read_to_string(&path).unwrap();
+        let updated_raw = raw.replace("Original content.", "Updated externally.");
+        fs::write(&path, updated_raw).unwrap();
+
+        // Sync picks up the change
+        bm.sync_page("people/sync-test").unwrap();
+
+        // Search for the new content
+        let results = bm.search("externally", None, None).unwrap();
+        assert_eq!(results.len(), 1);
+
+        // Old content not findable
+        let old_results = bm.search("Original", None, None).unwrap();
+        assert!(old_results.is_empty());
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn content_hash_detects_changes() {
+        let hash1 = compute_hash("hello world");
+        let hash2 = compute_hash("hello world");
+        let hash3 = compute_hash("different content");
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash3);
+    }
+
+    #[test]
+    fn slug_collision_appends_suffix() {
+        let (dir, bm) = test_brain("collision");
+        let page1 = bm.create_page("person", "Alice", "First Alice.").unwrap();
+        let page2 = bm.create_page("person", "Alice", "Second Alice.").unwrap();
+
+        assert_eq!(page1.slug, "people/alice");
+        assert_eq!(page2.slug, "people/alice-2");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_and_get_timeline() {
+        let (dir, bm) = test_brain("timeline");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+
+        bm.add_timeline(
+            "people/alice",
+            "2026-04-12",
+            "conversation",
+            "Discussed Rust",
+            None,
+        )
+        .unwrap();
+        bm.add_timeline(
+            "people/alice",
+            "2026-04-11",
+            "meeting",
+            "Weekly sync",
+            Some("Covered project timeline."),
+        )
+        .unwrap();
+
+        let entries = bm.get_timeline("people/alice", None).unwrap();
+        assert_eq!(entries.len(), 2);
+        // Ordered by date DESC
+        assert_eq!(entries[0].date, "2026-04-12");
+        assert_eq!(entries[0].source, "conversation");
+        assert_eq!(entries[1].date, "2026-04-11");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_timeline_nonexistent_page_fails() {
+        let (dir, bm) = test_brain("timeline_fail");
+        let result = bm.add_timeline("people/nobody", "2026-04-12", "manual", "test", None);
+        assert!(result.is_err());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_timeline_writes_through_to_markdown_and_fts() {
+        // Regression guard for the "wrote to the DB but never pushed it live" bug:
+        // a timeline entry must land in the markdown page AND the FTS index, not
+        // only the brain_timeline table.
+        let (dir, bm) = test_brain("timeline_writethrough");
+        bm.create_page("daily", "2026-06-28", "").unwrap();
+        let slug = "daily/2026-06-28";
+
+        bm.add_timeline(
+            slug,
+            "2026-06-28",
+            "terminal",
+            "Draft the Quokkanaut launch article",
+            Some("Angle: local-first agents."),
+        )
+        .unwrap();
+
+        // 1. Visible in the markdown timeline section (what `brain read`/GUI render).
+        let page = bm.read_page(slug).unwrap().unwrap();
+        assert!(
+            page.timeline.contains("Quokkanaut"),
+            "timeline entry missing from markdown: {:?}",
+            page.timeline
+        );
+        assert!(page.timeline.contains("**2026-06-28**"));
+        assert!(page.timeline.contains("local-first agents"));
+
+        // 2. Persisted to disk (so git auto-commit captures it).
+        let on_disk = fs::read_to_string(dir.join("daily/2026-06-28.md")).unwrap();
+        assert!(on_disk.contains("Quokkanaut"));
+
+        // 3. Findable via FTS — the whole point of "pushing it live".
+        let hits = bm.search("Quokkanaut", None, None).unwrap();
+        assert!(
+            hits.iter().any(|r| r.slug == slug),
+            "captured text not searchable via FTS: {hits:?}"
+        );
+
+        // 4. Structured row still recorded for the timeline API.
+        let entries = bm.get_timeline(slug, None).unwrap();
+        assert_eq!(entries.len(), 1);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_timeline_records_wiki_links_without_wiping_existing() {
+        // Appending an entry must ADD wiki-link edges from the summary without
+        // destroying links the page already has (regression for the index_page
+        // rebuild that wiped explicit 'reference' edges).
+        let (dir, bm) = test_brain("timeline_links");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+        bm.create_page("company", "Acme", "A company.").unwrap();
+        bm.create_page("project", "Orbit", "A project.").unwrap();
+
+        bm.add_link("people/alice", "companies/acme", Some("works_at"), None)
+            .unwrap();
+        bm.add_timeline(
+            "people/alice",
+            "2026-06-28",
+            "terminal",
+            "Kicked off [[projects/orbit]]",
+            None,
+        )
+        .unwrap();
+
+        let out: Vec<String> = bm
+            .get_links("people/alice")
+            .unwrap()
+            .outbound
+            .iter()
+            .map(|l| l.to_slug.clone())
+            .collect();
+        assert!(
+            out.contains(&"companies/acme".to_string()),
+            "existing link wiped by add_timeline: {out:?}"
+        );
+        assert!(
+            out.contains(&"projects/orbit".to_string()),
+            "wiki-link in timeline not recorded: {out:?}"
+        );
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_and_get_links() {
+        let (dir, bm) = test_brain("links");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+        bm.create_page("company", "Acme", "A company.").unwrap();
+
+        bm.add_link(
+            "people/alice",
+            "companies/acme",
+            Some("works_at"),
+            Some("CTO"),
+        )
+        .unwrap();
+
+        let links = bm.get_links("people/alice").unwrap();
+        assert_eq!(links.outbound.len(), 1);
+        assert_eq!(links.outbound[0].to_slug, "companies/acme");
+        assert_eq!(links.outbound[0].link_type, "works_at");
+
+        let back = bm.get_links("companies/acme").unwrap();
+        assert_eq!(back.backlinks.len(), 1);
+        assert_eq!(back.backlinks[0].from_slug, "people/alice");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn remove_link() {
+        let (dir, bm) = test_brain("remove_link");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+        bm.create_page("company", "Acme", "A company.").unwrap();
+
+        bm.add_link("people/alice", "companies/acme", None, None)
+            .unwrap();
+        assert_eq!(bm.get_links("people/alice").unwrap().outbound.len(), 1);
+
+        bm.remove_link("people/alice", "companies/acme").unwrap();
+        assert_eq!(bm.get_links("people/alice").unwrap().outbound.len(), 0);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn add_and_remove_tags() {
+        let (dir, bm) = test_brain("tags");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+
+        bm.add_tag("people/alice", "engineering").unwrap();
+        bm.add_tag("people/alice", "rust").unwrap();
+
+        // Verify via stats
+        let stats = bm.stats().unwrap();
+        assert_eq!(stats.tag_count, 2);
+
+        bm.remove_tag("people/alice", "rust").unwrap();
+        let stats = bm.stats().unwrap();
+        assert_eq!(stats.tag_count, 1);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn stats_returns_counts() {
+        let (dir, bm) = test_brain("stats");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+        bm.create_page("person", "Bob", "A person.").unwrap();
+        bm.create_page("company", "Acme", "A company.").unwrap();
+
+        bm.add_link("people/alice", "companies/acme", None, None)
+            .unwrap();
+        bm.add_timeline("people/alice", "2026-04-12", "manual", "test", None)
+            .unwrap();
+
+        let stats = bm.stats().unwrap();
+        assert_eq!(stats.page_count, 3);
+        assert_eq!(stats.link_count, 1);
+        assert_eq!(stats.timeline_count, 1);
+        assert_eq!(*stats.pages_by_type.get("person").unwrap(), 2);
+        assert_eq!(*stats.pages_by_type.get("company").unwrap(), 1);
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn resolve_slug_by_title() {
+        let (dir, bm) = test_brain("resolve");
+        bm.create_page("person", "Sarah Chen", "A person.").unwrap();
+        bm.create_page("person", "Sarah Williams", "Another person.")
+            .unwrap();
+
+        let results = bm.resolve_slug("Sarah").unwrap();
+        assert_eq!(results.len(), 2);
+
+        let results = bm.resolve_slug("Chen").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], "people/sarah-chen");
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn build_context_finds_matching_pages() {
+        let (dir, bm) = test_brain("context");
+        bm.create_page(
+            "person",
+            "Sarah Chen",
+            "CTO of Acme Corp. Expert in distributed systems.",
+        )
+        .unwrap();
+        bm.create_page("company", "Acme Corp", "Enterprise SaaS platform.")
+            .unwrap();
+
+        let ctx = bm.build_context_for_prompt("Tell me about Sarah Chen");
+        assert!(ctx.contains("<brain_context>"));
+        assert!(ctx.contains("Sarah Chen"));
+        assert!(ctx.contains("CTO of Acme"));
+        assert!(ctx.contains("</brain_context>"));
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn build_context_empty_when_no_matches() {
+        let (dir, bm) = test_brain("context_empty");
+        bm.create_page("person", "Alice", "A person.").unwrap();
+
+        let ctx = bm.build_context_for_prompt("something completely unrelated xyz123");
+        assert!(ctx.is_empty());
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn parse_wiki_links_basic() {
+        let links = parse_wiki_links("Links to [[people/alice]] and [[companies/acme]].");
+        assert_eq!(links.len(), 2);
+        assert!(links.contains(&"people/alice".to_string()));
+        assert!(links.contains(&"companies/acme".to_string()));
+    }
+
+    #[test]
+    fn parse_wiki_links_with_display_text() {
+        let links = parse_wiki_links("See [[people/alice|Alice]] for details.");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0], "people/alice");
+    }
+
+    #[test]
+    fn parse_wiki_links_deduplicates() {
+        let links = parse_wiki_links("First [[people/alice]] then [[people/alice]] again.");
+        assert_eq!(links.len(), 1);
+    }
+
+    #[test]
+    fn parse_wiki_links_empty() {
+        let links = parse_wiki_links("No links here.");
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn wiki_links_stored_on_create() {
+        let (dir, bm) = test_brain("wiki_create");
+        bm.create_page("person", "Alice", "Works at [[companies/acme]].")
+            .unwrap();
+        bm.create_page("company", "Acme", "A company.").unwrap();
+
+        let links = bm.get_links("people/alice").unwrap();
+        assert_eq!(links.outbound.len(), 1);
+        assert_eq!(links.outbound[0].to_slug, "companies/acme");
+
+        // Backlink visible from Acme
+        let back = bm.get_links("companies/acme").unwrap();
+        assert_eq!(back.backlinks.len(), 1);
+
+        cleanup(&dir);
+    }
+}
