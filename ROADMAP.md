@@ -190,7 +190,8 @@ What using the app every day asks for, added as it comes up.
       the window is not focused. The bell does not survive tmux, so the trigger is the title
       ("[ ! ] Action Required", "needs your input"), once per title, through `notify-send`
 - [x] Reorder tabs from the keyboard (Ctrl+Shift+PgUp/PgDn) and the tab menu
-- [ ] Drag to reorder tasks and tabs
+- [x] Drag to reorder tasks (a handle on each row) and agent tabs (drag in the rail); built
+      2026-09-02, keyboard paths stay; pointer drags await a hands-on check
 
 ## Later
 

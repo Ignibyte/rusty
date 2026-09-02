@@ -5,7 +5,8 @@ import QtQuick.Layouts
 // The Tasks tab: lists on the left, the chosen list's tasks on the right. Everything
 // goes through the back end's task tools; the page keeps no state the server does not.
 // Keyboard first: type in the add box and press Enter, arrows move, Space toggles,
-// F2 renames, Delete archives, Ctrl+Up/Down reorder, Escape returns to the add box.
+// F2 renames, Delete archives, Ctrl+Up/Down reorder (or drag the handle), Escape returns to
+// the add box.
 Item {
     id: page
     required property var backend
@@ -218,7 +219,13 @@ Item {
                 keyNavigationEnabled: true
                 onActiveFocusChanged: if (activeFocus && currentIndex < 0 && page.tasks.length > 0) currentIndex = 0
                 property int editingRow: -1
+                property int dragFrom: -1
                 function startEdit(row) { if (row >= 0 && row < page.tasks.length) { currentIndex = row; editingRow = row } }
+                function dropIndex(contentY) {
+                    let to = indexAt(4, contentY)
+                    if (to < 0) to = contentY < 0 ? 0 : page.tasks.length - 1
+                    return to
+                }
                 Keys.onPressed: (event) => {
                     if (currentIndex < 0 || currentIndex >= page.tasks.length) { if (event.key === Qt.Key_Escape) addField.forceActiveFocus(); return }
                     const task = page.tasks[currentIndex]
@@ -237,14 +244,37 @@ Item {
                     height: 36
                     radius: 6
                     color: taskList.currentIndex === index ? Qt.rgba(1, 1, 1, 0.08) : (rowHover.hovered ? Qt.rgba(1, 1, 1, 0.04) : "transparent")
-                    border.width: taskList.currentIndex === index && taskList.activeFocus ? 1 : 0
+                    border.width: (taskList.currentIndex === index && taskList.activeFocus) || taskList.dragFrom === index ? 1 : 0
                     border.color: page.theme.accent
                     opacity: modelData.archived ? 0.5 : 1
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: 4
                         anchors.rightMargin: 8
-                        spacing: 8
+                        spacing: 6
+                        // Drag handle: reorders without fighting the list's own scrolling.
+                        Text {
+                            id: grip
+                            text: "⋮⋮"
+                            color: page.theme.foreground
+                            opacity: gripHover.hovered || rowDrag.active ? 0.9 : 0.3
+                            font.pixelSize: 13
+                            Layout.preferredWidth: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            HoverHandler { id: gripHover; cursorShape: Qt.SizeVerCursor }
+                            DragHandler {
+                                id: rowDrag
+                                target: null
+                                xAxis.enabled: false
+                                onActiveChanged: {
+                                    if (active) { taskList.dragFrom = row.index; taskList.currentIndex = row.index; return }
+                                    if (taskList.dragFrom < 0) return
+                                    const p = grip.mapToItem(taskList.contentItem, 0, rowDrag.centroid.position.y)
+                                    page.move(taskList.dragFrom, taskList.dropIndex(p.y))
+                                    taskList.dragFrom = -1
+                                }
+                            }
+                        }
                         CheckBox {
                             checked: modelData.completed
                             onToggled: page.toggle(modelData)

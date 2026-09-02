@@ -114,8 +114,8 @@ ApplicationWindow {
 
     // Ctrl+PgUp / Ctrl+PgDn cycle; Ctrl+Shift+T / Ctrl+Shift+W add and close agent tabs.
     // None of these are used by Claude Code or Codex.
-    Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
-    Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: stack.currentIndex = (stack.currentIndex + tabCount - 1) % tabCount }
+    Shortcut { sequences: ["Ctrl+PgDown", "Ctrl+Tab"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
+    Shortcut { sequences: ["Ctrl+PgUp", "Ctrl+Shift+Tab"]; onActivated: stack.currentIndex = (stack.currentIndex + tabCount - 1) % tabCount }
     Shortcut { sequences: ["Ctrl+Shift+T"]; onActivated: newTabDialog.openFresh() }
     // Only live on agent tabs: otherwise they would swallow the keys before a page
     // (the task list uses F2 to rename a task) ever sees them.
@@ -255,6 +255,16 @@ ApplicationWindow {
         HoverHandler { id: hover }
         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: item.activated() }
         TapHandler { acceptedButtons: Qt.RightButton; enabled: item.agent; onTapped: item.menuRequested() }
+        // Drag an agent tab up or down the rail to reorder it.
+        signal dropped(int steps)
+        DragHandler {
+            id: itemDrag
+            enabled: item.agent
+            target: null
+            xAxis.enabled: false
+            onActiveChanged: if (!active) item.dropped(Math.round(itemDrag.centroid.position.y / 36) - 0)
+        }
+        opacity: itemDrag.active ? 0.6 : 1
         ToolTip.visible: hover.hovered && item.subtitle.length > 0
         ToolTip.text: item.subtitle
         ToolTip.delay: 600
@@ -348,6 +358,7 @@ ApplicationWindow {
                         agent: true
                         onActivated: stack.currentIndex = index
                         onMenuRequested: { tabMenu.tabIndex = index; tabMenu.popup() }
+                        onDropped: (steps) => { if (steps !== 0) moveTab(index, Math.max(0, Math.min(tabs.count - 1, index + steps))) }
                     }
                 }
                 Rectangle {
