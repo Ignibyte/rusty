@@ -164,14 +164,20 @@ ApplicationWindow {
         // that is not showing, or a window that is not focused, turns that into a
         // desktop notification, once per title.
         property string lastAlert: ""
+        property double lastAlertAt: 0
         function titled() {
             const t = termSession.title || ""
             tabs.setProperty(tab.index, "title", t)
             if (theme.debug) console.log("rusty: title of tab", tab.index, JSON.stringify(t))
             const wantsYou = /\[ ! \]|action required|needs your|waiting for you|permission/i.test(t)
-            if (wantsYou && t !== lastAlert && (!tab.isCurrent || !win.active)) {
-                lastAlert = t
-                terminals.notify(tabs.get(tab.index).name, t)
+            // Codex blinks "[ ! ]" and "[ . ]" in front of the same message; compare without
+            // that frame, and never more than once a minute per tab.
+            const key = t.replace(/^\[ . \]\s*/, "")
+            const now = Date.now()
+            if (wantsYou && key !== lastAlert && now - lastAlertAt > 60000 && (!tab.isCurrent || !win.active)) {
+                lastAlert = key
+                lastAlertAt = now
+                terminals.notify(tabs.get(tab.index).name, key)
                 if (theme.debug) console.log("rusty: attention in tab", tab.index)
             }
             if (!wantsYou) lastAlert = ""
