@@ -31,13 +31,13 @@ Item {
     function refresh() { backend.call("settings_list", "{}") }
     function setValue(key, value) {
         if (key.trim().length === 0) return
-        backend.call("settings_set", JSON.stringify({ key: key.trim(), value: value }))
+        backend.call("setting_set", JSON.stringify({ key: key.trim(), value: value }))
     }
 
     Connections {
         target: page.backend
         function onResult(id, tool, json, ok) {
-            if (!tool.startsWith("settings_")) return
+            if (tool !== "settings_list" && tool !== "setting_set") return
             if (!ok) { page.notice = tool + ": " + json; return }
             page.notice = ""
             if (tool === "settings_list") page.settings = JSON.parse(json)
