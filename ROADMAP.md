@@ -12,8 +12,8 @@ The shape is in `docs/architecture.md`.
 |---|---|
 | M0 Foundation | done 2026-09-02 |
 | M1 The back end, complete | done 2026-09-02 |
-| M2 App shell, Terminals, Tasks | next |
-| M3 Knowledge tabs: Brain, Notes, Memory | |
+| M2 App shell, Terminals, Tasks | done 2026-09-02 |
+| M3 Knowledge tabs: Brain, Notes, Memory | next |
 | M4 Semantic search | |
 | M5 Skills, Secrets, Settings | |
 | M6 Omarchy packaging and cutover | |
@@ -88,7 +88,7 @@ Cutover for the back end
 - [x] Parity check against v2's tool list: all 29 present
 - [x] Switch the dev box's `.mcp.json` to v3 and retire the v2 `rusty-mcp`
 
-## M2. App shell, Terminals, Tasks
+## M2. App shell, Terminals, Tasks (done 2026-09-02)
 
 Done when the app replaces a terminal for daily Claude and Codex use.
 
