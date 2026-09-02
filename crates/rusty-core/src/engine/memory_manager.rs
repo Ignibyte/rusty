@@ -55,6 +55,34 @@ impl MemoryManager {
         Ok(id)
     }
 
+    /// Change a memory's content, category or importance; `None` keeps the current
+    /// value. Returns the memory as stored afterwards.
+    pub fn update(
+        &self,
+        id: &str,
+        content: Option<&str>,
+        category: Option<&str>,
+        importance: Option<&str>,
+    ) -> Result<Memory, String> {
+        let now = chrono_now();
+        let changed = {
+            let conn = self.db.conn()?;
+            conn.execute(
+                "UPDATE memories SET content = COALESCE(?1, content), category = COALESCE(?2, category), \
+                 importance = COALESCE(?3, importance), updated_at = ?4 WHERE id = ?5",
+                rusqlite::params![content, category, importance, now, id],
+            )
+            .map_err(|e| format!("Failed to update memory: {e}"))?
+        };
+        if changed == 0 {
+            return Err(format!("Memory not found: {id}"));
+        }
+        self.list(None)?
+            .into_iter()
+            .find(|m| m.id == id)
+            .ok_or_else(|| format!("Memory not found: {id}"))
+    }
+
     /// List all memories, optionally filtered by category.
     pub fn list(&self, category: Option<&str>) -> Result<Vec<Memory>, String> {
         let conn = self.db.conn()?;
@@ -366,5 +394,20 @@ mod tests {
             Some("high".to_string())
         );
         assert_eq!(extract_attr("<memory>", "category"), None);
+    }
+
+    #[test]
+    fn update_changes_only_what_is_given() {
+        let mm = MemoryManager::new(test_db());
+        let id = mm
+            .store("preference", "normal", "Prefers dark mode", "manual")
+            .unwrap();
+        let updated = mm
+            .update(&id, Some("Prefers light mode"), None, Some("high"))
+            .unwrap();
+        assert_eq!(updated.content, "Prefers light mode");
+        assert_eq!(updated.category, "preference");
+        assert_eq!(updated.importance, "high");
+        assert!(mm.update("nope", Some("x"), None, None).is_err());
     }
 }

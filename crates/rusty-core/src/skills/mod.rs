@@ -604,6 +604,39 @@ impl SkillsManager {
             .ok_or_else(|| "skill written but could not be read back".to_string())
     }
 
+    /// Rewrite a skill's description and/or body in place, keeping every other
+    /// frontmatter key. Works on active and pending skills alike. Returns the skill as
+    /// re-read from disk and the safety scan of the new file, so a caller can show the
+    /// findings. Does not commit — call [`SkillsManager::git_commit`].
+    pub fn update_skill(
+        &self,
+        name: &str,
+        description: Option<&str>,
+        body: Option<&str>,
+    ) -> Result<(Skill, Vec<String>), String> {
+        let skill = self
+            .get(name)
+            .ok_or_else(|| format!("skill {name:?} not found"))?;
+        let path = PathBuf::from(&skill.path);
+        let raw = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+        let (mut fm, old_body) = parse_skill_md(&raw)?;
+        if let Some(d) = description {
+            fm.description = Some(d.to_string());
+        }
+        if fm.name.is_none() {
+            fm.name = Some(name.to_string());
+        }
+        let content = render_skill_frontmatter(&fm, body.unwrap_or(&old_body))?;
+        std::fs::write(&path, &content)
+            .map_err(|e| format!("Failed to write {}: {e}", path.display()))?;
+        let findings = scan_skill_md(&content);
+        let updated = self
+            .get(name)
+            .ok_or_else(|| "skill written but could not be read back".to_string())?;
+        Ok((updated, findings))
+    }
+
     /// Delete a skill (active or staging) by removing its directory.
     /// Does not commit — call [`SkillsManager::git_commit`].
     pub fn delete_skill(&self, name: &str) -> Result<(), String> {
@@ -797,7 +830,12 @@ fn render_skill_md(
         description: Some(description.to_string()),
         extra,
     };
-    let yaml = serde_yaml::to_string(&fm).map_err(|e| format!("serialize frontmatter: {e}"))?;
+    render_skill_frontmatter(&fm, body)
+}
+
+/// Render a `SKILL.md` from parsed frontmatter and a body, keeping every key.
+fn render_skill_frontmatter(fm: &SkillFrontmatter, body: &str) -> Result<String, String> {
+    let yaml = serde_yaml::to_string(fm).map_err(|e| format!("serialize frontmatter: {e}"))?;
     // serde_yaml may emit a leading `---` document marker; strip it so we control the fences.
     let yaml_clean = yaml.trim_end().trim_start_matches("---").trim();
     Ok(format!("---\n{yaml_clean}\n---\n\n{}\n", body.trim_end()))
@@ -1286,5 +1324,40 @@ mod tests {
         assert!(mgr.reject("../escape").is_err());
         assert!(mgr.reject("/etc").is_err());
         assert!(mgr.reject("a/b").is_err());
+    }
+
+    #[test]
+    fn update_skill_keeps_unknown_frontmatter_keys() {
+        let tmp = TempDir::new();
+        let mgr = SkillsManager::new(tmp.path().to_path_buf());
+        mgr.ensure_dirs().unwrap();
+        mgr.create_skill("tidy", "Tidy things", "# Tidy\n\nStep one.", false)
+            .unwrap();
+        let file = mgr.active_dir().join("tidy").join("SKILL.md");
+        let with_extra = std::fs::read_to_string(&file).unwrap().replacen(
+            "---\n",
+            "---\nallowed-tools: Bash\n",
+            1,
+        );
+        std::fs::write(&file, with_extra).unwrap();
+
+        let (skill, findings) = mgr.update_skill("tidy", Some("Tidy faster"), None).unwrap();
+        assert_eq!(skill.description, "Tidy faster");
+        assert!(skill.body.contains("Step one."));
+        // The scan sees the pre-approved tools the test planted; that is the point of
+        // handing findings back.
+        assert_eq!(
+            findings,
+            vec!["declares allowed-tools (pre-approves tools without prompting)"]
+        );
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(raw.contains("allowed-tools: Bash"), "{raw}");
+
+        let (skill, _) = mgr
+            .update_skill("tidy", None, Some("# Tidy\n\nStep two."))
+            .unwrap();
+        assert_eq!(skill.description, "Tidy faster");
+        assert!(skill.body.contains("Step two."));
+        assert!(mgr.update_skill("missing", Some("x"), None).is_err());
     }
 }

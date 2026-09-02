@@ -47,6 +47,19 @@ impl SettingsManager {
         .map_err(|e| format!("Failed to set setting: {e}"))?;
         Ok(())
     }
+
+    /// Every setting as `(key, value)`, sorted by key.
+    pub fn list(&self) -> Result<Vec<(String, String)>, String> {
+        let conn = self.db.conn()?;
+        let mut stmt = conn
+            .prepare("SELECT key, value FROM settings ORDER BY key")
+            .map_err(|e| format!("Query error: {e}"))?;
+        let rows = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(|e| format!("Query error: {e}"))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Row error: {e}"))
+    }
 }
 
 /// Extension trait for optional query results.
@@ -130,5 +143,20 @@ mod tests {
 
         assert_eq!(sm.get("alpha").unwrap(), Some("1".to_string()));
         assert_eq!(sm.get("beta").unwrap(), Some("2".to_string()));
+    }
+
+    #[test]
+    fn list_returns_every_setting_sorted() {
+        let sm = SettingsManager::new(test_db());
+        sm.set("zeta", "1").unwrap();
+        sm.set("alpha", "2").unwrap();
+        let all = sm.list().unwrap();
+        assert_eq!(
+            all,
+            vec![
+                ("alpha".to_string(), "2".to_string()),
+                ("zeta".to_string(), "1".to_string())
+            ]
+        );
     }
 }

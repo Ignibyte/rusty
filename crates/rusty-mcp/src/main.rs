@@ -321,6 +321,91 @@ pub struct SettingSetParams {
     pub value: String,
 }
 
+/// Parameters for `reorder_tasks`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ReorderTasksParams {
+    /// The list (task group) id.
+    pub group_id: i64,
+    /// Task ids in the wanted order; tasks left out follow in their current order.
+    pub task_ids: Vec<i64>,
+}
+
+/// Parameters for `update_memory`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateMemoryParams {
+    /// The memory id, from `list_memories`.
+    pub id: String,
+    /// New content; omit to keep.
+    #[serde(default)]
+    pub content: Option<String>,
+    /// New category; omit to keep.
+    #[serde(default)]
+    pub category: Option<String>,
+    /// New importance (`low`, `normal`, `high`); omit to keep.
+    #[serde(default)]
+    pub importance: Option<String>,
+}
+
+/// Parameters for `brain_daily_note`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct DailyNoteParams {
+    /// `YYYY-MM-DD`; omit for today.
+    #[serde(default)]
+    pub date: Option<String>,
+}
+
+/// Parameters for `brain_capture`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct CaptureParams {
+    /// The note to append.
+    pub text: String,
+    /// `daily` (default) or `inbox`.
+    #[serde(default)]
+    pub target: Option<String>,
+    /// `YYYY-MM-DD` for the daily page and the entry date; omit for today.
+    #[serde(default)]
+    pub date: Option<String>,
+}
+
+/// Parameters for `skill_update`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SkillUpdateParams {
+    /// The skill's directory name.
+    pub name: String,
+    /// New description; omit to keep.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// New markdown body; omit to keep.
+    #[serde(default)]
+    pub body: Option<String>,
+}
+
+/// One row of `settings_list`.
+#[derive(serde::Serialize)]
+pub struct SettingEntry {
+    /// The setting key.
+    pub key: String,
+    /// The value, masked when the key looks like a credential.
+    pub value: String,
+}
+
+/// What `skill_update` returns.
+#[derive(serde::Serialize)]
+pub struct SkillUpdateResult {
+    /// The skill as re-read from disk.
+    pub skill: rusty_core::skills::Skill,
+    /// Safety-scan findings on the new file; empty when clean.
+    pub findings: Vec<String>,
+}
+
+/// Whether a settings key names something that should not be echoed back.
+fn looks_secret(key: &str) -> bool {
+    let k = key.to_ascii_lowercase();
+    ["key", "token", "secret", "password", "passwd"]
+        .iter()
+        .any(|needle| k.contains(needle))
+}
+
 /// Parameters for the Obsidian tools that name one page.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct ObsidianPathParams {
@@ -607,6 +692,124 @@ impl Rusty {
         Parameters(p): Parameters<ObsidianRenameParams>,
     ) -> Result<CallToolResult, McpError> {
         self.mutate(self.obsidian.rename(&p.from, &p.to).await)
+    }
+
+    #[tool(
+        description = "Put a list's tasks in the given order; tasks left out follow in their current order"
+    )]
+    fn reorder_tasks(
+        &self,
+        Parameters(p): Parameters<ReorderTasksParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(
+            self.core
+                .user_task_manager
+                .reorder(p.group_id, &p.task_ids)
+                .map(|_| "reordered"),
+        )
+    }
+
+    #[tool(description = "Change a memory's content, category or importance; omitted fields stay")]
+    fn update_memory(
+        &self,
+        Parameters(p): Parameters<UpdateMemoryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.memory_manager.update(
+            &p.id,
+            p.content.as_deref(),
+            p.category.as_deref(),
+            p.importance.as_deref(),
+        ))
+    }
+
+    #[tool(
+        description = "Every setting with its value; values of keys that look like credentials are masked"
+    )]
+    fn settings_list(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.core.settings_manager.list().map(|all| {
+            all.into_iter()
+                .map(|(key, value)| SettingEntry {
+                    value: if looks_secret(&key) {
+                        "•••".to_string()
+                    } else {
+                        value
+                    },
+                    key,
+                })
+                .collect::<Vec<_>>()
+        }))
+    }
+
+    #[tool(description = "Today's daily page (or a given YYYY-MM-DD), created when missing")]
+    fn brain_daily_note(
+        &self,
+        Parameters(p): Parameters<DailyNoteParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let date = p
+            .date
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+            .map(str::to_string)
+            .unwrap_or_else(chrono_today);
+        let existed = self
+            .core
+            .brain_manager
+            .read_page(&format!("daily/{date}"))
+            .map(|page| page.is_some())
+            .unwrap_or(false);
+        let page = self.core.brain_manager.daily_page(Some(&date));
+        if existed {
+            json_result(page)
+        } else {
+            self.mutate(page)
+        }
+    }
+
+    #[tool(
+        description = "Append a quick note to today's daily page (default) or the inbox page, creating it when needed"
+    )]
+    fn brain_capture(
+        &self,
+        Parameters(p): Parameters<CaptureParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let target = match p.target.as_deref() {
+            Some(t) => match rusty_core::brain::CaptureTarget::parse(t) {
+                Ok(t) => t,
+                Err(e) => return Err(McpError::invalid_params(e, None)),
+            },
+            None => rusty_core::brain::CaptureTarget::Daily,
+        };
+        self.mutate(
+            self.core
+                .brain_manager
+                .capture(&p.text, target, p.date.as_deref(), "mcp"),
+        )
+    }
+
+    #[tool(description = "The page types the vault knows, with their folders and page counts")]
+    fn brain_page_types(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.page_types())
+    }
+
+    #[tool(
+        description = "Rewrite a skill's description and/or body in place; other frontmatter keys stay; returns the safety scan"
+    )]
+    fn skill_update(
+        &self,
+        Parameters(p): Parameters<SkillUpdateParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let result = self
+            .core
+            .skills_manager
+            .update_skill(&p.name, p.description.as_deref(), p.body.as_deref())
+            .map(|(skill, findings)| {
+                self.core
+                    .skills_manager
+                    .git_commit(&format!("skill: update {}", p.name));
+                SkillUpdateResult { skill, findings }
+            });
+        self.mutate(result)
     }
 
     #[tool(description = "Brain vault statistics: pages, links, tags, timeline entries")]
@@ -1212,6 +1415,13 @@ mod tests {
         "obsidian_links",
         "obsidian_unresolved",
         "obsidian_rename_page",
+        "reorder_tasks",
+        "update_memory",
+        "settings_list",
+        "brain_daily_note",
+        "brain_capture",
+        "brain_page_types",
+        "skill_update",
     ];
 
     #[test]

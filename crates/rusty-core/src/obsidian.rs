@@ -211,8 +211,8 @@ impl Obsidian {
 
     /// The vault settings Rusty relies on, written into `<vault>/.obsidian/app.json`:
     /// renames rewrite links without the "Update links?" dialog, and new links are
-    /// shortest-path wikilinks, the style the vault already uses. Existing keys are
-    /// kept; nothing is written when the values already match. Obsidian picks up the
+    /// vault-path wikilinks (`[[projects/orbit]]`), the one style Rusty's own writers
+    /// use. Existing keys are kept; nothing is written when the values already match. Obsidian picks up the
     /// file live, so this is safe while the app runs.
     pub fn configure_vault(&self) -> Result<(), String> {
         let dir = self.vault_path.join(".obsidian");
@@ -226,7 +226,7 @@ impl Obsidian {
             ("useMarkdownLinks", serde_json::Value::Bool(false)),
             (
                 "newLinkFormat",
-                serde_json::Value::String("shortest".into()),
+                serde_json::Value::String("absolute".into()),
             ),
         ];
         let object = config.as_object_mut().expect("app.json is an object");
@@ -720,7 +720,7 @@ mod tests {
             serde_json::from_str(&std::fs::read_to_string(&app_json).unwrap()).unwrap();
         assert_eq!(saved["alwaysUpdateLinks"], true);
         assert_eq!(saved["useMarkdownLinks"], false);
-        assert_eq!(saved["newLinkFormat"], "shortest");
+        assert_eq!(saved["newLinkFormat"], "absolute");
         assert_eq!(saved["readableLineLength"], true, "unrelated keys survive");
 
         // A second pass changes nothing on disk.

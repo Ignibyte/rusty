@@ -19,6 +19,11 @@ const TYPE_DIRS: &[(&str, &str)] = &[
     ("conversation", "conversations"),
 ];
 
+/// Every page type with the vault folder it lives in, in display order.
+pub fn page_types() -> &'static [(&'static str, &'static str)] {
+    TYPE_DIRS
+}
+
 /// Manages markdown files in the brain vault directory.
 pub struct VaultManager {
     root: PathBuf,

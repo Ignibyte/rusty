@@ -7,7 +7,7 @@
 //! this CLI deliberately covers only the brain, where the SQLite side is derived
 //! state that must stay in sync with the markdown vault.
 
-use rusty_core::brain::BrainManager;
+use rusty_core::brain::{BrainManager, CaptureTarget};
 use rusty_core::engine::conversation_archive::ConversationArchive;
 use rusty_core::engine::db::Database;
 use rusty_core::engine::settings_manager::SettingsManager;
@@ -28,6 +28,9 @@ USAGE:\n\
   rusty-cli brain append <slug> <summary...> [--detail <text>]\n\
   rusty-cli brain set <slug> <content...>   (replace the page body / compiled truth)\n\
   rusty-cli brain capture <text...> [--to daily|inbox] [--date YYYY-MM-DD]\n\
+  rusty-cli brain daily [--date YYYY-MM-DD]   (open or create the daily page)\n\
+  rusty-cli brain types                       (page types, folders, counts)\n\
+  rusty-cli brain migrate [--dry-run]         (timeline sections + vault-path links)\n\
   rusty-cli brain reindex\n\
   rusty-cli brain stats\n\
   rusty-cli skills list [--all]\n\
@@ -41,7 +44,7 @@ USAGE:\n\
   rusty-cli ingest-conversation <path|session-id>   (archive a Claude Code transcript + brain node)\n\
   rusty-cli ingest-conversation --all [--dir <path>] [--limit N]   (backfill a project's transcripts)\n\
   rusty-cli conversations search <query...> [--limit N]\n\
-  rusty-cli obsidian status|register|launch   (the brain as an Obsidian vault, CLI on)\n\
+  rusty-cli obsidian status|register|launch|configure   (the brain as an Obsidian vault)\n\
   rusty-cli obsidian open <slug>              (show a page in Obsidian, starting it if needed)\n\
   rusty-cli obsidian backlinks <slug>\n\
   rusty-cli obsidian unresolved               (wikilinks with no page behind them)\n\
@@ -380,26 +383,68 @@ fn run_brain(sub: &str, rest: &[String]) {
             if text.is_empty() {
                 fail("capture: missing <text>");
             }
-            let to = flags.get("to").map(String::as_str).unwrap_or("daily");
-            let date = flags.get("date").cloned().unwrap_or_else(today);
-            let (slug, title, ptype) = match to {
-                "daily" => (format!("daily/{date}"), date.clone(), "daily"),
-                "inbox" => ("inbox/inbox".to_string(), "Inbox".to_string(), "inbox"),
-                other => fail(&format!(
-                    "capture --to must be 'daily' or 'inbox', got '{other}'"
-                )),
-            };
+            let target =
+                CaptureTarget::parse(flags.get("to").map(String::as_str).unwrap_or("daily"))
+                    .unwrap_or_else(|e| fail(&e));
             let brain = brain();
-            if brain.read_page(&slug).ok().flatten().is_none() {
-                brain
-                    .create_page(ptype, &title, "")
-                    .unwrap_or_else(|e| fail(&format!("create {slug}: {e}")));
-            }
-            match brain.add_timeline(&slug, &date, "terminal", &text, None) {
-                Ok(_) => println!("captured to {slug}"),
+            match brain.capture(
+                &text,
+                target,
+                flags.get("date").map(String::as_str),
+                "terminal",
+            ) {
+                Ok(r) => println!("captured to {}", r.slug),
                 Err(e) => fail(&e),
             }
             brain.flush_commits();
+        }
+        "daily" => {
+            let (_, flags) = parse(rest);
+            let brain = brain();
+            match brain.daily_page(flags.get("date").map(String::as_str)) {
+                Ok(page) => {
+                    println!("{}\n", page.slug);
+                    if !page.compiled_truth.is_empty() {
+                        println!("{}\n", page.compiled_truth);
+                    }
+                    if !page.timeline.is_empty() {
+                        println!("## Timeline\n\n{}", page.timeline);
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+            brain.flush_commits();
+        }
+        "types" => match brain().page_types() {
+            Ok(types) => {
+                for t in types {
+                    println!("{:<13} {:<14} {}", t.page_type, t.dir, t.count);
+                }
+            }
+            Err(e) => fail(&e),
+        },
+        "migrate" => {
+            let (_, flags) = parse_with_bools(rest, &["dry-run"]);
+            let dry = flags.contains_key("dry-run");
+            match brain().migrate_vault(dry) {
+                Ok(r) => {
+                    println!(
+                        "{}scanned {} pages: {} changed, {} timelines converted, {} links rewritten",
+                        if dry { "dry run: " } else { "" },
+                        r.pages_scanned,
+                        r.pages_changed,
+                        r.timelines_converted,
+                        r.links_rewritten
+                    );
+                    for slug in &r.changed_slugs {
+                        println!("  changed: {slug}");
+                    }
+                    for u in &r.unresolved_links {
+                        println!("  unresolved: {u}");
+                    }
+                }
+                Err(e) => fail(&e),
+            }
         }
         "reindex" => match brain().sync_all() {
             Ok(n) => println!("reindexed {n} brain pages from the vault"),
@@ -652,6 +697,10 @@ fn run_obsidian(sub: &str, rest: &[String]) {
         },
         "backlinks" => match rt.block_on(obsidian.backlinks(&page())) {
             Ok(links) => print_json(serde_json::to_value(links).unwrap_or_default()),
+            Err(e) => fail(&e),
+        },
+        "configure" => match obsidian.configure_vault() {
+            Ok(()) => println!("vault settings written to .obsidian/app.json"),
             Err(e) => fail(&e),
         },
         "unresolved" => match rt.block_on(obsidian.unresolved()) {

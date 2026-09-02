@@ -110,3 +110,8 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   app is closed. Opening an unregistered folder through an `obsidian://open?path=` URL left the app
   in its picker for five minutes on the box, so that route is out.
 - `.obsidian/` is per-machine viewer state and is gitignored in the vault.
+- Vault rules, applied by `rusty-cli brain migrate`: the timeline is a `## Timeline` section (the
+  bare `---` rule is read for compatibility, never written), and wikilinks are vault paths,
+  `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).
+  Bare names that named a page's title or alias became `[[folder/slug|Name]]`, so prose reads as
+  before; targets that matched nothing were left alone and listed.

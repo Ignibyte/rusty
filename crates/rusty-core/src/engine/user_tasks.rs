@@ -225,6 +225,32 @@ impl UserTaskManager {
         Ok(())
     }
 
+    /// Put a group's tasks in the given order. Every id must belong to the group; tasks
+    /// the list leaves out keep their relative order after the listed ones.
+    pub fn reorder(&self, header_id: i64, ordered_ids: &[i64]) -> Result<(), String> {
+        let current = self.list_tasks(header_id, true)?;
+        let known: std::collections::HashSet<i64> = current.iter().map(|t| t.id).collect();
+        if let Some(bad) = ordered_ids.iter().find(|id| !known.contains(id)) {
+            return Err(format!("Task {bad} is not in group {header_id}"));
+        }
+        let mut seen = std::collections::HashSet::new();
+        let mut order: Vec<i64> = ordered_ids
+            .iter()
+            .copied()
+            .filter(|id| seen.insert(*id))
+            .collect();
+        order.extend(current.iter().map(|t| t.id).filter(|id| !seen.contains(id)));
+        let conn = self.db.conn()?;
+        for (position, id) in order.iter().enumerate() {
+            conn.execute(
+                "UPDATE user_tasks SET sort_order = ?1 WHERE id = ?2 AND header_id = ?3",
+                rusqlite::params![position as i64, id, header_id],
+            )
+            .map_err(|e| format!("Failed to reorder tasks: {e}"))?;
+        }
+        Ok(())
+    }
+
     /// Delete a task permanently.
     pub fn delete_task(&self, id: i64) -> Result<(), String> {
         let conn = self.db.conn()?;
@@ -376,5 +402,25 @@ mod tests {
         tm.delete_task(tid).unwrap();
         let tasks = tm.list_tasks(hid, false).unwrap();
         assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn reorder_moves_listed_tasks_first_and_keeps_the_rest() {
+        let tm = UserTaskManager::new(test_db());
+        let g = tm.create_header("Work").unwrap();
+        let a = tm.create_task(g, "a").unwrap();
+        let b = tm.create_task(g, "b").unwrap();
+        let c = tm.create_task(g, "c").unwrap();
+        tm.reorder(g, &[c, a]).unwrap();
+        let ids: Vec<i64> = tm
+            .list_tasks(g, true)
+            .unwrap()
+            .iter()
+            .map(|t| t.id)
+            .collect();
+        assert_eq!(ids, vec![c, a, b]);
+        let other = tm.create_header("Home").unwrap();
+        let x = tm.create_task(other, "x").unwrap();
+        assert!(tm.reorder(g, &[x]).is_err());
     }
 }

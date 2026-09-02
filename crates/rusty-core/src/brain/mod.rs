@@ -10,7 +10,7 @@ pub mod frontmatter;
 pub mod vault;
 
 use crate::engine::db::Database;
-use frontmatter::{parse_page, render_page, BrainFrontmatter};
+use frontmatter::{parse_page, render_body, render_page, split_raw, today_iso, BrainFrontmatter};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -121,6 +121,70 @@ pub struct BrainStats {
     pub timeline_count: i64,
     /// Pages grouped by type.
     pub pages_by_type: std::collections::HashMap<String, i64>,
+}
+
+/// Where a quick capture lands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CaptureTarget {
+    /// Today's daily page (`daily/YYYY-MM-DD`).
+    Daily,
+    /// The single inbox page (`inbox/inbox`).
+    Inbox,
+}
+
+impl CaptureTarget {
+    /// Parse `daily` or `inbox`.
+    pub fn parse(s: &str) -> Result<Self, String> {
+        match s.trim().to_lowercase().as_str() {
+            "daily" => Ok(Self::Daily),
+            "inbox" => Ok(Self::Inbox),
+            other => Err(format!(
+                "capture target must be 'daily' or 'inbox', got '{other}'"
+            )),
+        }
+    }
+}
+
+/// What a capture did: the page that took it and the timeline row it made.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CaptureReceipt {
+    /// The page the entry went to.
+    pub slug: String,
+    /// The `brain_timeline` row id.
+    pub entry_id: i64,
+    /// Whether the page had to be created first.
+    pub created_page: bool,
+}
+
+/// One page type, its vault folder, and how many pages it holds.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PageTypeInfo {
+    /// The `type:` value pages carry.
+    pub page_type: String,
+    /// The folder under the vault root.
+    pub dir: String,
+    /// Pages of this type in the index.
+    pub count: i64,
+}
+
+/// What a vault migration did, or would do with `dry_run`.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct MigrationReport {
+    /// Nothing was written.
+    pub dry_run: bool,
+    /// Pages read.
+    pub pages_scanned: usize,
+    /// Pages whose text changed (or would change).
+    pub pages_changed: usize,
+    /// Pages whose bare `---` timeline rule became a `## Timeline` section.
+    pub timelines_converted: usize,
+    /// Wikilinks rewritten to vault paths.
+    pub links_rewritten: usize,
+    /// Links no page answers to, as `slug: [[target]]`; these are left as written.
+    pub unresolved_links: Vec<String>,
+    /// The slugs that changed.
+    pub changed_slugs: Vec<String>,
 }
 
 /// Manages brain pages: CRUD, search, and sync between vault and SQLite index.
@@ -488,17 +552,22 @@ impl BrainManager {
             synced += 1;
         }
 
-        // Remove orphan index rows (pages in DB but not on disk)
-        let conn = self.db.conn()?;
-        let mut stmt = conn
-            .prepare("SELECT slug FROM brain_pages")
-            .map_err(|e| format!("Query error: {e}"))?;
-        let indexed_slugs: Vec<String> = stmt
-            .query_map([], |row| row.get(0))
-            .map_err(|e| format!("Query error: {e}"))?
-            .flatten()
-            .collect();
-
+        // Remove orphan index rows (pages in DB but not on disk). The connection guard
+        // is scoped so it is released before `remove_from_index` takes its own; the DB
+        // is one `Mutex<Connection>`, and holding it across that call deadlocked the
+        // first reindex that ever met an orphan (2026-09-02).
+        let indexed_slugs: Vec<String> = {
+            let conn = self.db.conn()?;
+            let mut stmt = conn
+                .prepare("SELECT slug FROM brain_pages")
+                .map_err(|e| format!("Query error: {e}"))?;
+            let slugs = stmt
+                .query_map([], |row| row.get(0))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            slugs
+        };
         for slug in &indexed_slugs {
             if !valid_slugs.contains(slug) {
                 self.remove_from_index(slug)?;
@@ -679,6 +748,134 @@ impl BrainManager {
             entries.push(entry);
         }
         Ok(entries)
+    }
+
+    // ── Daily pages, capture, types ────────────────────────────────────
+
+    /// Today's daily page, or the one for `date` (`YYYY-MM-DD`), created when missing.
+    pub fn daily_page(&self, date: Option<&str>) -> Result<BrainPage, String> {
+        let date = normalize_date(date)?;
+        let slug = format!("daily/{date}");
+        if let Some(page) = self.read_page(&slug)? {
+            return Ok(page);
+        }
+        self.create_page("daily", &date, "")
+    }
+
+    /// Append a quick note to the daily page or the inbox page, creating the page when
+    /// it does not exist yet. `source` names who captured (`terminal`, `mcp`, ...).
+    pub fn capture(
+        &self,
+        text: &str,
+        target: CaptureTarget,
+        date: Option<&str>,
+        source: &str,
+    ) -> Result<CaptureReceipt, String> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err("Nothing to capture".to_string());
+        }
+        let date = normalize_date(date)?;
+        let (slug, created_page) = match target {
+            CaptureTarget::Daily => {
+                let slug = format!("daily/{date}");
+                let existed = self.read_page(&slug)?.is_some();
+                (self.daily_page(Some(&date))?.slug, !existed)
+            }
+            CaptureTarget::Inbox => {
+                let slug = "inbox/inbox".to_string();
+                if self.read_page(&slug)?.is_some() {
+                    (slug, false)
+                } else {
+                    (self.create_page("inbox", "Inbox", "")?.slug, true)
+                }
+            }
+        };
+        let entry_id = self.add_timeline(&slug, &date, source, text, None)?;
+        Ok(CaptureReceipt {
+            slug,
+            entry_id,
+            created_page,
+        })
+    }
+
+    /// Every page type with its folder and page count.
+    pub fn page_types(&self) -> Result<Vec<PageTypeInfo>, String> {
+        let counts = self.stats()?.pages_by_type;
+        Ok(vault::page_types()
+            .iter()
+            .map(|(t, d)| PageTypeInfo {
+                page_type: t.to_string(),
+                dir: d.to_string(),
+                count: counts.get(*t).copied().unwrap_or(0),
+            })
+            .collect())
+    }
+
+    // ── Vault migration ────────────────────────────────────────────────
+
+    /// Bring every page onto the current vault rules: the timeline as a `## Timeline`
+    /// section instead of a bare `---` rule, and wikilinks as vault paths
+    /// (`[[projects/orbit]]`) instead of bare names or titles. The frontmatter text is
+    /// left byte for byte as it was; only the body is rewritten, and only when something
+    /// changes. With `dry_run` nothing is written. Otherwise the index is rebuilt and one
+    /// git commit records the pass.
+    pub fn migrate_vault(&self, dry_run: bool) -> Result<MigrationReport, String> {
+        let files = self.vault.list_all_files()?;
+        let index = LinkIndex::build(&files);
+        let mut report = MigrationReport {
+            dry_run,
+            ..Default::default()
+        };
+        for (slug, path) in &files {
+            report.pages_scanned += 1;
+            let raw = std::fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let (prefix, body) = match split_raw(&raw) {
+                Ok(parts) => parts,
+                Err(e) => {
+                    report
+                        .unresolved_links
+                        .push(format!("{slug}: not migrated ({e})"));
+                    continue;
+                }
+            };
+            let legacy = frontmatter::uses_legacy_rule(body);
+            let (truth, timeline) = frontmatter::split_body(body);
+            let (truth, n_truth, mut unresolved) = index.rewrite_links(&truth);
+            let (timeline, n_timeline, more) = index.rewrite_links(&timeline);
+            unresolved.extend(more);
+            for target in unresolved {
+                let line = format!("{slug}: [[{target}]]");
+                if !report.unresolved_links.contains(&line) {
+                    report.unresolved_links.push(line);
+                }
+            }
+            let rewritten = n_truth + n_timeline;
+            if !legacy && rewritten == 0 {
+                continue;
+            }
+            let new_raw = format!("{prefix}{}", render_body(&truth, &timeline));
+            if new_raw == raw {
+                continue;
+            }
+            report.pages_changed += 1;
+            report.timelines_converted += usize::from(legacy);
+            report.links_rewritten += rewritten;
+            report.changed_slugs.push(slug.clone());
+            if !dry_run {
+                self.vault.write_page(slug, &new_raw)?;
+            }
+        }
+        if !dry_run && report.pages_changed > 0 {
+            self.sync_all()?;
+            self.vault.git_commit(&format!(
+                "migrate: timeline sections and vault-path links ({} pages)",
+                report.pages_changed
+            ));
+            self.vault.flush_commits();
+        }
+        Ok(report)
     }
 
     // ── Links ─────────────────────────────────────────────────────────
@@ -1191,6 +1388,138 @@ struct IndexEntry<'a> {
     hash: &'a str,
     created_at: i64,
     updated_at: i64,
+}
+
+/// `date` as `YYYY-MM-DD`, defaulting to today.
+fn normalize_date(date: Option<&str>) -> Result<String, String> {
+    let date = match date.map(str::trim).filter(|d| !d.is_empty()) {
+        Some(d) => d.to_string(),
+        None => today_iso(),
+    };
+    let bytes = date.as_bytes();
+    let shaped = bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && date
+            .chars()
+            .enumerate()
+            .all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit());
+    if !shaped {
+        return Err(format!("Date must be YYYY-MM-DD, got '{date}'"));
+    }
+    Ok(date)
+}
+
+/// What every wikilink target in the vault can resolve to.
+struct LinkIndex {
+    slugs: std::collections::HashSet<String>,
+    /// lowercase basename → slugs
+    by_basename: std::collections::HashMap<String, Vec<String>>,
+    /// lowercase title or alias → slugs
+    by_name: std::collections::HashMap<String, Vec<String>>,
+}
+
+impl LinkIndex {
+    fn build(files: &[(String, PathBuf)]) -> Self {
+        let mut index = LinkIndex {
+            slugs: Default::default(),
+            by_basename: Default::default(),
+            by_name: Default::default(),
+        };
+        for (slug, path) in files {
+            index.slugs.insert(slug.clone());
+            let basename = slug.rsplit('/').next().unwrap_or(slug).to_lowercase();
+            index
+                .by_basename
+                .entry(basename)
+                .or_default()
+                .push(slug.clone());
+            let Ok(raw) = std::fs::read_to_string(path) else {
+                continue;
+            };
+            let Ok(parsed) = parse_page(&raw) else {
+                continue;
+            };
+            let mut names = vec![parsed.frontmatter.title.clone()];
+            names.extend(parsed.frontmatter.aliases.iter().cloned());
+            for name in names {
+                let key = name.trim().to_lowercase();
+                if key.is_empty() {
+                    continue;
+                }
+                let entry = index.by_name.entry(key).or_default();
+                if !entry.contains(slug) {
+                    entry.push(slug.clone());
+                }
+            }
+        }
+        index
+    }
+
+    /// The slug a link target names: an exact slug, else a unique basename, else a
+    /// unique title or alias. `None` when nothing (or more than one page) matches.
+    fn resolve(&self, target: &str) -> Option<String> {
+        let t = target.trim().trim_start_matches('/');
+        let t = t.strip_suffix(".md").unwrap_or(t);
+        if t.is_empty() {
+            return None;
+        }
+        if self.slugs.contains(t) {
+            return Some(t.to_string());
+        }
+        let key = t.to_lowercase();
+        for table in [&self.by_basename, &self.by_name] {
+            if let Some(v) = table.get(&key) {
+                if v.len() == 1 {
+                    return Some(v[0].clone());
+                }
+            }
+        }
+        None
+    }
+
+    /// Rewrite every `[[target]]` whose target resolves to a slug spelled differently.
+    /// A title or alias used as the target becomes the display text, so the prose reads
+    /// as before. Returns the text, how many links changed, and the unresolved targets.
+    fn rewrite_links(&self, text: &str) -> (String, usize, Vec<String>) {
+        let mut out = String::with_capacity(text.len());
+        let mut rewritten = 0;
+        let mut unresolved = Vec::new();
+        let mut rest = text;
+        while let Some(start) = rest.find("[[") {
+            let Some(end) = rest[start + 2..].find("]]") else {
+                break;
+            };
+            let inner = &rest[start + 2..start + 2 + end];
+            out.push_str(&rest[..start]);
+            let cut = inner.find(['#', '|']).unwrap_or(inner.len());
+            let (target, tail) = inner.split_at(cut);
+            match self.resolve(target) {
+                Some(slug) if slug != target.trim() => {
+                    let basename = slug.rsplit('/').next().unwrap_or(&slug);
+                    let has_display = tail.contains('|');
+                    let keep_words = !has_display && !target.trim().eq_ignore_ascii_case(basename);
+                    if keep_words {
+                        out.push_str(&format!("[[{slug}{tail}|{}]]", target.trim()));
+                    } else {
+                        out.push_str(&format!("[[{slug}{tail}]]"));
+                    }
+                    rewritten += 1;
+                }
+                Some(_) => out.push_str(&format!("[[{inner}]]")),
+                None => {
+                    if !target.trim().is_empty() && !unresolved.contains(&target.trim().to_string())
+                    {
+                        unresolved.push(target.trim().to_string());
+                    }
+                    out.push_str(&format!("[[{inner}]]"));
+                }
+            }
+            rest = &rest[start + 2 + end + 2..];
+        }
+        out.push_str(rest);
+        (out, rewritten, unresolved)
+    }
 }
 
 /// Parse `[[slug]]` and `[[slug|display text]]` wiki links from markdown content.
@@ -1777,6 +2106,141 @@ mod tests {
         let back = bm.get_links("companies/acme").unwrap();
         assert_eq!(back.backlinks.len(), 1);
 
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn daily_page_is_created_once() {
+        let (dir, bm) = test_brain("daily_page");
+        let first = bm.daily_page(Some("2026-09-02")).unwrap();
+        assert_eq!(first.slug, "daily/2026-09-02");
+        assert_eq!(first.page_type, "daily");
+        let again = bm.daily_page(Some("2026-09-02")).unwrap();
+        assert_eq!(again.slug, first.slug);
+        assert_eq!(bm.list_pages(Some("daily"), None).unwrap().len(), 1);
+        assert!(bm.daily_page(Some("yesterday")).is_err());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn capture_lands_in_inbox_and_daily_pages() {
+        let (dir, bm) = test_brain("capture");
+        let r = bm
+            .capture("call the plumber", CaptureTarget::Inbox, None, "test")
+            .unwrap();
+        assert_eq!(r.slug, "inbox/inbox");
+        assert!(r.created_page);
+        let r2 = bm
+            .capture("and the electrician", CaptureTarget::Inbox, None, "test")
+            .unwrap();
+        assert!(!r2.created_page);
+        let inbox = bm.read_page("inbox/inbox").unwrap().unwrap();
+        assert!(inbox.timeline.contains("call the plumber"));
+        assert!(inbox.timeline.contains("and the electrician"));
+        let d = bm
+            .capture(
+                "stand-up notes",
+                CaptureTarget::Daily,
+                Some("2026-09-02"),
+                "test",
+            )
+            .unwrap();
+        assert_eq!(d.slug, "daily/2026-09-02");
+        assert!(bm
+            .capture("   ", CaptureTarget::Inbox, None, "test")
+            .is_err());
+        assert_eq!(CaptureTarget::parse("Daily").unwrap(), CaptureTarget::Daily);
+        assert!(CaptureTarget::parse("later").is_err());
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn page_types_cover_the_type_table() {
+        let (dir, bm) = test_brain("page_types");
+        bm.create_page("person", "Alice", "").unwrap();
+        let types = bm.page_types().unwrap();
+        assert_eq!(types.len(), vault::page_types().len());
+        let person = types.iter().find(|t| t.page_type == "person").unwrap();
+        assert_eq!(person.dir, "people");
+        assert_eq!(person.count, 1);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn migrate_vault_converts_rules_and_link_paths() {
+        let (dir, bm) = test_brain("migrate");
+        bm.create_page("person", "Bob", "").unwrap();
+        bm.create_page("person", "Bob Jones", "").unwrap();
+        let alice = dir.join("people").join("alice.md");
+        fs::write(
+            &alice,
+            "---\ntitle: Alice\ntype: person\nrole: CTO\n---\n\nWorks with [[bob]] and [[Bob Jones]] on [[projects/nowhere]].\n\n---\n\n- **2026-01-01** — met [[people/bob|Bob]]\n",
+        )
+        .unwrap();
+        bm.sync_all().unwrap();
+
+        let dry = bm.migrate_vault(true).unwrap();
+        assert!(dry.dry_run);
+        assert_eq!(dry.pages_changed, 1);
+        assert_eq!(dry.timelines_converted, 1);
+        assert_eq!(dry.links_rewritten, 2);
+        assert_eq!(dry.changed_slugs, vec!["people/alice"]);
+        assert!(dry
+            .unresolved_links
+            .iter()
+            .any(|u| u.contains("[[projects/nowhere]]")));
+        assert!(fs::read_to_string(&alice)
+            .unwrap()
+            .contains("\n---\n\n- **"));
+
+        let real = bm.migrate_vault(false).unwrap();
+        assert_eq!(real.pages_changed, 1);
+        let raw = fs::read_to_string(&alice).unwrap();
+        assert!(raw.starts_with("---\ntitle: Alice\ntype: person\nrole: CTO\n---\n"));
+        assert!(raw
+            .contains("[[people/bob]] and [[people/bob-jones|Bob Jones]] on [[projects/nowhere]]"));
+        assert!(raw.contains("\n## Timeline\n\n- **2026-01-01** — met [[people/bob|Bob]]\n"));
+        assert_eq!(raw.matches("\n---\n").count(), 1);
+        let page = bm.read_page("people/alice").unwrap().unwrap();
+        assert!(page.timeline.contains("met"));
+        let links = bm.get_links("people/alice").unwrap();
+        assert!(links
+            .outbound
+            .iter()
+            .any(|l| l.to_slug == "people/bob-jones"));
+
+        // A second pass has nothing to do.
+        let again = bm.migrate_vault(false).unwrap();
+        assert_eq!(again.pages_changed, 0);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn sync_all_drops_orphan_index_rows_without_deadlocking() {
+        let (dir, bm) = test_brain("sync_orphans");
+        bm.create_page("concept", "Kept", "").unwrap();
+        bm.create_page("concept", "Gone", "").unwrap();
+        fs::remove_file(dir.join("concepts").join("gone.md")).unwrap();
+
+        // A deadlock here would hang the suite, so run the sync on a thread and wait.
+        let bm = Arc::new(bm);
+        let worker = Arc::clone(&bm);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(worker.sync_all());
+        });
+        let synced = rx
+            .recv_timeout(std::time::Duration::from_secs(20))
+            .expect("sync_all must finish; it deadlocked on the orphan row")
+            .unwrap();
+        assert_eq!(synced, 1);
+        let slugs: Vec<String> = bm
+            .list_pages(None, None)
+            .unwrap()
+            .into_iter()
+            .map(|p| p.slug)
+            .collect();
+        assert_eq!(slugs, vec!["concepts/kept"]);
         cleanup(&dir);
     }
 }

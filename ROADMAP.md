@@ -11,8 +11,8 @@ The shape is in `docs/architecture.md`.
 | Milestone | State |
 |---|---|
 | M0 Foundation | done 2026-09-02 |
-| M1 The back end, complete | next |
-| M2 App shell, Terminals, Tasks | |
+| M1 The back end, complete | done 2026-09-02 |
+| M2 App shell, Terminals, Tasks | next |
 | M3 Knowledge tabs: Brain, Notes, Memory | |
 | M4 Semantic search | |
 | M5 Skills, Secrets, Settings | |
@@ -31,7 +31,7 @@ The shape is in `docs/architecture.md`.
 - [x] Decision: agent terminals are always embedded; the Alacritty-window mode was tried
       and removed. The Settings page stays as a page.
 
-## M1. The back end, complete
+## M1. The back end, complete (done 2026-09-02)
 
 Done when every v2 GUI action has an MCP equivalent, the dev box's own `.mcp.json`
 points at v3, and the v2 server is not needed.
@@ -39,30 +39,32 @@ points at v3, and the v2 server is not needed.
 Tools and resources
 
 - [x] Tasks: rename and delete a list, update a task title, unarchive, delete
-- [ ] Tasks: reorder
+- [x] Tasks: reorder (`reorder_tasks`)
 - [x] Notes: create, rename, delete
-- [ ] Notes: daily note open-or-create
+- [x] Notes: daily note open-or-create (`brain_daily_note`, the daily page in the vault)
 - [x] Memories: delete
-- [ ] Memories: update
+- [x] Memories: update (`update_memory`)
 - [x] Brain: read timeline, links and backlinks, set page body, delete page, resolve a
       partial slug
-- [ ] Brain: capture into the inbox, page types listed
+- [x] Brain: capture into the daily page or the inbox, page types listed (`brain_capture`,
+      `brain_page_types`)
 - [x] Skills: create (active or staged), approve, reject, delete, safety scan on demand
-- [ ] Skills: update frontmatter and body in place
+- [x] Skills: update description and body in place, other keys kept (`skill_update`)
 - [x] Secrets: list names, set, delete; values are never returned
 - [x] Settings: get, set
-- [ ] Settings: list
+- [x] Settings: list, credential-looking values masked (`settings_list`)
 - [x] Resources: `rusty://tasks`, `memories`, `skills`, `notes`, `brain` and the templates
       `tasks/{group_id}`, `brain/{slug}`, `notes/{path}`; `resources/list_changed` fires on
       every tool mutation and every watched-file change (verified over HTTP)
 - [x] Router tests: every tool advertised once, every tool described
-- [ ] An rmcp-client smoke test that runs in CI
+- [x] An rmcp-client smoke test that runs in CI (`crates/rusty-mcp/tests/smoke.rs`,
+      `.github/workflows/ci.yml`)
 
 Transport and services
 
 - [x] A `systemd --user` unit for `rusty-mcp --http` (`omarchy/rusty-mcp.service`; running on
       the dev box)
-- [ ] The installer enables it
+- [x] The installer enables it (`omarchy/install.sh`: binaries, unit, Obsidian registration)
 - [x] MCP config snippets for Claude Code and Codex (`omarchy/mcp-config.json`)
 - [x] `rusty-cli` ported onto `rusty-core`, installed over the v2 binary
 
@@ -70,11 +72,13 @@ Obsidian and the vault
 
 - [x] Obsidian CLI bridge: `open_in_obsidian`, link-safe `rename_page`, `backlinks`;
       skip cleanly when the app is not running
-- [ ] Vault rule: the timeline becomes a `## Timeline` section; the body `---` trick goes,
-      with a one-time migration of existing pages
-- [ ] Vault rule: one wikilink path style that Obsidian and Rusty both write
-      (Obsidian's side is set on 2026-09-02: shortest-path wikilinks, `useMarkdownLinks: false`;
-      Rusty's own writers still need the same rule checked)
+- [x] Vault rule: the timeline is a `## Timeline` section; the bare `---` rule is only read,
+      never written. `rusty-cli brain migrate` converted the dev box's 22 legacy pages on
+      2026-09-02
+- [x] Vault rule: one wikilink path style that Obsidian and Rusty both write: `[[folder/slug]]`;
+      the migration rewrote 161 bare-name links, leaving 14 it could not resolve as written
+      (Obsidian's side is set on 2026-09-02: vault-path wikilinks, `newLinkFormat: absolute`,
+      `useMarkdownLinks: false`; Rusty's writers already use `[[folder/slug]]`)
 - [x] Register `~/.rusty/brain` as an Obsidian vault; decide the `.obsidian/` policy
       (2026-09-02: `rusty-cli obsidian register` writes the vault and the CLI toggle into
       Obsidian's config; `.obsidian/` is gitignored in the vault, so it stays per machine)

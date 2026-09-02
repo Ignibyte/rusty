@@ -1,9 +1,11 @@
 //! YAML frontmatter parsing and serialization for brain pages.
 //!
-//! Brain pages use YAML frontmatter delimited by `---` markers at the top of the file.
-//! The page body is split into compiled truth (above a `---` separator) and timeline
-//! (below it). This module handles parsing raw markdown into structured parts and
-//! rendering structured parts back to markdown.
+//! A brain page is YAML frontmatter between `---` fences, then the compiled truth, then
+//! an optional `## Timeline` section that runs to the end of the file. Pages written
+//! before 2026-09-02 marked the timeline with a bare `---` rule instead of the heading;
+//! [`parse_page`] still reads that form when what follows the rule looks like timeline
+//! entries, and `rusty-cli brain migrate` rewrites it. Rendering always writes the
+//! heading form.
 
 use std::collections::HashMap;
 
@@ -52,58 +54,164 @@ impl BrainFrontmatter {
     }
 }
 
+/// The heading that opens a page's timeline section.
+pub const TIMELINE_HEADING: &str = "## Timeline";
+
 /// Parsed sections of a brain page.
 pub struct ParsedPage {
     /// YAML frontmatter.
     pub frontmatter: BrainFrontmatter,
-    /// Content above the body separator (synthesized knowledge).
+    /// Content above the timeline (synthesized knowledge).
     pub compiled_truth: String,
-    /// Content below the body separator (append-only evidence).
+    /// The timeline entries, without the `## Timeline` heading (append-only evidence).
     pub timeline: String,
 }
 
-/// Parse raw markdown content into frontmatter, compiled truth, and timeline.
-///
-/// Expects the file to start with `---\n`, followed by YAML, then `---\n`.
-/// The remaining body is split at a standalone `\n---\n` separator into
-/// compiled truth and timeline sections.
-pub fn parse_page(raw: &str) -> Result<ParsedPage, String> {
-    // Find frontmatter delimiters
-    let trimmed = raw.trim_start();
+/// Split raw page text into the frontmatter prefix (through the closing `---` line and
+/// its newline) and the body after it. Errors when the fences are missing.
+pub fn split_raw(raw: &str) -> Result<(&str, &str), String> {
+    let lead = raw.len() - raw.trim_start().len();
+    let trimmed = &raw[lead..];
     if !trimmed.starts_with("---") {
         return Err("Missing frontmatter: file must start with ---".to_string());
     }
-
-    // Find the closing --- (skip the opening one)
-    let after_open = &trimmed[3..].trim_start_matches(['\r', '\n']);
+    let after_open = &trimmed[3..];
+    let after_open_lead = after_open.len() - after_open.trim_start_matches(['\r', '\n']).len();
+    let after_open = &after_open[after_open_lead..];
     let close_pos = after_open
         .find("\n---")
         .ok_or_else(|| "Missing closing frontmatter delimiter (---)".to_string())?;
+    // The body starts after the closing fence line; keep the newline that ends it in
+    // the prefix so `prefix + body` reproduces the file.
+    let after_close = &after_open[close_pos + 4..];
+    let nl = after_close
+        .find('\n')
+        .map(|i| i + 1)
+        .unwrap_or(after_close.len());
+    let body_start = raw.len() - after_close.len() + nl;
+    Ok((&raw[..body_start], &raw[body_start..]))
+}
 
-    let yaml_str = &after_open[..close_pos];
-    let after_frontmatter = &after_open[close_pos + 4..]; // skip \n---
+/// The YAML text between the fences.
+fn yaml_of(prefix: &str) -> &str {
+    let inner = prefix.trim_start().trim_start_matches("---");
+    let inner = inner.trim_start_matches(['\r', '\n']);
+    match inner.find("\n---") {
+        Some(pos) => &inner[..pos],
+        None => inner,
+    }
+}
 
-    // Skip any trailing newlines after the closing ---
-    let body = after_frontmatter.trim_start_matches(['\r', '\n']);
-
-    // Parse YAML
-    let frontmatter: BrainFrontmatter =
-        serde_yaml::from_str(yaml_str).map_err(|e| format!("Failed to parse frontmatter: {e}"))?;
-
-    // Split body at standalone --- separator into compiled_truth and timeline
-    let (compiled_truth, timeline) = if let Some(sep_pos) = body.find("\n---\n") {
-        let truth = body[..sep_pos].trim().to_string();
-        let tl = body[sep_pos + 5..].trim().to_string();
-        (truth, tl)
-    } else {
-        (body.trim().to_string(), String::new())
-    };
-
+/// Parse raw markdown content into frontmatter, compiled truth, and timeline.
+pub fn parse_page(raw: &str) -> Result<ParsedPage, String> {
+    let (prefix, body) = split_raw(raw)?;
+    let frontmatter: BrainFrontmatter = serde_yaml::from_str(yaml_of(prefix))
+        .map_err(|e| format!("Failed to parse frontmatter: {e}"))?;
+    let (compiled_truth, timeline) = split_body(body);
     Ok(ParsedPage {
         frontmatter,
         compiled_truth,
         timeline,
     })
+}
+
+/// Byte offset of the `## Timeline` heading line, when the body has one.
+fn find_heading(body: &str) -> Option<usize> {
+    let mut offset = 0;
+    for line in body.split_inclusive('\n') {
+        if line.trim_end() == TIMELINE_HEADING {
+            return Some(offset);
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// Whether text after a bare `---` rule is a legacy timeline: its first line is a
+/// timeline bullet, a dated heading, or the timeline heading itself.
+fn looks_like_timeline(rest: &str) -> bool {
+    match rest
+        .lines()
+        .map(str::trim_end)
+        .find(|l| !l.trim().is_empty())
+    {
+        Some(first) => {
+            first.starts_with("- **") || first.starts_with("### ") || first == TIMELINE_HEADING
+        }
+        None => false,
+    }
+}
+
+/// Drop a leading `## Timeline` heading line from timeline text.
+fn strip_heading(text: &str) -> &str {
+    let t = text.trim_start_matches(['\r', '\n']);
+    match t.split_once('\n') {
+        Some((first, rest)) if first.trim_end() == TIMELINE_HEADING => rest,
+        None if t.trim_end() == TIMELINE_HEADING => "",
+        _ => t,
+    }
+}
+
+/// Drop a trailing bare `---` rule from compiled truth (the legacy separator).
+fn strip_trailing_rule(truth: &str) -> &str {
+    let t = truth.trim_end();
+    if t == "---" {
+        return "";
+    }
+    t.strip_suffix("\n---").unwrap_or(t)
+}
+
+/// Split a page body into compiled truth and timeline entries.
+pub fn split_body(body: &str) -> (String, String) {
+    if let Some(pos) = find_heading(body) {
+        let truth = strip_trailing_rule(&body[..pos]).trim().to_string();
+        let after = body[pos..]
+            .split_once('\n')
+            .map(|(_, rest)| rest)
+            .unwrap_or("");
+        return (truth, after.trim().to_string());
+    }
+    if let Some(sep_pos) = body.find("\n---\n") {
+        let rest = &body[sep_pos + 5..];
+        if looks_like_timeline(rest) {
+            let truth = body[..sep_pos].trim().to_string();
+            return (truth, strip_heading(rest).trim().to_string());
+        }
+    }
+    (body.trim().to_string(), String::new())
+}
+
+/// Whether a body still uses the pre-2026-09 bare `---` rule for its timeline.
+pub fn uses_legacy_rule(body: &str) -> bool {
+    if find_heading(body).is_some() {
+        // A heading preceded by the old rule is legacy too.
+        return body
+            .find("\n---\n")
+            .is_some_and(|sep| find_heading(body).is_some_and(|h| sep < h));
+    }
+    body.find("\n---\n")
+        .is_some_and(|sep| looks_like_timeline(&body[sep + 5..]))
+}
+
+/// Render the part of a page after the frontmatter: a blank line, the compiled truth,
+/// and the `## Timeline` section when there are entries.
+pub fn render_body(compiled_truth: &str, timeline: &str) -> String {
+    let truth = compiled_truth.trim();
+    let timeline = strip_heading(timeline).trim();
+    let mut body = String::new();
+    if !truth.is_empty() {
+        body.push('\n');
+        body.push_str(truth);
+        body.push('\n');
+    }
+    if !timeline.is_empty() {
+        body.push('\n');
+        body.push_str(TIMELINE_HEADING);
+        body.push_str("\n\n");
+        body.push_str(timeline);
+        body.push('\n');
+    }
+    body
 }
 
 /// Render structured page parts back to a full markdown string.
@@ -114,28 +222,16 @@ pub fn render_page(
 ) -> Result<String, String> {
     let yaml =
         serde_yaml::to_string(frontmatter).map_err(|e| format!("Failed to serialize YAML: {e}"))?;
-
     // Wrap YAML in --- delimiters (serde_yaml does not add them)
     let yaml_clean = yaml.trim_end().trim_start_matches("---").trim();
-    let mut page = format!("---\n{yaml_clean}\n---\n");
-
-    if !compiled_truth.is_empty() {
-        page.push('\n');
-        page.push_str(compiled_truth);
-        page.push('\n');
-    }
-
-    if !timeline.is_empty() {
-        page.push_str("\n---\n\n");
-        page.push_str(timeline);
-        page.push('\n');
-    }
-
-    Ok(page)
+    Ok(format!(
+        "---\n{yaml_clean}\n---\n{}",
+        render_body(compiled_truth, timeline)
+    ))
 }
 
 /// Get today's date as an ISO 8601 string (YYYY-MM-DD).
-fn today_iso() -> String {
+pub(crate) fn today_iso() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -167,15 +263,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_complete_page() {
-        let raw = "---\ntitle: Sarah Chen\ntype: person\ntags:\n  - engineering\n---\n\nShe is a CTO.\n\n---\n\n## Timeline\n\n### 2026-04-12\nMet at conference.\n";
+    fn parse_page_with_timeline_section() {
+        let raw = "---\ntitle: Sarah Chen\ntype: person\ntags:\n  - engineering\n---\n\nShe is a CTO.\n\n## Timeline\n\n- **2026-04-12** (meeting) — Met at conference.\n";
         let parsed = parse_page(raw).unwrap();
         assert_eq!(parsed.frontmatter.title, "Sarah Chen");
         assert_eq!(parsed.frontmatter.page_type, "person");
         assert_eq!(parsed.frontmatter.tags, vec!["engineering"]);
         assert_eq!(parsed.compiled_truth, "She is a CTO.");
-        assert!(parsed.timeline.contains("## Timeline"));
-        assert!(parsed.timeline.contains("Met at conference."));
+        assert_eq!(
+            parsed.timeline,
+            "- **2026-04-12** (meeting) — Met at conference."
+        );
+    }
+
+    #[test]
+    fn parse_legacy_rule_before_bullets() {
+        let raw = "---\ntitle: Orbit\ntype: project\n---\n\nA launcher.\n\n---\n\n- **2026-04-12** — Kicked off.\n";
+        let parsed = parse_page(raw).unwrap();
+        assert_eq!(parsed.compiled_truth, "A launcher.");
+        assert_eq!(parsed.timeline, "- **2026-04-12** — Kicked off.");
+        let (_, body) = split_raw(raw).unwrap();
+        assert!(uses_legacy_rule(body));
+    }
+
+    #[test]
+    fn parse_legacy_rule_with_heading() {
+        let raw = "---\ntitle: Sarah Chen\ntype: person\n---\n\nShe is a CTO.\n\n---\n\n## Timeline\n\n### 2026-04-12\nMet at conference.\n";
+        let parsed = parse_page(raw).unwrap();
+        assert_eq!(parsed.compiled_truth, "She is a CTO.");
+        assert_eq!(parsed.timeline, "### 2026-04-12\nMet at conference.");
+        let (_, body) = split_raw(raw).unwrap();
+        assert!(uses_legacy_rule(body));
+    }
+
+    #[test]
+    fn horizontal_rule_in_prose_stays_in_the_truth() {
+        let raw = "---\ntitle: Essay\ntype: concept\n---\n\nPart one.\n\n---\n\nPart two.\n";
+        let parsed = parse_page(raw).unwrap();
+        assert_eq!(parsed.compiled_truth, "Part one.\n\n---\n\nPart two.");
+        assert!(parsed.timeline.is_empty());
+        let (_, body) = split_raw(raw).unwrap();
+        assert!(!uses_legacy_rule(body));
     }
 
     #[test]
@@ -192,6 +320,15 @@ mod tests {
         let parsed = parse_page(raw).unwrap();
         assert!(parsed.compiled_truth.is_empty());
         assert!(parsed.timeline.is_empty());
+    }
+
+    #[test]
+    fn split_raw_reproduces_the_file() {
+        let raw = "---\ntitle: Empty\ntype: inbox\n---\n\nBody.\n";
+        let (prefix, body) = split_raw(raw).unwrap();
+        assert_eq!(prefix, "---\ntitle: Empty\ntype: inbox\n---\n");
+        assert_eq!(body, "\nBody.\n");
+        assert_eq!(format!("{prefix}{body}"), raw);
     }
 
     #[test]
@@ -218,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn render_round_trip() {
+    fn render_round_trip_writes_the_heading_form() {
         let fm = BrainFrontmatter {
             title: "Test Page".to_string(),
             page_type: "concept".to_string(),
@@ -229,16 +366,24 @@ mod tests {
             extra: HashMap::new(),
         };
         let truth = "This is compiled truth.";
-        let timeline = "## Timeline\n\n### 2026-04-12\nCreated.";
-
+        let timeline = "- **2026-04-12** — Created.";
         let rendered = render_page(&fm, truth, timeline).unwrap();
+        assert!(rendered.contains("\n## Timeline\n\n- **2026-04-12** — Created.\n"));
+        // Only the frontmatter's closing fence is a `---` line.
+        assert_eq!(rendered.matches("\n---\n").count(), 1);
         let parsed = parse_page(&rendered).unwrap();
-
         assert_eq!(parsed.frontmatter.title, "Test Page");
-        assert_eq!(parsed.frontmatter.page_type, "concept");
         assert_eq!(parsed.frontmatter.aliases, vec!["test"]);
         assert_eq!(parsed.compiled_truth, truth);
         assert_eq!(parsed.timeline, timeline);
+    }
+
+    #[test]
+    fn render_does_not_duplicate_a_heading_in_the_timeline() {
+        let body = render_body("Truth.", "## Timeline\n\n- **2026-04-12** — x");
+        assert_eq!(body.matches(TIMELINE_HEADING).count(), 1);
+        assert_eq!(body, "\nTruth.\n\n## Timeline\n\n- **2026-04-12** — x\n");
+        assert_eq!(render_body("", ""), "");
     }
 
     #[test]
