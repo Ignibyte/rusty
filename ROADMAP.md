@@ -52,8 +52,9 @@ Tools and resources
 - [x] Secrets: list names, set, delete; values are never returned
 - [x] Settings: get, set
 - [ ] Settings: list
-- [ ] Resources: `rusty://tasks`, `rusty://brain/<slug>`, `rusty://notes/<path>`, with
-      `resources/updated` notifications fed by the file watcher
+- [x] Resources: `rusty://tasks`, `memories`, `skills`, `notes`, `brain` and the templates
+      `tasks/{group_id}`, `brain/{slug}`, `notes/{path}`; `resources/list_changed` fires on
+      every tool mutation and every watched-file change (verified over HTTP)
 - [x] Router tests: every tool advertised once, every tool described
 - [ ] An rmcp-client smoke test that runs in CI
 

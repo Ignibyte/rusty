@@ -13,17 +13,24 @@
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
-    schemars, tool, tool_handler, tool_router,
+    schemars,
+    service::{NotificationContext, Peer, RequestContext},
+    tool, tool_handler, tool_router,
     transport::{
         stdio,
         streamable_http_server::{
             session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
         },
     },
-    ErrorData as McpError, ServerHandler, ServiceExt,
+    ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
+use rusty_core::events::AppEvent;
 use rusty_core::Core;
 use std::sync::Arc;
+use tokio::sync::Mutex;
+
+/// Every connected client, so a change can be announced to all of them.
+type Peers = Arc<Mutex<Vec<Peer<RoleServer>>>>;
 
 /// Serialize any manager result as a JSON text block, or map its error.
 fn json_result<T: serde::Serialize>(value: Result<T, String>) -> Result<CallToolResult, McpError> {
@@ -313,20 +320,97 @@ pub struct SettingSetParams {
     pub value: String,
 }
 
-/// The MCP server: the tool router plus a shared [`Core`].
+/// The MCP server: the tool router, a shared [`Core`], and the connected peers.
 #[derive(Clone)]
 pub struct Rusty {
     core: Arc<Core>,
+    peers: Peers,
     tool_router: ToolRouter<Self>,
+}
+
+/// A parsed `rusty://` resource URI.
+#[derive(Debug, PartialEq)]
+enum ResourceUri {
+    Tasks,
+    TaskGroup(i64),
+    Memories,
+    Skills,
+    Notes,
+    Note(String),
+    Brain,
+    BrainPage(String),
+}
+
+/// Map a `rusty://` URI onto what it names, or `None` for anything else.
+fn parse_resource_uri(uri: &str) -> Option<ResourceUri> {
+    let rest = uri.strip_prefix("rusty://")?.trim_end_matches('/');
+    let parsed = match rest {
+        "tasks" => ResourceUri::Tasks,
+        "memories" => ResourceUri::Memories,
+        "skills" => ResourceUri::Skills,
+        "notes" => ResourceUri::Notes,
+        "brain" => ResourceUri::Brain,
+        other => {
+            if let Some(id) = other.strip_prefix("tasks/") {
+                ResourceUri::TaskGroup(id.parse().ok()?)
+            } else if let Some(path) = other.strip_prefix("notes/") {
+                ResourceUri::Note(path.to_string())
+            } else {
+                ResourceUri::BrainPage(other.strip_prefix("brain/")?.to_string())
+            }
+        }
+    };
+    Some(parsed)
 }
 
 #[tool_router]
 impl Rusty {
-    /// Wrap a ready [`Core`].
-    pub fn new(core: Arc<Core>) -> Self {
+    /// Wrap a ready [`Core`]; `peers` is shared by every session of one process.
+    pub fn new(core: Arc<Core>, peers: Peers) -> Self {
         Self {
             core,
+            peers,
             tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Like [`json_result`], and announces the change to connected clients on success.
+    fn mutate<T: serde::Serialize>(
+        &self,
+        value: Result<T, String>,
+    ) -> Result<CallToolResult, McpError> {
+        if value.is_ok() {
+            self.core.events.emit(AppEvent::DataChanged);
+        }
+        json_result(value)
+    }
+
+    /// The text of one resource, as JSON or markdown.
+    fn resource_text(&self, uri: &ResourceUri) -> Result<String, String> {
+        fn pretty<T: serde::Serialize>(v: T) -> Result<String, String> {
+            serde_json::to_string_pretty(&v).map_err(|e| e.to_string())
+        }
+        match uri {
+            ResourceUri::Tasks => {
+                let mut lists = Vec::new();
+                for header in self.core.user_task_manager.list_headers()? {
+                    let tasks = self.core.user_task_manager.list_tasks(header.id, false)?;
+                    lists.push(serde_json::json!({ "group": header, "tasks": tasks }));
+                }
+                pretty(lists)
+            }
+            ResourceUri::TaskGroup(id) => {
+                pretty(self.core.user_task_manager.list_tasks(*id, false)?)
+            }
+            ResourceUri::Memories => pretty(self.core.memory_manager.list(None)?),
+            ResourceUri::Skills => pretty(self.core.skills_manager.list(true)),
+            ResourceUri::Notes => pretty(self.core.notes_manager.list_tree()?),
+            ResourceUri::Note(path) => self.core.notes_manager.read_note(path),
+            ResourceUri::Brain => pretty(self.core.brain_manager.list_pages(None, None)?),
+            ResourceUri::BrainPage(slug) => match self.core.brain_manager.read_page(slug)? {
+                Some(page) => pretty(page),
+                None => Err(format!("no page {slug}")),
+            },
         }
     }
 
@@ -340,7 +424,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<GroupNameParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.user_task_manager.create_header(&p.name))
+        self.mutate(self.core.user_task_manager.create_header(&p.name))
     }
 
     #[tool(description = "List the tasks in one to-do list")]
@@ -360,7 +444,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<CreateTaskParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .create_task(p.group_id, &p.title),
@@ -372,7 +456,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<TaskIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.user_task_manager.toggle_complete(p.id))
+        self.mutate(self.core.user_task_manager.toggle_complete(p.id))
     }
 
     #[tool(description = "Archive a task (hidden from the list, not deleted)")]
@@ -380,7 +464,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<TaskIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .archive_task(p.id)
@@ -427,7 +511,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<CreatePageParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .brain_manager
                 .create_page(&p.page_type, &p.title, &p.content),
@@ -440,7 +524,7 @@ impl Rusty {
         Parameters(p): Parameters<AddTimelineParams>,
     ) -> Result<CallToolResult, McpError> {
         let date = p.date.unwrap_or_else(chrono_today);
-        json_result(self.core.brain_manager.add_timeline(
+        self.mutate(self.core.brain_manager.add_timeline(
             &p.slug,
             &date,
             "mcp",
@@ -467,7 +551,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<StoreMemoryParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.memory_manager.store(
+        self.mutate(self.core.memory_manager.store(
             p.category.as_deref().unwrap_or("fact"),
             p.importance.as_deref().unwrap_or("medium"),
             &p.content,
@@ -493,7 +577,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<WriteNoteParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .notes_manager
                 .save_note(&p.path, &p.content)
@@ -516,7 +600,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<RenameGroupParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .rename_header(p.group_id, &p.name)
@@ -529,7 +613,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<GroupIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .delete_header(p.group_id)
@@ -542,7 +626,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<UpdateTaskTitleParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .update_title(p.id, &p.title)
@@ -555,7 +639,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<TaskIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .unarchive_task(p.id)
@@ -568,7 +652,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<TaskIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .user_task_manager
                 .delete_task(p.id)
@@ -583,7 +667,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<CreateNoteParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .notes_manager
                 .create_note(&p.parent, &p.name, p.is_folder),
@@ -595,7 +679,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<RenameNoteParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.notes_manager.rename_note(&p.path, &p.new_name))
+        self.mutate(self.core.notes_manager.rename_note(&p.path, &p.new_name))
     }
 
     #[tool(description = "Delete a note (moved to the notes .deleted folder)")]
@@ -603,7 +687,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<NotePathParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .notes_manager
                 .delete_note(&p.path)
@@ -616,7 +700,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<MemoryIdParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.memory_manager.delete(&p.id).map(|_| "deleted"))
+        self.mutate(self.core.memory_manager.delete(&p.id).map(|_| "deleted"))
     }
 
     #[tool(description = "Outbound links and backlinks of a brain page")]
@@ -632,7 +716,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<UpdatePageParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.brain_manager.update_page(&p.slug, &p.content))
+        self.mutate(self.core.brain_manager.update_page(&p.slug, &p.content))
     }
 
     #[tool(description = "Delete a brain page and its index entries")]
@@ -640,7 +724,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SlugParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .brain_manager
                 .delete_page(&p.slug)
@@ -690,7 +774,7 @@ impl Rusty {
                 .skills_manager
                 .create_skill(&p.name, &p.description, &p.body, p.force)
         };
-        json_result(result)
+        self.mutate(result)
     }
 
     #[tool(description = "Delete a skill, active or staged")]
@@ -698,7 +782,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SkillNameParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .skills_manager
                 .delete_skill(&p.name)
@@ -719,7 +803,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<ApproveSkillParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .skills_manager
                 .approve(&p.name, p.force)
@@ -732,7 +816,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SkillNameParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.skills_manager.reject(&p.name).map(|_| "rejected"))
+        self.mutate(self.core.skills_manager.reject(&p.name).map(|_| "rejected"))
     }
 
     #[tool(description = "List the keys in the secrets vault; values are never returned")]
@@ -750,7 +834,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SecretSetParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .secrets_manager
                 .set(&p.key, &p.value)
@@ -763,7 +847,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SecretKeyParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(self.core.secrets_manager.delete(&p.key).map(|_| "deleted"))
+        self.mutate(self.core.secrets_manager.delete(&p.key).map(|_| "deleted"))
     }
 
     #[tool(description = "Read one setting; null when unset")]
@@ -779,7 +863,7 @@ impl Rusty {
         &self,
         Parameters(p): Parameters<SettingSetParams>,
     ) -> Result<CallToolResult, McpError> {
-        json_result(
+        self.mutate(
             self.core
                 .settings_manager
                 .set(&p.key, &p.value)
@@ -819,15 +903,138 @@ fn chrono_today() -> String {
 impl ServerHandler for Rusty {
     fn get_info(&self) -> ServerInfo {
         let tool_count = self.tool_router.list_all().len();
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(server_identity())
-            .with_instructions(format!(
-                "Rusty is the user's local assistant store: to-do lists, notes, long-term \
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_resources_list_changed()
+                .build(),
+        )
+        .with_server_info(server_identity())
+        .with_instructions(format!(
+            "Rusty is the user's local assistant store: to-do lists, notes, long-term \
                  memories, the brain vault (a markdown wiki with a full-text index) and \
                  skills, exposed as {tool_count} tools. Slugs include their folder \
-                 (projects/name). Search is all-terms; use plain words."
-            ))
+                 (projects/name). Search is all-terms; use plain words. Resources under \
+                 rusty:// mirror the same data and a list_changed notification follows every \
+                 change."
+        ))
     }
+
+    async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
+        self.peers.lock().await.push(context.peer);
+    }
+
+    async fn list_resources(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let entries = [
+            (
+                "rusty://tasks",
+                "tasks",
+                "Every to-do list with its open tasks (JSON)",
+            ),
+            ("rusty://memories", "memories", "Long-term memories (JSON)"),
+            (
+                "rusty://skills",
+                "skills",
+                "Skills in the store, active and staged (JSON)",
+            ),
+            (
+                "rusty://notes",
+                "notes",
+                "The notes folder as a tree (JSON)",
+            ),
+            ("rusty://brain", "brain", "Brain pages, newest first (JSON)"),
+        ];
+        let resources = entries
+            .into_iter()
+            .map(|(uri, name, description)| {
+                let mut r = Resource::new(uri, name);
+                r.description = Some(description.into());
+                r
+            })
+            .collect();
+        Ok(ListResourcesResult {
+            resources,
+            ..Default::default()
+        })
+    }
+
+    async fn list_resource_templates(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourceTemplatesResult, McpError> {
+        let templates = [
+            (
+                "rusty://tasks/{group_id}",
+                "tasks-in-list",
+                "Open tasks in one list (JSON)",
+            ),
+            (
+                "rusty://brain/{slug}",
+                "brain-page",
+                "One brain page with its frontmatter (JSON)",
+            ),
+            ("rusty://notes/{path}", "note", "One note's markdown"),
+        ]
+        .into_iter()
+        .map(|(uri, name, description)| {
+            let mut t = ResourceTemplate::new(uri, name);
+            t.description = Some(description.into());
+            t
+        })
+        .collect();
+        Ok(ListResourceTemplatesResult {
+            resource_templates: templates,
+            ..Default::default()
+        })
+    }
+
+    async fn read_resource(
+        &self,
+        request: ReadResourceRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, McpError> {
+        let uri = request.uri.clone();
+        let parsed = parse_resource_uri(&uri).ok_or_else(|| {
+            McpError::resource_not_found(
+                "resource_not_found",
+                Some(serde_json::json!({ "uri": uri })),
+            )
+        })?;
+        let text = self.resource_text(&parsed).map_err(|e| {
+            McpError::resource_not_found(e, Some(serde_json::json!({ "uri": uri })))
+        })?;
+        Ok(ReadResourceResult::new(vec![ResourceContents::text(text, uri)]).into())
+    }
+}
+
+/// Forward every data change on the event bus to every connected client as a
+/// `resources/list_changed` notification, dropping peers that have gone away.
+fn spawn_change_notifier(mut events: tokio::sync::broadcast::Receiver<AppEvent>, peers: Peers) {
+    tokio::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(AppEvent::DataChanged) => {
+                    let mut peers = peers.lock().await;
+                    let mut alive = Vec::with_capacity(peers.len());
+                    for peer in peers.drain(..) {
+                        if peer.notify_resource_list_changed().await.is_ok() {
+                            alive.push(peer);
+                        }
+                    }
+                    *peers = alive;
+                }
+                Ok(_) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
 }
 
 /// Default address for the HTTP transport: loopback only, the port v2 used.
@@ -836,16 +1043,24 @@ const DEFAULT_HTTP_ADDR: &str = "127.0.0.1:4174";
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let core = Arc::new(Core::init());
+    let peers: Peers = Arc::default();
+    rusty_core::start_data_watcher(
+        core.events.clone(),
+        core.notes_path.clone(),
+        core.brain_path.clone(),
+        core.skills_root.clone(),
+    );
+    spawn_change_notifier(core.events.subscribe(), Arc::clone(&peers));
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         None => {
-            let service = Rusty::new(core).serve(stdio()).await?;
+            let service = Rusty::new(core, peers).serve(stdio()).await?;
             service.waiting().await?;
         }
         Some("--http") => {
             let addr = args.next().unwrap_or_else(|| DEFAULT_HTTP_ADDR.to_string());
             let service = StreamableHttpService::new(
-                move || Ok(Rusty::new(Arc::clone(&core))),
+                move || Ok(Rusty::new(Arc::clone(&core), Arc::clone(&peers))),
                 LocalSessionManager::default().into(),
                 StreamableHttpServerConfig::default(),
             );
@@ -929,6 +1144,29 @@ mod tests {
         let mut expected: Vec<String> = EXPECTED.iter().map(|s| s.to_string()).collect();
         expected.sort();
         assert_eq!(names, expected);
+    }
+
+    #[test]
+    fn resource_uris_parse() {
+        assert_eq!(
+            parse_resource_uri("rusty://tasks"),
+            Some(ResourceUri::Tasks)
+        );
+        assert_eq!(
+            parse_resource_uri("rusty://tasks/5"),
+            Some(ResourceUri::TaskGroup(5))
+        );
+        assert_eq!(parse_resource_uri("rusty://tasks/x"), None);
+        assert_eq!(
+            parse_resource_uri("rusty://brain/projects/rusty"),
+            Some(ResourceUri::BrainPage("projects/rusty".into()))
+        );
+        assert_eq!(
+            parse_resource_uri("rusty://notes/Misc.md"),
+            Some(ResourceUri::Note("Misc.md".into()))
+        );
+        assert_eq!(parse_resource_uri("rusty://nope"), None);
+        assert_eq!(parse_resource_uri("http://x"), None);
     }
 
     #[test]
