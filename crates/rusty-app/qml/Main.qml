@@ -99,6 +99,13 @@ ApplicationWindow {
         saveTabs()
     }
 
+    function moveTab(from, to) {
+        if (from < 0 || from >= tabs.count || to < 0 || to >= tabs.count || from === to) return
+        tabs.move(from, to, 1)
+        saveTabs()
+        stack.currentIndex = to
+    }
+
     function folderPath(url) {
         let s = String(url)
         if (s.startsWith("file://")) s = s.slice(7)
@@ -114,6 +121,8 @@ ApplicationWindow {
     // (the task list uses F2 to rename a task) ever sees them.
     Shortcut { sequences: ["Ctrl+Shift+W"]; enabled: currentIsAgent(); onActivated: closeTab(stack.currentIndex, false) }
     Shortcut { sequences: ["F2"]; enabled: currentIsAgent(); onActivated: renameDialog.openFor(stack.currentIndex) }
+    Shortcut { sequences: ["Ctrl+Shift+PgUp"]; enabled: currentIsAgent(); onActivated: moveTab(stack.currentIndex, stack.currentIndex - 1) }
+    Shortcut { sequences: ["Ctrl+Shift+PgDown"]; enabled: currentIsAgent(); onActivated: moveTab(stack.currentIndex, stack.currentIndex + 1) }
 
     // One agent tab = one tmux session in the built-in terminal, coloured like Alacritty.
     // Closing the tab or the window leaves the session running.
@@ -255,6 +264,8 @@ ApplicationWindow {
         id: tabMenu
         property int tabIndex: -1
         MenuItem { text: "Rename…"; onTriggered: renameDialog.openFor(tabMenu.tabIndex) }
+        MenuItem { text: "Move up"; enabled: tabMenu.tabIndex > 0; onTriggered: moveTab(tabMenu.tabIndex, tabMenu.tabIndex - 1) }
+        MenuItem { text: "Move down"; enabled: tabMenu.tabIndex < tabs.count - 1; onTriggered: moveTab(tabMenu.tabIndex, tabMenu.tabIndex + 1) }
         MenuItem { text: "Close tab (keep session)"; onTriggered: closeTab(tabMenu.tabIndex, false) }
         MenuItem { text: "Close tab and end session"; onTriggered: closeTab(tabMenu.tabIndex, true) }
     }

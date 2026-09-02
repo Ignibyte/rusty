@@ -25,7 +25,11 @@ rusty-cli brain search "orbit"
 ```
 
 In the app: Ctrl+Shift+T opens a terminal tab (Claude, Codex or a shell, each a tmux session
-that outlives the window), Ctrl+Shift+W closes one, F2 renames, Ctrl+PgUp/PgDn switch tabs.
+that outlives the window, started in a directory you pick), Ctrl+Shift+W closes one, F2
+renames, Ctrl+PgUp/PgDn switch tabs, Ctrl+Shift+PgUp/PgDn move one. A tab that gets output
+while another is showing gets a mark; a tab whose title asks for attention raises a desktop
+notification. Under Omarchy the app's messages go to the journal: `journalctl --user -t rusty`;
+`RUSTY_DEBUG=1` adds a line per tab event.
 Tasks, Brain, Notes, Memory, Skills, Secrets and Settings talk to the back end over
 `http://127.0.0.1:4174/mcp`, so a Claude session changing a task shows up in the app as it
 happens.

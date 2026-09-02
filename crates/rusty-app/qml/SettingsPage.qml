@@ -68,7 +68,7 @@ Item {
                 wrapMode: Text.WrapAnywhere; Layout.fillWidth: true
             }
             Text {
-                text: "Ctrl+Shift+T new terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn switch tabs"
+                text: "Ctrl+Shift+T new terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn switch tabs · Ctrl+Shift+PgUp/PgDn move a tab"
                 color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12
             }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
