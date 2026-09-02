@@ -237,12 +237,69 @@ impl Obsidian {
                 changed = true;
             }
         }
-        if !changed && path.exists() {
-            return Ok(());
+        if changed || !path.exists() {
+            std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+            let text = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+            std::fs::write(&path, text).map_err(|e| format!("write {}: {e}", path.display()))?;
         }
-        std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+        self.apply_theme_snippet()
+    }
+
+    /// Give Obsidian the desktop's look: Omarchy themes ship an `obsidian.css`, which
+    /// becomes the vault's `omarchy` CSS snippet and is switched on in
+    /// `appearance.json`. Without such a file (a theme without one, or no Omarchy) the
+    /// snippet is removed and nothing else changes. Obsidian applies snippet changes live.
+    pub fn apply_theme_snippet(&self) -> Result<(), String> {
+        let source = omarchy_theme_dir().join("obsidian.css");
+        let snippets = self.vault_path.join(".obsidian").join("snippets");
+        let target = snippets.join("omarchy.css");
+        let appearance = self.vault_path.join(".obsidian").join("appearance.json");
+        let mut config = read_config(&appearance).unwrap_or_else(|| serde_json::json!({}));
+        if !config.is_object() {
+            config = serde_json::json!({});
+        }
+        let object = config
+            .as_object_mut()
+            .expect("appearance.json is an object");
+        let mut enabled: Vec<serde_json::Value> = object
+            .get("enabledCssSnippets")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let is_ours = |v: &serde_json::Value| v.as_str() == Some("omarchy");
+        match std::fs::read_to_string(&source) {
+            Ok(css) => {
+                std::fs::create_dir_all(&snippets)
+                    .map_err(|e| format!("create {}: {e}", snippets.display()))?;
+                if std::fs::read_to_string(&target).ok().as_deref() != Some(css.as_str()) {
+                    std::fs::write(&target, css)
+                        .map_err(|e| format!("write {}: {e}", target.display()))?;
+                }
+                if !enabled.iter().any(is_ours) {
+                    enabled.push(serde_json::Value::String("omarchy".into()));
+                } else {
+                    return Ok(());
+                }
+            }
+            Err(_) => {
+                let _ = std::fs::remove_file(&target);
+                if !enabled.iter().any(is_ours) {
+                    return Ok(());
+                }
+                enabled.retain(|v| !is_ours(v));
+            }
+        }
+        object.insert(
+            "enabledCssSnippets".into(),
+            serde_json::Value::Array(enabled),
+        );
+        if let Some(parent) = appearance.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create {}: {e}", parent.display()))?;
+        }
         let text = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-        std::fs::write(&path, text).map_err(|e| format!("write {}: {e}", path.display()))
+        std::fs::write(&appearance, text)
+            .map_err(|e| format!("write {}: {e}", appearance.display()))
     }
 
     /// Ask the running app for its version.
@@ -479,6 +536,18 @@ fn merge_registration(config: &mut serde_json::Value, vault_path: &Path) -> Stri
     }
     object.insert("cli".into(), serde_json::Value::Bool(true));
     id
+}
+
+/// Where Omarchy links the active theme. `RUSTY_OMARCHY_THEME_DIR` overrides it (tests,
+/// or a machine that is not Omarchy but wants the look).
+pub fn omarchy_theme_dir() -> PathBuf {
+    std::env::var_os("RUSTY_OMARCHY_THEME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".config/omarchy/current/theme")
+        })
 }
 
 fn read_config(path: &Path) -> Option<serde_json::Value> {
@@ -739,6 +808,50 @@ mod tests {
             .unwrap();
         assert!(fresh.join(".obsidian").join("app.json").exists());
 
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn theme_snippet_follows_the_omarchy_css() {
+        let dir = temp_dir("snippet");
+        let vault = dir.join("brain");
+        let theme = dir.join("theme");
+        std::fs::create_dir_all(&vault).unwrap();
+        std::fs::create_dir_all(&theme).unwrap();
+        std::fs::write(theme.join("obsidian.css"), "body { --accent: #7aa2f7; }").unwrap();
+        // Tests in this crate run in one process; scope the override to this test's paths.
+        std::env::set_var("RUSTY_OMARCHY_THEME_DIR", &theme);
+        let obsidian = Obsidian::with_paths(
+            "obsidian",
+            &vault,
+            dir.join("obsidian.json"),
+            dir.join("missing.sock"),
+        );
+        obsidian.configure_vault().unwrap();
+        let snippet = vault.join(".obsidian/snippets/omarchy.css");
+        assert_eq!(
+            std::fs::read_to_string(&snippet).unwrap(),
+            "body { --accent: #7aa2f7; }"
+        );
+        let appearance: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(vault.join(".obsidian/appearance.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            appearance["enabledCssSnippets"],
+            serde_json::json!(["omarchy"])
+        );
+
+        // A theme without the file takes the snippet away again.
+        std::fs::remove_file(theme.join("obsidian.css")).unwrap();
+        obsidian.apply_theme_snippet().unwrap();
+        assert!(!snippet.exists());
+        let appearance: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(vault.join(".obsidian/appearance.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(appearance["enabledCssSnippets"], serde_json::json!([]));
+        std::env::remove_var("RUSTY_OMARCHY_THEME_DIR");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

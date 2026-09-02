@@ -7,7 +7,15 @@ fn main() {
     let builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("dev.ignibyte.rusty")
             .version(1, 0)
-            .qml_files(["qml/Main.qml", "qml/TasksPage.qml", "qml/SettingsPage.qml"]),
+            .qml_files([
+                "qml/Main.qml",
+                "qml/PageView.qml",
+                "qml/TasksPage.qml",
+                "qml/BrainPage.qml",
+                "qml/NotesPage.qml",
+                "qml/MemoryPage.qml",
+                "qml/SettingsPage.qml",
+            ]),
     )
     .files(["src/theme.rs", "src/terminals.rs", "src/backend.rs"])
     .qt_module("Quick")

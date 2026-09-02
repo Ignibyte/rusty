@@ -13,8 +13,8 @@ The shape is in `docs/architecture.md`.
 | M0 Foundation | done 2026-09-02 |
 | M1 The back end, complete | done 2026-09-02 |
 | M2 App shell, Terminals, Tasks | done 2026-09-02 |
-| M3 Knowledge tabs: Brain, Notes, Memory | next |
-| M4 Semantic search | |
+| M3 Knowledge tabs: Brain, Notes, Memory | done 2026-09-02 |
+| M4 Semantic search | next |
 | M5 Skills, Secrets, Settings | |
 | M6 Omarchy packaging and cutover | |
 
@@ -118,13 +118,18 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       points at it rather than editing your bindings)
 - [x] Delete the prototype (2026-09-02, superseded by `crates/rusty-app`)
 
-## M3. Knowledge tabs
+## M3. Knowledge tabs (done 2026-09-02)
 
-- [ ] Brain: folder tree, full-text search, rendered markdown view, backlinks and timeline,
-      open in Obsidian, capture and append
-- [ ] Notes: daily notes living in the vault so Obsidian sees them
-- [ ] Memory: list, add, edit, delete
-- [ ] Obsidian themed by `omarchy theme set` where the theme provides it
+- [x] Brain: type tree with counts, full-text search, rendered markdown with wikilinks that
+      navigate, edit and save, timeline with append, backlinks and outbound links, open in
+      Obsidian, capture to the daily page or the inbox
+- [x] Notes: daily pages in the vault (so Obsidian sees them); Today opens or creates, older
+      days listed newest first, same page view as the Brain tab
+- [x] Memory: list with category and importance, add with Enter, edit and delete in a side
+      panel, filter by category
+- [x] Obsidian themed by `omarchy theme set`: the theme's `obsidian.css` becomes the vault's
+      `omarchy` CSS snippet (`rusty-cli obsidian configure`, run again by the app on every
+      theme change); a theme without the file removes the snippet
 
 ## M4. Semantic search
 

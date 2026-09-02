@@ -141,9 +141,17 @@ impl qobject::Theme {
         });
     }
 
-    /// Re-read the desktop and push every property, so bindings update.
+    /// Re-read the desktop and push every property, so bindings update. Also asks
+    /// `rusty-cli` to refresh Obsidian's theme snippet, when the CLI is installed; the
+    /// vault's look then follows `omarchy theme set` too.
     pub fn reload(mut self: Pin<&mut Self>) {
         let look = Look::gather();
+        let _ = std::process::Command::new("rusty-cli")
+            .args(["obsidian", "configure"])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
         self.as_mut()
             .set_background(QString::from(&look.palette.background));
         self.as_mut()

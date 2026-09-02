@@ -249,6 +249,12 @@ ApplicationWindow {
                     if (item) item.focusTerminal()
                 } else if (currentIndex === pageIndex(0)) {
                     tasksPage.focusAdd()
+                } else if (currentIndex === pageIndex(1)) {
+                    brainPage.focusEntry()
+                } else if (currentIndex === pageIndex(2)) {
+                    notesPage.focusEntry()
+                } else if (currentIndex === pageIndex(3)) {
+                    memoryPage.focusEntry()
                 }
             }
             Repeater {
@@ -257,12 +263,15 @@ ApplicationWindow {
                 delegate: AgentTab {}
             }
             TasksPage { id: tasksPage; backend: backend; theme: theme }
+            BrainPage { id: brainPage; backend: backend; theme: theme }
+            NotesPage { id: notesPage; backend: backend; theme: theme }
+            MemoryPage { id: memoryPage; backend: backend; theme: theme }
             Repeater {
-                model: ["Brain", "Notes", "Memory", "Skills"]
+                model: ["Skills"]
                 delegate: Rectangle {
                     required property string modelData
                     color: theme.background
-                    Text { anchors.centerIn: parent; text: modelData + " tab: data comes from rusty-mcp over local HTTP (M2, M3)"; color: theme.foreground; font.pixelSize: 16 }
+                    Text { anchors.centerIn: parent; text: modelData + " tab arrives with M5"; color: theme.foreground; font.pixelSize: 16 }
                 }
             }
             SettingsPage { backend: backend; theme: theme; terminals: terminals }
