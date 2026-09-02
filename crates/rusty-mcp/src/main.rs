@@ -1,15 +1,25 @@
 //! `rusty-mcp`: Rusty's back end as a Model Context Protocol server.
 //!
-//! One process, built on [`rusty_core::Core`], serves the agents over stdio today and
-//! the desktop app over local HTTP next. Every tool is a thin wrapper around a
-//! manager call; the managers own the rules. Nothing is written to stdout except the
+//! One process, built on [`rusty_core::Core`], serves the agents over stdio and the
+//! desktop app over Streamable HTTP on localhost. Every tool is a thin wrapper around
+//! a manager call; the managers own the rules. Nothing is written to stdout except the
 //! protocol, so all diagnostics go to stderr.
+//!
+//! ```text
+//! rusty-mcp                     stdio, for Claude Code and Codex `mcpServers` entries
+//! rusty-mcp --http [ADDR]       Streamable HTTP at http://ADDR/mcp (default 127.0.0.1:4174)
+//! ```
 
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
     schemars, tool, tool_handler, tool_router,
-    transport::stdio,
+    transport::{
+        stdio,
+        streamable_http_server::{
+            session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
+        },
+    },
     ErrorData as McpError, ServerHandler, ServiceExt,
 };
 use rusty_core::Core;
@@ -397,10 +407,37 @@ impl ServerHandler for Rusty {
     }
 }
 
+/// Default address for the HTTP transport: loopback only, the port v2 used.
+const DEFAULT_HTTP_ADDR: &str = "127.0.0.1:4174";
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let core = Arc::new(Core::init());
-    let service = Rusty::new(core).serve(stdio()).await?;
-    service.waiting().await?;
+    let mut args = std::env::args().skip(1);
+    match args.next().as_deref() {
+        None => {
+            let service = Rusty::new(core).serve(stdio()).await?;
+            service.waiting().await?;
+        }
+        Some("--http") => {
+            let addr = args.next().unwrap_or_else(|| DEFAULT_HTTP_ADDR.to_string());
+            let service = StreamableHttpService::new(
+                move || Ok(Rusty::new(Arc::clone(&core))),
+                LocalSessionManager::default().into(),
+                StreamableHttpServerConfig::default(),
+            );
+            let router = axum::Router::new().nest_service("/mcp", service);
+            let listener = tokio::net::TcpListener::bind(&addr).await?;
+            eprintln!("rusty-mcp: Streamable HTTP at http://{addr}/mcp");
+            axum::serve(listener, router)
+                .with_graceful_shutdown(async {
+                    let _ = tokio::signal::ctrl_c().await;
+                })
+                .await?;
+        }
+        Some(other) => {
+            anyhow::bail!("unknown argument {other}: use no arguments for stdio, or --http [ADDR]")
+        }
+    }
     Ok(())
 }

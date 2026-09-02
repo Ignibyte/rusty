@@ -34,6 +34,12 @@ and its terminals run Claude Code and Codex natively. This file is the plan; the
 Done when: `cargo test` passes, Claude Code lists the tools over stdio, the prototype runs
 `claude` in a tab that survives closing the window.
 
+**Status 2026-09-02: done.** 190 tests green under fmt, clippy and docs; 19 tools over stdio
+and, ahead of M1, over Streamable HTTP at `127.0.0.1:4174/mcp`; the prototype shows Claude
+Code and Codex in tmux-backed tabs behind a side rail, themed from the Omarchy theme's own
+Alacritty colours and font, with a Settings tab that switches the agent terminals between
+the embedded widget and real Alacritty windows on the same sessions.
+
 ### M1. The back end, complete
 
 - Full tool and resource surface: tasks and lists, notes, memories, brain pages and
@@ -53,6 +59,8 @@ Done when: every v2 GUI action has an MCP equivalent and the old server is not n
 - Qt Quick app through `cxx-qt`, one window, a tab bar, an MCP client to the local server.
 - **Terminals**: `qmltermwidget` per tab, each attached to a tmux session
   (`rusty-<name>`), Claude or Codex per tab, new tab and rename, sessions listed from tmux.
+  A per-agent terminal mode, embedded or an Alacritty window on the same session, since
+  Wayland cannot embed a foreign window; the prototype already has the setting.
 - **Tasks**: to-do lists with groups, quick add, toggle, archive, keyboard first.
 - Omarchy fit: `.desktop` entry and icon, stable `app_id`, `omarchy launch or focus rusty`,
   a default key, theme colours from `~/.config/omarchy/current/theme/colors.toml`, live

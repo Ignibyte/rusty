@@ -28,11 +28,26 @@ cargo test
 Data lives in `~/.rusty/`: `rusty.db` (SQLite), `brain/` (the vault), `notes/`, `skills/`,
 `.secret` (the vault of secrets, mode 600).
 
-## Use the MCP server from Claude Code
+## Use the MCP server
+
+From Claude Code or Codex over stdio:
 
 ```json
 { "mcpServers": { "rusty": { "type": "stdio", "command": "rusty-mcp" } } }
 ```
+
+For the app, or any HTTP client, one shared process on localhost:
+
+```bash
+rusty-mcp --http                 # Streamable HTTP at http://127.0.0.1:4174/mcp
+```
+
+## Prototype
+
+`python3 prototype/main.py` under Omarchy (needs `pyside6`, `qmltermwidget`, `qt6-wayland`,
+`tmux`). Claude and Codex tabs attach to tmux sessions; the Settings tab chooses between the
+embedded terminal, coloured from the Omarchy theme's Alacritty palette, and real Alacritty
+windows on the same sessions. See `prototype/README.md`.
 
 ## License
 
