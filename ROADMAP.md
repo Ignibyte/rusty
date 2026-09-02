@@ -164,8 +164,10 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       the user service, the Obsidian registration; no theme hook is needed, the app watches
       the theme link itself
 - [ ] A package for the Omarchy or AUR channel once the installer is boring
-- [ ] Retire the v2 web UI and server; swap the repo directories on the dev box
-- [ ] Docs, screenshots, first release
+- [ ] Retire the v2 web UI and server; swap the repo directories on the dev box (Chad's call:
+      the private repo keeps the ops handbook and machine commands either way)
+- [ ] Docs, screenshots, first release (docs are current; screenshots need a scratch vault so
+      no real data ships; the release tag is Chad's to cut)
 
 ## Later
 

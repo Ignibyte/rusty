@@ -8,6 +8,28 @@ skills, and terminals that run Claude Code and Codex natively in tabs.
 from the earlier web version; the QML app is next. See `ROADMAP.md` for the plan and
 `docs/architecture.md` for the shape.
 
+## Status
+
+Milestones M0 to M5 of `ROADMAP.md` landed on 2026-09-02: the back end with 59 tools, the
+desktop app with agent terminals and the Tasks, Brain, Notes, Memory, Skills, Secrets and
+Settings tabs, the Obsidian bridge, and semantic search behind a provider setting. What is
+left in M6 is packaging for the Omarchy or AUR channel, retiring the v2 code, screenshots and
+a first release.
+
+## Run it
+
+```bash
+rusty                    # the app; or `omarchy-launch-or-focus rusty`
+rusty-mcp                # the back end over stdio (agents); the user service serves HTTP
+rusty-cli brain search "orbit"
+```
+
+In the app: Ctrl+Shift+T opens a terminal tab (Claude, Codex or a shell, each a tmux session
+that outlives the window), Ctrl+Shift+W closes one, F2 renames, Ctrl+PgUp/PgDn switch tabs.
+Tasks, Brain, Notes, Memory, Skills, Secrets and Settings talk to the back end over
+`http://127.0.0.1:4174/mcp`, so a Claude session changing a task shows up in the app as it
+happens.
+
 ## Layout
 
 ```

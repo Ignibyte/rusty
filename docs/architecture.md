@@ -115,3 +115,19 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).
   Bare names that named a page's title or alias became `[[folder/slug|Name]]`, so prose reads as
   before; targets that matched nothing were left alone and listed.
+
+## As built (2026-09-02)
+
+- `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index, skills,
+  secrets, settings), the Obsidian bridge, the semantic index (`brain::semantic`: chunks,
+  providers, sqlite-vec, fusion), the vault migration, the file watcher and the event bus.
+- `crates/rusty-mcp`: 59 tools, five resources plus templates, `list_changed` notifications,
+  a background indexer for embeddings; stdio for agents, Streamable HTTP for the app.
+- `crates/rusty-app`: cxx-qt 0.10 on Qt 6. Rust types exposed to QML: `Theme` (Omarchy
+  colours, font, generated colour scheme, live re-theme), `Terminals` (tmux-backed tabs),
+  `Backend` (the MCP client, one session, reconnecting, `result` and `dataChanged` signals).
+  QML pages parse the tool JSON themselves and match replies to their own request ids.
+- `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
+  `brain semantic` and `obsidian register|configure|open`.
+- `omarchy/`: installer, user service, desktop entry and icon, key binding snippet, MCP
+  config snippet.
