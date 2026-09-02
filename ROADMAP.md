@@ -38,18 +38,24 @@ points at v3, and the v2 server is not needed.
 
 Tools and resources
 
-- [ ] Tasks: rename and delete a list, update a task title, unarchive, delete, reorder
-- [ ] Notes: create, rename, delete, daily note open-or-create
-- [ ] Memories: update, delete
-- [ ] Brain: read timeline, links and backlinks for a page, set page body, capture into the
-      inbox, page types listed
-- [ ] Skills: create, update frontmatter and body, approve and reject staged skills, delete,
-      run the safety scan on demand
-- [ ] Secrets: list names, set, delete; values are never returned
-- [ ] Settings: get, set, list
+- [x] Tasks: rename and delete a list, update a task title, unarchive, delete
+- [ ] Tasks: reorder
+- [x] Notes: create, rename, delete
+- [ ] Notes: daily note open-or-create
+- [x] Memories: delete
+- [ ] Memories: update
+- [x] Brain: read timeline, links and backlinks, set page body, delete page, resolve a
+      partial slug
+- [ ] Brain: capture into the inbox, page types listed
+- [x] Skills: create (active or staged), approve, reject, delete, safety scan on demand
+- [ ] Skills: update frontmatter and body in place
+- [x] Secrets: list names, set, delete; values are never returned
+- [x] Settings: get, set
+- [ ] Settings: list
 - [ ] Resources: `rusty://tasks`, `rusty://brain/<slug>`, `rusty://notes/<path>`, with
       `resources/updated` notifications fed by the file watcher
-- [ ] A unit test per tool, plus an rmcp-client smoke test that runs in CI
+- [x] Router tests: every tool advertised once, every tool described
+- [ ] An rmcp-client smoke test that runs in CI
 
 Transport and services
 

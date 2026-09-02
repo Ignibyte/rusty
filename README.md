@@ -12,7 +12,7 @@ from the earlier web version; the QML app is next. See `ROADMAP.md` for the plan
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server (stdio now, local HTTP next) built on rmcp
+crates/rusty-mcp    the back end: an MCP server on rmcp, 44 tools, stdio and local Streamable HTTP
 prototype/          a PySide6 spike for the terminal tab and Omarchy theming; deleted once the app exists
 docs/               architecture and vault rules
 omarchy/            install script, desktop entry, hooks (arriving with M6)

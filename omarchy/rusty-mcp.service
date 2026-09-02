@@ -1,0 +1,19 @@
+# Rusty's back end as a user service: Streamable HTTP on localhost for the app and any
+# HTTP client. Agents keep using stdio through their own mcpServers entry.
+#
+#   install -Dm644 omarchy/rusty-mcp.service ~/.config/systemd/user/rusty-mcp.service
+#   systemctl --user daemon-reload && systemctl --user enable --now rusty-mcp
+#   journalctl --user -u rusty-mcp -f
+[Unit]
+Description=Rusty MCP back end (Streamable HTTP on 127.0.0.1:4174)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rusty-mcp --http 127.0.0.1:4174
+Restart=on-failure
+RestartSec=2
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target

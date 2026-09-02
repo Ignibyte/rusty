@@ -166,6 +166,153 @@ pub struct SkillListParams {
     pub include_pending: bool,
 }
 
+/// Parameters for `rename_task_group`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct RenameGroupParams {
+    /// The list (task group) id.
+    pub group_id: i64,
+    /// The new name.
+    pub name: String,
+}
+
+/// A list (task group) id.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct GroupIdParams {
+    /// The list (task group) id.
+    pub group_id: i64,
+}
+
+/// Parameters for `update_task_title`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdateTaskTitleParams {
+    /// The task id.
+    pub id: i64,
+    /// The new title.
+    pub title: String,
+}
+
+/// Parameters for `create_note`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct CreateNoteParams {
+    /// Folder to create in, relative to the notes root; empty for the root.
+    #[serde(default)]
+    pub parent: String,
+    /// File name (with `.md`) or folder name.
+    pub name: String,
+    /// Create a folder instead of a note.
+    #[serde(default)]
+    pub is_folder: bool,
+}
+
+/// Parameters for `rename_note`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct RenameNoteParams {
+    /// The current relative path.
+    pub path: String,
+    /// The new name within the same folder.
+    pub new_name: String,
+}
+
+/// A memory id.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct MemoryIdParams {
+    /// The memory id, from `list_memories`.
+    pub id: String,
+}
+
+/// Parameters for `brain_update_page`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct UpdatePageParams {
+    /// The page slug.
+    pub slug: String,
+    /// The full new markdown body (frontmatter title is kept).
+    pub content: String,
+}
+
+/// Parameters for `brain_get_timeline`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct TimelineParams {
+    /// The page slug.
+    pub slug: String,
+    /// Maximum entries, newest first.
+    pub limit: Option<usize>,
+}
+
+/// A partial slug or title to resolve.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ResolveSlugParams {
+    /// A slug fragment or title words.
+    pub partial: String,
+}
+
+/// Parameters for `search_conversations`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SearchConversationsParams {
+    /// Words to look for in past prompts and results.
+    pub query: String,
+    /// Maximum results (default 10).
+    pub limit: Option<usize>,
+}
+
+/// Parameters for `skill_create`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct CreateSkillParams {
+    /// Directory name, lowercase with dashes; it is the invocation name.
+    pub name: String,
+    /// One-line description; Claude uses it to decide when the skill applies.
+    pub description: String,
+    /// The SKILL.md body (markdown, no frontmatter).
+    pub body: String,
+    /// Stage it for approval instead of activating it directly.
+    #[serde(default)]
+    pub pending: bool,
+    /// Overwrite an existing active skill of the same name.
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// Parameters for `skill_approve`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ApproveSkillParams {
+    /// The staged skill's name.
+    pub name: String,
+    /// Approve even if the safety scan reports findings.
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// A secret's key.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SecretKeyParams {
+    /// The vault key, such as `OPENAI_API_KEY`.
+    pub key: String,
+}
+
+/// Parameters for `secret_set`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SecretSetParams {
+    /// The vault key.
+    pub key: String,
+    /// The value; it is written to the vault and never echoed back.
+    pub value: String,
+}
+
+/// A settings key.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SettingKeyParams {
+    /// The setting key, such as `brain_vault_path`.
+    pub key: String,
+}
+
+/// Parameters for `setting_set`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SettingSetParams {
+    /// The setting key.
+    pub key: String,
+    /// The value, stored as a string.
+    pub value: String,
+}
+
 /// The MCP server: the tool router plus a shared [`Core`].
 #[derive(Clone)]
 pub struct Rusty {
@@ -364,6 +511,282 @@ impl Rusty {
         ))
     }
 
+    #[tool(description = "Rename a to-do list")]
+    fn rename_task_group(
+        &self,
+        Parameters(p): Parameters<RenameGroupParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .user_task_manager
+                .rename_header(p.group_id, &p.name)
+                .map(|_| "renamed"),
+        )
+    }
+
+    #[tool(description = "Delete a to-do list and everything in it")]
+    fn delete_task_group(
+        &self,
+        Parameters(p): Parameters<GroupIdParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .user_task_manager
+                .delete_header(p.group_id)
+                .map(|_| "deleted"),
+        )
+    }
+
+    #[tool(description = "Change a task's title")]
+    fn update_task_title(
+        &self,
+        Parameters(p): Parameters<UpdateTaskTitleParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .user_task_manager
+                .update_title(p.id, &p.title)
+                .map(|_| "updated"),
+        )
+    }
+
+    #[tool(description = "Bring an archived task back")]
+    fn unarchive_task(
+        &self,
+        Parameters(p): Parameters<TaskIdParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .user_task_manager
+                .unarchive_task(p.id)
+                .map(|_| "unarchived"),
+        )
+    }
+
+    #[tool(description = "Delete a task for good")]
+    fn delete_task(
+        &self,
+        Parameters(p): Parameters<TaskIdParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .user_task_manager
+                .delete_task(p.id)
+                .map(|_| "deleted"),
+        )
+    }
+
+    #[tool(
+        description = "Create a note or a folder under the notes root; returns its relative path"
+    )]
+    fn create_note(
+        &self,
+        Parameters(p): Parameters<CreateNoteParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .notes_manager
+                .create_note(&p.parent, &p.name, p.is_folder),
+        )
+    }
+
+    #[tool(description = "Rename a note or folder; returns the new relative path")]
+    fn rename_note(
+        &self,
+        Parameters(p): Parameters<RenameNoteParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.notes_manager.rename_note(&p.path, &p.new_name))
+    }
+
+    #[tool(description = "Delete a note (moved to the notes .deleted folder)")]
+    fn delete_note(
+        &self,
+        Parameters(p): Parameters<NotePathParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .notes_manager
+                .delete_note(&p.path)
+                .map(|_| "deleted"),
+        )
+    }
+
+    #[tool(description = "Delete a long-term memory")]
+    fn delete_memory(
+        &self,
+        Parameters(p): Parameters<MemoryIdParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.memory_manager.delete(&p.id).map(|_| "deleted"))
+    }
+
+    #[tool(description = "Outbound links and backlinks of a brain page")]
+    fn brain_get_links(
+        &self,
+        Parameters(p): Parameters<SlugParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.get_links(&p.slug))
+    }
+
+    #[tool(description = "Replace a brain page's body; frontmatter and timeline are kept")]
+    fn brain_update_page(
+        &self,
+        Parameters(p): Parameters<UpdatePageParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.update_page(&p.slug, &p.content))
+    }
+
+    #[tool(description = "Delete a brain page and its index entries")]
+    fn brain_delete_page(
+        &self,
+        Parameters(p): Parameters<SlugParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .brain_manager
+                .delete_page(&p.slug)
+                .map(|_| "deleted"),
+        )
+    }
+
+    #[tool(description = "A brain page's timeline entries, newest first")]
+    fn brain_get_timeline(
+        &self,
+        Parameters(p): Parameters<TimelineParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.get_timeline(&p.slug, p.limit))
+    }
+
+    #[tool(description = "Resolve a partial slug or title to matching page slugs")]
+    fn brain_resolve_slug(
+        &self,
+        Parameters(p): Parameters<ResolveSlugParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.resolve_slug(&p.partial))
+    }
+
+    #[tool(description = "Search past agent conversations (prompts and results) by keyword")]
+    fn search_conversations(
+        &self,
+        Parameters(p): Parameters<SearchConversationsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .task_manager
+                .search_conversations(&p.query, p.limit.unwrap_or(10)),
+        )
+    }
+
+    #[tool(description = "Create a skill (a SKILL.md in the store), active or staged for approval")]
+    fn skill_create(
+        &self,
+        Parameters(p): Parameters<CreateSkillParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let result = if p.pending {
+            self.core
+                .skills_manager
+                .create_pending_skill(&p.name, &p.description, &p.body)
+        } else {
+            self.core
+                .skills_manager
+                .create_skill(&p.name, &p.description, &p.body, p.force)
+        };
+        json_result(result)
+    }
+
+    #[tool(description = "Delete a skill, active or staged")]
+    fn skill_delete(
+        &self,
+        Parameters(p): Parameters<SkillNameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .skills_manager
+                .delete_skill(&p.name)
+                .map(|_| "deleted"),
+        )
+    }
+
+    #[tool(description = "Run the safety scan on a skill; returns the findings, empty when clean")]
+    fn skill_scan(
+        &self,
+        Parameters(p): Parameters<SkillNameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.skills_manager.scan(&p.name))
+    }
+
+    #[tool(description = "Approve a staged skill so Claude Code can load it")]
+    fn skill_approve(
+        &self,
+        Parameters(p): Parameters<ApproveSkillParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .skills_manager
+                .approve(&p.name, p.force)
+                .map(|_| "approved"),
+        )
+    }
+
+    #[tool(description = "Reject and remove a staged skill")]
+    fn skill_reject(
+        &self,
+        Parameters(p): Parameters<SkillNameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.skills_manager.reject(&p.name).map(|_| "rejected"))
+    }
+
+    #[tool(description = "List the keys in the secrets vault; values are never returned")]
+    fn secret_list(&self) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .secrets_manager
+                .list()
+                .map(|secrets| secrets.into_iter().map(|s| s.key).collect::<Vec<_>>()),
+        )
+    }
+
+    #[tool(description = "Set a secret in the vault")]
+    fn secret_set(
+        &self,
+        Parameters(p): Parameters<SecretSetParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .secrets_manager
+                .set(&p.key, &p.value)
+                .map(|_| "set"),
+        )
+    }
+
+    #[tool(description = "Delete a secret from the vault")]
+    fn secret_delete(
+        &self,
+        Parameters(p): Parameters<SecretKeyParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.secrets_manager.delete(&p.key).map(|_| "deleted"))
+    }
+
+    #[tool(description = "Read one setting; null when unset")]
+    fn setting_get(
+        &self,
+        Parameters(p): Parameters<SettingKeyParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.settings_manager.get(&p.key))
+    }
+
+    #[tool(description = "Write one setting")]
+    fn setting_set(
+        &self,
+        Parameters(p): Parameters<SettingSetParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .settings_manager
+                .set(&p.key, &p.value)
+                .map(|_| "set"),
+        )
+    }
+
     #[tool(description = "Read one skill, frontmatter and body, by name")]
     fn skill_view(
         &self,
@@ -440,4 +863,79 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every tool the router advertises; keep in sync with the README.
+    const EXPECTED: &[&str] = &[
+        "list_task_groups",
+        "create_task_group",
+        "rename_task_group",
+        "delete_task_group",
+        "list_tasks",
+        "create_task",
+        "toggle_task",
+        "archive_task",
+        "unarchive_task",
+        "update_task_title",
+        "delete_task",
+        "list_notes",
+        "read_note",
+        "write_note",
+        "create_note",
+        "rename_note",
+        "delete_note",
+        "list_memories",
+        "store_memory",
+        "delete_memory",
+        "brain_search",
+        "brain_read_page",
+        "brain_list_pages",
+        "brain_create_page",
+        "brain_update_page",
+        "brain_delete_page",
+        "brain_add_timeline",
+        "brain_get_timeline",
+        "brain_get_links",
+        "brain_resolve_slug",
+        "brain_stats",
+        "search_conversations",
+        "skill_list",
+        "skill_view",
+        "skill_create",
+        "skill_delete",
+        "skill_scan",
+        "skill_approve",
+        "skill_reject",
+        "secret_list",
+        "secret_set",
+        "secret_delete",
+        "setting_get",
+        "setting_set",
+    ];
+
+    #[test]
+    fn router_advertises_every_tool_once() {
+        let router = Rusty::tool_router();
+        let mut names: Vec<String> = router
+            .list_all()
+            .into_iter()
+            .map(|t| t.name.to_string())
+            .collect();
+        names.sort();
+        let mut expected: Vec<String> = EXPECTED.iter().map(|s| s.to_string()).collect();
+        expected.sort();
+        assert_eq!(names, expected);
+    }
+
+    #[test]
+    fn every_tool_has_a_description() {
+        for tool in Rusty::tool_router().list_all() {
+            let description = tool.description.as_deref().unwrap_or("");
+            assert!(description.len() > 10, "{} has no description", tool.name);
+        }
+    }
 }
