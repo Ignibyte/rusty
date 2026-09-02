@@ -17,7 +17,7 @@ The shape is in `docs/architecture.md`.
 | M4 Semantic search | done 2026-09-02 |
 | M5 Skills, Secrets, Settings | done 2026-09-02 |
 | M6 Omarchy packaging and cutover | next (waits on Chad) |
-| M7 Daily use | in progress |
+| M7 Daily use | done 2026-09-02 |
 
 ## M0. Foundation (done 2026-09-02)
 
@@ -164,13 +164,15 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       entry and icon, the keybinding snippet (pointed at, not applied), the MCP config snippet,
       the user service, the Obsidian registration; no theme hook is needed, the app watches
       the theme link itself
-- [ ] A package for the Omarchy or AUR channel once the installer is boring
+- [x] A package: `packaging/PKGBUILD` (`rusty-git`) builds the three binaries, the desktop
+      entry and icon, the user unit and the snippets, and passes `check()` under makepkg on the
+      dev box (2026-09-02). Submitting it to the AUR waits for the first release
 - [ ] Retire the v2 web UI and server; swap the repo directories on the dev box (Chad's call:
       the private repo keeps the ops handbook and machine commands either way)
 - [ ] Docs, screenshots, first release (docs are current; screenshots need a scratch vault so
       no real data ships; the release tag is Chad's to cut)
 
-## M7. Daily use
+## M7. Daily use (done 2026-09-02)
 
 What using the app every day asks for, added as it comes up.
 
