@@ -24,8 +24,10 @@ rusty-mcp                # the back end over stdio (agents); the user service se
 rusty-cli brain search "orbit"
 ```
 
-In the app: Ctrl+Shift+T opens a terminal tab (Claude, Codex or a shell, each a tmux session
-that outlives the window, started in a directory you pick), Ctrl+Shift+W closes one, F2
+In the app: the bar across the top has one button per agent CLI found on the machine (Claude
+Code, Codex, Gemini, Aider, OpenCode) plus a shell; a click opens it in a new tab, each a tmux
+session that outlives the window. Ctrl+Shift+T opens a custom tab (name, session, working
+directory), Ctrl+Shift+W closes one, F2
 renames, Ctrl+PgUp/PgDn (or Ctrl+Tab and Ctrl+Shift+Tab) switch tabs, Ctrl+Shift+PgUp/PgDn
 move one, and tabs and tasks can be dragged into a new order. A tab that gets output
 while another is showing gets a mark; a tab whose title asks for attention raises a desktop

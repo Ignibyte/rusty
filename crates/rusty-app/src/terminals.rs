@@ -40,7 +40,8 @@ mod qobject {
         #[qinvokable]
         fn sessions(self: &Terminals) -> QStringList;
 
-        /// The agents this machine can run: `claude`, `codex`, and always `shell`.
+        /// The agents this machine can run (`claude`, `codex`, `gemini`, `aider`, `opencode`
+        /// when on `PATH`) and always `shell`.
         #[qinvokable]
         fn programs(self: &Terminals) -> QStringList;
 
@@ -95,22 +96,43 @@ pub fn tabs_path() -> PathBuf {
         .join(".config/rusty/tabs.json")
 }
 
-/// The tabs a fresh install opens with.
-pub fn default_tabs() -> Vec<Tab> {
-    vec![
-        Tab {
-            name: "Claude".into(),
-            session: "rusty-claude".into(),
-            program: "claude".into(),
-            cwd: String::new(),
-        },
-        Tab {
-            name: "Codex".into(),
-            session: "rusty-codex".into(),
-            program: "codex".into(),
-            cwd: String::new(),
-        },
-    ]
+/// The agent command-line tools the launch bar looks for, in the order they are shown.
+/// Each entry is the binary name; the QML side gives them their labels.
+pub const AGENT_CANDIDATES: &[&str] = &["claude", "codex", "gemini", "aider", "opencode"];
+
+/// The tabs a fresh install opens with: one tab for the first agent that is installed, or
+/// a shell when none is. The launch bar covers the rest.
+pub fn default_tabs(installed: &[String]) -> Vec<Tab> {
+    let program = AGENT_CANDIDATES
+        .iter()
+        .find(|c| installed.iter().any(|i| i == *c))
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "shell".to_string());
+    let name = tab_label(&program);
+    vec![Tab {
+        session: session_for(&name, &[]),
+        name,
+        program,
+        cwd: String::new(),
+    }]
+}
+
+/// The rail label for a program: `claude` is "Claude", `shell` is "Shell".
+pub fn tab_label(program: &str) -> String {
+    let mut chars = program.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
+/// The agent binaries found on `PATH`, in [`AGENT_CANDIDATES`] order.
+pub fn installed_agents() -> Vec<String> {
+    AGENT_CANDIDATES
+        .iter()
+        .filter(|p| on_path(p))
+        .map(|p| p.to_string())
+        .collect()
 }
 
 /// Tabs as the JSON the QML side reads. Hand-rolled: four string fields, no serde
@@ -211,7 +233,7 @@ impl qobject::Terminals {
     pub fn load(&self) -> QString {
         match std::fs::read_to_string(tabs_path()) {
             Ok(text) if text.trim_start().starts_with('[') => QString::from(&text),
-            _ => QString::from(&tabs_to_json(&default_tabs())),
+            _ => QString::from(&tabs_to_json(&default_tabs(&installed_agents()))),
         }
     }
 
@@ -236,13 +258,9 @@ impl qobject::Terminals {
         to_qstringlist(&names)
     }
 
-    /// Installed agents plus `shell`.
+    /// Installed agents plus `shell`, in launch-bar order.
     pub fn programs(&self) -> QStringList {
-        let mut names: Vec<String> = ["claude", "codex"]
-            .iter()
-            .filter(|p| on_path(p))
-            .map(|p| p.to_string())
-            .collect();
+        let mut names = installed_agents();
         names.push("shell".to_string());
         to_qstringlist(&names)
     }
@@ -291,12 +309,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_serialize_as_the_qml_side_expects() {
-        let json = tabs_to_json(&default_tabs());
+    fn defaults_follow_what_is_installed() {
+        let both = default_tabs(&["codex".to_string(), "claude".to_string()]);
         assert_eq!(
-            json,
-            r#"[{"name":"Claude","session":"rusty-claude","program":"claude","cwd":""},{"name":"Codex","session":"rusty-codex","program":"codex","cwd":""}]"#
+            tabs_to_json(&both),
+            r#"[{"name":"Claude","session":"rusty-claude","program":"claude","cwd":""}]"#
         );
+        let codex_only = default_tabs(&["codex".to_string()]);
+        assert_eq!(codex_only[0].program, "codex");
+        assert_eq!(codex_only[0].name, "Codex");
+        let none = default_tabs(&[]);
+        assert_eq!(none[0].program, "shell");
+        assert_eq!(none[0].session, "rusty-shell");
+        assert_eq!(tab_label("opencode"), "Opencode");
         assert_eq!(json_string("a \"quoted\" tab\n"), r#""a \"quoted\" tab\n""#);
     }
 

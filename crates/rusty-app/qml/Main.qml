@@ -48,11 +48,30 @@ ApplicationWindow {
     // name, session, program, cwd are saved; unread and title live only while running.
     ListModel { id: tabs }
 
+    // The agent CLIs found on this machine, plus a shell; the launch bar shows one button each.
+    property var agents: []
+    readonly property var agentNames: ({ claude: "Claude Code", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", shell: "Shell" })
+    readonly property var agentGlyphs: ({ claude: "✳", codex: "◇", gemini: "✦", aider: "⌁", opencode: "◈", shell: "$" })
+    function agentLabel(p) { return agentNames[p] || p }
+    function agentGlyph(p) { return agentGlyphs[p] || "▸" }
+    function tabLabelFor(p) { return p === "claude" ? "Claude" : (p.charAt(0).toUpperCase() + p.slice(1)) }
+
+    // Open an agent in a new tab, named after it ("Claude", "Claude 2", ...), in the home dir.
+    function launch(program) {
+        const base = tabLabelFor(program)
+        const names = []
+        for (let i = 0; i < tabs.count; i++) names.push(tabs.get(i).name)
+        let label = base
+        for (let n = 2; names.indexOf(label) >= 0; n++) label = base + " " + n
+        addTab(label, program, "", "")
+    }
+
     Component.onCompleted: {
         win.width = ui.width
         win.height = ui.height
         theme.watch()
         backend.start()
+        agents = terminals.programs()
         const saved = JSON.parse(terminals.load())
         for (const t of saved)
             tabs.append({ name: t.name, session: t.session, program: t.program, cwd: t.cwd || "", unread: false, title: "" })
@@ -387,6 +406,67 @@ ApplicationWindow {
         }
         Rectangle { width: 1; Layout.fillHeight: true; color: theme.accent; opacity: 0.25 }
 
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+
+            // Launch bar: one button per agent found on this machine. A click opens it in a
+            // new tab; the rail lists only the tabs that are open.
+            Rectangle {
+                Layout.fillWidth: true
+                height: 40
+                color: Qt.darker(theme.background, 1.08)
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 6
+                    Text { text: "Open"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12 }
+                    Repeater {
+                        model: win.agents
+                        delegate: Rectangle {
+                            required property string modelData
+                            radius: 6
+                            height: 28
+                            width: launchLabel.implicitWidth + 24
+                            color: launchHover.hovered ? theme.accent : Qt.rgba(1, 1, 1, 0.06)
+                            Text {
+                                id: launchLabel
+                                anchors.centerIn: parent
+                                text: win.agentGlyph(modelData) + "  " + win.agentLabel(modelData)
+                                color: launchHover.hovered ? theme.background : theme.foreground
+                                font.pixelSize: 13
+                            }
+                            HoverHandler { id: launchHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: win.launch(modelData) }
+                            ToolTip.visible: launchHover.hovered
+                            ToolTip.text: "Open " + win.agentLabel(modelData) + " in a new tab"
+                            ToolTip.delay: 600
+                        }
+                    }
+                    Text {
+                        visible: win.agents.length <= 1
+                        text: "no agent CLI on PATH (claude, codex); the shell still works"
+                        color: theme.foreground; opacity: 0.5; font.pixelSize: 12
+                    }
+                    Rectangle {
+                        radius: 6; height: 28; width: customLabel.implicitWidth + 24
+                        color: customHover.hovered ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
+                        Text { id: customLabel; anchors.centerIn: parent; text: "custom…"; color: theme.foreground; opacity: 0.7; font.pixelSize: 13 }
+                        HoverHandler { id: customHover; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: newTabDialog.openFresh() }
+                        ToolTip.visible: customHover.hovered
+                        ToolTip.text: "Name, agent, session and working directory"
+                        ToolTip.delay: 600
+                    }
+                    Item { Layout.fillWidth: true }
+                    Rectangle { width: 8; height: 8; radius: 4; color: backend.connected ? theme.accent : "#f7768e" }
+                    Text { text: backend.connected ? "back end" : backend.status; color: theme.foreground; opacity: 0.5; font.pixelSize: 11; elide: Text.ElideRight; Layout.maximumWidth: 320 }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: theme.accent; opacity: 0.25 }
+
         StackLayout {
             id: stack
             Layout.fillWidth: true
@@ -422,6 +502,7 @@ ApplicationWindow {
             SkillsPage { id: skillsPage; backend: backend; theme: theme }
             SecretsPage { id: secretsPage; backend: backend; theme: theme }
             SettingsPage { backend: backend; theme: theme; terminals: terminals }
+        }
         }
     }
 }
