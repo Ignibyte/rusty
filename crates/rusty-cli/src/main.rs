@@ -11,6 +11,7 @@ use rusty_core::brain::BrainManager;
 use rusty_core::engine::conversation_archive::ConversationArchive;
 use rusty_core::engine::db::Database;
 use rusty_core::engine::settings_manager::SettingsManager;
+use rusty_core::obsidian::Obsidian;
 use rusty_core::skills::{self, SkillsManager};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,6 +41,10 @@ USAGE:\n\
   rusty-cli ingest-conversation <path|session-id>   (archive a Claude Code transcript + brain node)\n\
   rusty-cli ingest-conversation --all [--dir <path>] [--limit N]   (backfill a project's transcripts)\n\
   rusty-cli conversations search <query...> [--limit N]\n\
+  rusty-cli obsidian status|register|launch   (the brain as an Obsidian vault, CLI on)\n\
+  rusty-cli obsidian open <slug>              (show a page in Obsidian, starting it if needed)\n\
+  rusty-cli obsidian backlinks <slug>\n\
+  rusty-cli obsidian unresolved               (wikilinks with no page behind them)\n\
   rusty-cli refresh   (signal the GUI to reload after a data change)";
 
 fn main() {
@@ -60,6 +65,10 @@ fn main() {
             let sub = args.get(2).map(String::as_str).unwrap_or("search");
             run_conversations(sub, args.get(3..).unwrap_or_default());
         }
+        (Some("obsidian"), _) => {
+            let sub = args.get(2).map(String::as_str).unwrap_or("status");
+            run_obsidian(sub, args.get(3..).unwrap_or_default());
+        }
         (Some("refresh"), _) => refresh_signal(),
         (Some("--help") | Some("-h"), _) | (None, _) => {
             println!("{USAGE}");
@@ -71,21 +80,29 @@ fn main() {
     }
 }
 
-/// Open the database and a `BrainManager` rooted at the configured vault path.
-///
-/// Mirrors the GUI/MCP path resolution so all three operate on one vault.
-fn brain() -> BrainManager {
-    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
-    let settings = SettingsManager::new(Arc::clone(&db));
+/// The brain vault path the GUI and MCP server use: the `brain_vault_path` setting,
+/// else `~/.rusty/brain`.
+fn configured_brain_path(db: &Arc<Database>) -> PathBuf {
+    let settings = SettingsManager::new(Arc::clone(db));
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
     let default_brain = home
         .join(".rusty")
         .join("brain")
         .to_string_lossy()
         .to_string();
-    let brain_path = settings
-        .get_or_default("brain_vault_path", &default_brain)
-        .unwrap_or(default_brain);
+    PathBuf::from(
+        settings
+            .get_or_default("brain_vault_path", &default_brain)
+            .unwrap_or(default_brain),
+    )
+}
+
+/// Open the database and a `BrainManager` rooted at the configured vault path.
+///
+/// Mirrors the GUI/MCP path resolution so all three operate on one vault.
+fn brain() -> BrainManager {
+    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
+    let brain_path = configured_brain_path(&db);
     let brain = BrainManager::new(Arc::clone(&db), PathBuf::from(&brain_path));
     brain
         .ensure_vault()
@@ -96,16 +113,7 @@ fn brain() -> BrainManager {
 /// Open a `ConversationArchive` over the shared db + brain vault.
 fn archive() -> (Arc<Database>, ConversationArchive) {
     let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
-    let settings = SettingsManager::new(Arc::clone(&db));
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    let default_brain = home
-        .join(".rusty")
-        .join("brain")
-        .to_string_lossy()
-        .to_string();
-    let brain_path = settings
-        .get_or_default("brain_vault_path", &default_brain)
-        .unwrap_or(default_brain);
+    let brain_path = configured_brain_path(&db);
     let brain = Arc::new(BrainManager::new(
         Arc::clone(&db),
         PathBuf::from(&brain_path),
@@ -607,6 +615,54 @@ fn refresh_signal() {
 fn fail(msg: &str) -> ! {
     eprintln!("error: {msg}");
     exit(1);
+}
+
+/// `rusty-cli obsidian ...`: the Obsidian bridge from the terminal.
+fn run_obsidian(sub: &str, rest: &[String]) {
+    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
+    let obsidian = Obsidian::new(configured_brain_path(&db));
+    let rt = tokio::runtime::Runtime::new()
+        .unwrap_or_else(|e| fail(&format!("start async runtime: {e}")));
+    let print_json = |value: serde_json::Value| {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string())
+        )
+    };
+    let page = || {
+        rest.first()
+            .cloned()
+            .unwrap_or_else(|| fail("a page slug or vault path is required"))
+    };
+    match sub {
+        "status" => {
+            print_json(serde_json::to_value(rt.block_on(obsidian.status())).unwrap_or_default())
+        }
+        "register" => match obsidian.register() {
+            Ok(r) => print_json(serde_json::to_value(r).unwrap_or_default()),
+            Err(e) => fail(&e),
+        },
+        "launch" => match rt.block_on(obsidian.launch()) {
+            Ok(()) => println!("Obsidian is up with vault `{}`", obsidian.vault_name()),
+            Err(e) => fail(&e),
+        },
+        "open" => match rt.block_on(obsidian.open(&page(), false)) {
+            Ok(reply) => println!("{reply}"),
+            Err(e) => fail(&e),
+        },
+        "backlinks" => match rt.block_on(obsidian.backlinks(&page())) {
+            Ok(links) => print_json(serde_json::to_value(links).unwrap_or_default()),
+            Err(e) => fail(&e),
+        },
+        "unresolved" => match rt.block_on(obsidian.unresolved()) {
+            Ok(links) => print_json(serde_json::to_value(links).unwrap_or_default()),
+            Err(e) => fail(&e),
+        },
+        _ => {
+            eprintln!("{USAGE}");
+            exit(2);
+        }
+    }
 }
 
 #[cfg(test)]

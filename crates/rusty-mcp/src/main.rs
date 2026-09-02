@@ -25,6 +25,7 @@ use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
 };
 use rusty_core::events::AppEvent;
+use rusty_core::obsidian::Obsidian;
 use rusty_core::Core;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -320,11 +321,38 @@ pub struct SettingSetParams {
     pub value: String,
 }
 
+/// Parameters for the Obsidian tools that name one page.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ObsidianPathParams {
+    /// Brain slug or vault-relative path, e.g. `projects/emmett-hub` or `projects/emmett-hub.md`.
+    pub path: String,
+}
+
+/// Parameters for `obsidian_open`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ObsidianOpenParams {
+    /// Brain slug or vault-relative path of the page to show.
+    pub path: String,
+    /// Open in a new tab instead of the current one.
+    #[serde(default)]
+    pub new_tab: bool,
+}
+
+/// Parameters for `obsidian_rename_page`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ObsidianRenameParams {
+    /// Brain slug or vault-relative path of the page to move.
+    pub from: String,
+    /// New vault-relative path ending in `.md`, or a folder to move the page into.
+    pub to: String,
+}
+
 /// The MCP server: the tool router, a shared [`Core`], and the connected peers.
 #[derive(Clone)]
 pub struct Rusty {
     core: Arc<Core>,
     peers: Peers,
+    obsidian: Arc<Obsidian>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -367,9 +395,11 @@ fn parse_resource_uri(uri: &str) -> Option<ResourceUri> {
 impl Rusty {
     /// Wrap a ready [`Core`]; `peers` is shared by every session of one process.
     pub fn new(core: Arc<Core>, peers: Peers) -> Self {
+        let obsidian = Arc::new(Obsidian::new(core.brain_path.clone()));
         Self {
             core,
             peers,
+            obsidian,
             tool_router: Self::tool_router(),
         }
     }
@@ -531,6 +561,52 @@ impl Rusty {
             &p.summary,
             p.detail.as_deref(),
         ))
+    }
+
+    #[tool(
+        description = "Is Obsidian installed, running, registered for the brain vault, and answering on its CLI?"
+    )]
+    async fn obsidian_status(&self) -> Result<CallToolResult, McpError> {
+        json_result(Ok(self.obsidian.status().await))
+    }
+
+    #[tool(description = "Show a brain page in Obsidian; starts the app when it is not running")]
+    async fn obsidian_open(
+        &self,
+        Parameters(p): Parameters<ObsidianOpenParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.obsidian.open(&p.path, p.new_tab).await)
+    }
+
+    #[tool(description = "Pages that link to a brain page, as Obsidian resolves them, with counts")]
+    async fn obsidian_backlinks(
+        &self,
+        Parameters(p): Parameters<ObsidianPathParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.obsidian.backlinks(&p.path).await)
+    }
+
+    #[tool(description = "Outgoing links of a brain page, as Obsidian resolves them")]
+    async fn obsidian_links(
+        &self,
+        Parameters(p): Parameters<ObsidianPathParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.obsidian.links(&p.path).await)
+    }
+
+    #[tool(description = "Wikilinks anywhere in the vault whose target page does not exist")]
+    async fn obsidian_unresolved(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.obsidian.unresolved().await)
+    }
+
+    #[tool(
+        description = "Rename or move a brain page through Obsidian, which rewrites every link to it"
+    )]
+    async fn obsidian_rename_page(
+        &self,
+        Parameters(p): Parameters<ObsidianRenameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.obsidian.rename(&p.from, &p.to).await)
     }
 
     #[tool(description = "Brain vault statistics: pages, links, tags, timeline entries")]
@@ -1130,6 +1206,12 @@ mod tests {
         "secret_delete",
         "setting_get",
         "setting_set",
+        "obsidian_status",
+        "obsidian_open",
+        "obsidian_backlinks",
+        "obsidian_links",
+        "obsidian_unresolved",
+        "obsidian_rename_page",
     ];
 
     #[test]

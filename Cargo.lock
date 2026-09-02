@@ -1014,6 +1014,7 @@ dependencies = [
  "rusqlite",
  "rusty-core",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

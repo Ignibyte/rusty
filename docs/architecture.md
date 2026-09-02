@@ -101,3 +101,12 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   Python is enough for the models, and Rust wins if the MCP client and the app share code.
 - Where secrets live once the Secrets tab is native: keep `~/.rusty/.secret` as is.
 - Whether the Mac gets the app at all (Qt builds fine there) or stays a Codex and browser box.
+
+## Decided on 2026-09-02
+
+- Obsidian is reached through its official CLI, never through its plugin API or a community REST
+  server. `rusty_core::obsidian` wraps it; the app stays optional.
+- The vault is registered by writing Obsidian's config file (vault entry plus `cli: true`) while the
+  app is closed. Opening an unregistered folder through an `obsidian://open?path=` URL left the app
+  in its picker for five minutes on the box, so that route is out.
+- `.obsidian/` is per-machine viewer state and is gitignored in the vault.

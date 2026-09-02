@@ -68,12 +68,16 @@ Transport and services
 
 Obsidian and the vault
 
-- [ ] Obsidian CLI bridge: `open_in_obsidian`, link-safe `rename_page`, `backlinks`;
+- [x] Obsidian CLI bridge: `open_in_obsidian`, link-safe `rename_page`, `backlinks`;
       skip cleanly when the app is not running
 - [ ] Vault rule: the timeline becomes a `## Timeline` section; the body `---` trick goes,
       with a one-time migration of existing pages
 - [ ] Vault rule: one wikilink path style that Obsidian and Rusty both write
-- [ ] Register `~/.rusty/brain` as an Obsidian vault; decide the `.obsidian/` policy
+      (Obsidian's side is set on 2026-09-02: shortest-path wikilinks, `useMarkdownLinks: false`;
+      Rusty's own writers still need the same rule checked)
+- [x] Register `~/.rusty/brain` as an Obsidian vault; decide the `.obsidian/` policy
+      (2026-09-02: `rusty-cli obsidian register` writes the vault and the CLI toggle into
+      Obsidian's config; `.obsidian/` is gitignored in the vault, so it stays per machine)
 
 Cutover for the back end
 

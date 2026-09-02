@@ -16,3 +16,16 @@ Conventions Rusty follows: apps launch through `uwsm-app`, the theme lives in
 `~/.config/omarchy/current/theme/` (`colors.toml`, `alacritty.toml`), windows are found and
 focused with `omarchy launch or focus`, and nothing under `~/.local/share/omarchy/` is ever
 edited.
+
+## Obsidian on Omarchy
+
+Omarchy installs Obsidian and ships `~/.config/obsidian/user-flags.conf` with `-disable-gpu`.
+The Arch launcher passes that file to every `obsidian` call, and the CLI reads a single-dash flag
+as a command (`Error: Command "-disable-gpu" not found`). Change it to `--disable-gpu` (same
+Chromium switch) and both the app and the CLI work. Then, with Obsidian closed:
+
+```bash
+rusty-cli obsidian register   # vault entry + CLI toggle in ~/.config/obsidian/obsidian.json
+rusty-cli obsidian launch     # starts the app straight into the brain vault
+rusty-cli obsidian status
+```
