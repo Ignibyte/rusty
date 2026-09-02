@@ -1,109 +1,144 @@
 # Rusty v3 roadmap
 
-Rusty is a local-first AI assistant built for [Omarchy](https://omarchy.org). It is a QML
-desktop app with a pure MCP back end. Its wiki is an Obsidian-compatible markdown vault,
-and its terminals run Claude Code and Codex natively. This file is the plan; the shape is in
-`docs/architecture.md`.
+The tracker for the rewrite: a QML desktop app for [Omarchy](https://omarchy.org) with a
+pure MCP back end, an Obsidian-compatible markdown brain, to-do lists, notes, memories,
+editable skills, and native Claude Code and Codex terminals. Tick items as they land; when
+something unplanned turns up, add it to the milestone it belongs to rather than a side list.
+The shape is in `docs/architecture.md`.
+
+## Where we are
+
+| Milestone | State |
+|---|---|
+| M0 Foundation | done 2026-09-02 |
+| M1 The back end, complete | next |
+| M2 App shell, Terminals, Tasks | |
+| M3 Knowledge tabs: Brain, Notes, Memory | |
+| M4 Semantic search | |
+| M5 Skills, Secrets, Settings | |
+| M6 Omarchy packaging and cutover | |
+
+## M0. Foundation (done 2026-09-02)
+
+- [x] Public repo `Ignibyte/rusty`, MIT, Cargo workspace, clean history
+- [x] `rusty-core` lifted from v2: tasks, notes, memories, brain vault and index, skills,
+      secrets, settings, events, file watcher; web, auth, TLS and PTY code left behind
+- [x] Gates green: rustfmt, clippy with warnings as errors, 190 tests, docs
+- [x] `rusty-mcp` on rmcp 3: 19 tools over stdio, verified against a real store
+- [x] `rusty-mcp --http`: Streamable HTTP at `127.0.0.1:4174/mcp`, verified with curl
+- [x] Prototype: PySide6 + qmltermwidget, side rail, Claude and Codex tabs on tmux
+      sessions, Omarchy theme colours and font, Ctrl+PgUp/PgDn tab cycling
+- [x] Decision: agent terminals are always embedded; the Alacritty-window mode was tried
+      and removed. The Settings page stays as a page.
+
+## M1. The back end, complete
+
+Done when every v2 GUI action has an MCP equivalent, the dev box's own `.mcp.json`
+points at v3, and the v2 server is not needed.
+
+Tools and resources
+
+- [ ] Tasks: rename and delete a list, update a task title, unarchive, delete, reorder
+- [ ] Notes: create, rename, delete, daily note open-or-create
+- [ ] Memories: update, delete
+- [ ] Brain: read timeline, links and backlinks for a page, set page body, capture into the
+      inbox, page types listed
+- [ ] Skills: create, update frontmatter and body, approve and reject staged skills, delete,
+      run the safety scan on demand
+- [ ] Secrets: list names, set, delete; values are never returned
+- [ ] Settings: get, set, list
+- [ ] Resources: `rusty://tasks`, `rusty://brain/<slug>`, `rusty://notes/<path>`, with
+      `resources/updated` notifications fed by the file watcher
+- [ ] A unit test per tool, plus an rmcp-client smoke test that runs in CI
+
+Transport and services
+
+- [ ] A `systemd --user` unit for `rusty-mcp --http`, enabled by the installer
+- [ ] MCP config snippets for Claude Code and Codex (stdio and HTTP)
+- [ ] `rusty-cli` ported onto `rusty-core` (brain, tasks, notes, refresh)
+
+Obsidian and the vault
+
+- [ ] Obsidian CLI bridge: `open_in_obsidian`, link-safe `rename_page`, `backlinks`;
+      skip cleanly when the app is not running
+- [ ] Vault rule: the timeline becomes a `## Timeline` section; the body `---` trick goes,
+      with a one-time migration of existing pages
+- [ ] Vault rule: one wikilink path style that Obsidian and Rusty both write
+- [ ] Register `~/.rusty/brain` as an Obsidian vault; decide the `.obsidian/` policy
+
+Cutover for the back end
+
+- [ ] Parity check against v2's tool list
+- [ ] Switch the dev box's `.mcp.json` to v3 and retire the v2 `rusty-mcp`
+
+## M2. App shell, Terminals, Tasks
+
+Done when the app replaces a terminal for daily Claude and Codex use.
+
+- [ ] `rusty-app` crate: cxx-qt on Qt 6, one window, side rail, tab stack
+- [ ] MCP client over Streamable HTTP with typed models for the tabs
+- [ ] Terminals: qmltermwidget per tab, one tmux session per tab, new tab and rename, close,
+      pick the agent (Claude, Codex, shell), list existing sessions
+- [ ] Terminal colours from the Omarchy theme through a registered scheme directory, no
+      root-owned file; font from the Alacritty config
+- [ ] Live re-theme through `~/.config/omarchy/hooks/theme-set`
+- [ ] Tasks: lists, quick add, toggle, archive, rename, reorder, keyboard first, live updates
+      from notifications
+- [ ] Settings page: paths, theme and terminal font shown; the first editable settings
+- [ ] Desktop entry, icon, stable `app_id`, `omarchy launch or focus rusty`, a default key
+- [ ] Delete the prototype
+
+## M3. Knowledge tabs
+
+- [ ] Brain: folder tree, full-text search, rendered markdown view, backlinks and timeline,
+      open in Obsidian, capture and append
+- [ ] Notes: daily notes living in the vault so Obsidian sees them
+- [ ] Memory: list, add, edit, delete
+- [ ] Obsidian themed by `omarchy theme set` where the theme provides it
+
+## M4. Semantic search
+
+- [ ] `sqlite-vec` inside `rusty.db`: an embedding per page, note and memory chunk
+- [ ] Embedding provider trait; Ollama when it is running (default), OpenAI through the
+      secrets vault otherwise; no provider means no vectors and everything else still works
+- [ ] Hybrid retrieval, full text and vectors merged, behind `brain_search`
+- [ ] Incremental indexing from the watcher; a re-embed command
+- [ ] Settings entries for the provider and the model
+
+## M5. Skills, Secrets, Settings
+
+- [ ] Skills: editor inside the app, frontmatter as a form, body in an editor, staging and
+      approval, the safety scan, delete
+- [ ] Secrets: names listed, set and delete, a value never rendered after entry
+- [ ] Settings: every setting the earlier milestones introduced, in one place
+
+## M6. Omarchy packaging and cutover
+
+- [ ] `omarchy/install.sh`: dependencies through `omarchy pkg add`, the desktop entry, a
+      keybinding snippet, the theme hook, the MCP config snippet, the user service
+- [ ] A package for the Omarchy or AUR channel once the installer is boring
+- [ ] Retire the v2 web UI and server; swap the repo directories on the dev box
+- [ ] Docs, screenshots, first release
+
+## Later
+
+- Background agents tab: dispatch, watch, results
+- Phone access through Obsidian Sync of the vault
+- A macOS build if anyone wants one; nothing in the core is Linux-only
 
 ## Principles
 
 - **Omarchy is a dependency, not a target.** Rusty assumes Hyprland, uwsm, the `omarchy`
   CLI, its theme files and its launcher conventions, and uses them instead of reinventing
-  them. It installs like an Omarchy web app or TUI would.
-- **Files are the truth.** The brain is a folder of markdown that Obsidian can open. SQLite
-  holds the index (full text and vectors), never the only copy of anything.
+  them.
+- **Files are the truth.** The brain is a folder of markdown Obsidian can open. SQLite holds
+  the index, never the only copy of anything.
 - **One back end process.** `rusty-mcp` serves the app over local HTTP and the agents over
-  stdio. There is no web UI, no REST layer, no second protocol.
-- **Native terminals.** Claude Code and Codex run in real terminal emulators inside the app,
+  stdio. No web UI, no REST layer, no second protocol.
+- **Native terminals.** Claude Code and Codex run in a real terminal emulator inside the app,
   attached to tmux sessions, so nothing is lost when the app closes.
 - **Same gates as before.** rustfmt, clippy with warnings as errors, tests, docs, on every
   change.
-
-## Milestones
-
-### M0. Foundation (now)
-
-- Public repo, MIT, Cargo workspace.
-- `rusty-core`: the manager layer lifted from v2 (tasks, notes, memories, brain, skills,
-  secrets, settings, events, watcher) with the web, auth, TLS and PTY code removed. Gates green.
-- `rusty-mcp`: an `rmcp` server over stdio exposing the first tool set (tasks, notes,
-  memories, brain search and read, skills list). Usable from Claude Code today.
-- A one-day PySide6 prototype proving the terminal item, the tmux attach flow and Omarchy
-  theme colours before any Rust UI is written.
-
-Done when: `cargo test` passes, Claude Code lists the tools over stdio, the prototype runs
-`claude` in a tab that survives closing the window.
-
-**Status 2026-09-02: done.** 190 tests green under fmt, clippy and docs; 19 tools over stdio
-and, ahead of M1, over Streamable HTTP at `127.0.0.1:4174/mcp`; the prototype shows Claude
-Code and Codex in tmux-backed tabs behind a side rail, themed from the Omarchy theme's own
-Alacritty colours and font, with a Settings tab that switches the agent terminals between
-the embedded widget and real Alacritty windows on the same sessions.
-
-### M1. The back end, complete
-
-- Full tool and resource surface: tasks and lists, notes, memories, brain pages and
-  timeline, skills (read, write, approve), secrets (names only, set, delete), settings.
-- Streamable HTTP transport on localhost next to stdio; change notifications driven by the
-  file watcher replace the old WebSocket bus.
-- `rusty-cli` ported onto the same core.
-- Obsidian CLI bridge: `open_in_obsidian`, link-safe `rename_page`, `backlinks`, used when the
-  app is running and skipped cleanly when it is not.
-- Vault rules for v3: the timeline is a normal `## Timeline` section (no body `---` trick);
-  wikilinks use one path style Obsidian and Rusty both write.
-
-Done when: every v2 GUI action has an MCP equivalent and the old server is not needed.
-
-### M2. The app shell and the first two tabs
-
-- Qt Quick app through `cxx-qt`, one window, a tab bar, an MCP client to the local server.
-- **Terminals**: `qmltermwidget` per tab, each attached to a tmux session
-  (`rusty-<name>`), Claude or Codex per tab, new tab and rename, sessions listed from tmux.
-  A per-agent terminal mode, embedded or an Alacritty window on the same session, since
-  Wayland cannot embed a foreign window; the prototype already has the setting.
-- **Tasks**: to-do lists with groups, quick add, toggle, archive, keyboard first.
-- Omarchy fit: `.desktop` entry and icon, stable `app_id`, `omarchy launch or focus rusty`,
-  a default key, theme colours from `~/.config/omarchy/current/theme/colors.toml`, live
-  re-theme through the `theme-set` hook.
-
-Done when: the app replaces a terminal for daily Claude and Codex use.
-
-### M3. Knowledge tabs
-
-- **Brain**: folder tree, full-text search, rendered read view, backlinks and timeline,
-  open in Obsidian, capture and append through MCP.
-- **Notes**: daily notes living in the vault so Obsidian sees them too.
-- **Memory**: list, add, edit, delete.
-- Vault registration: `~/.rusty/brain` opened as an Obsidian vault, `.obsidian/` policy
-  decided, Obsidian themed by `omarchy theme set` where the theme provides it.
-
-### M4. Semantic search
-
-- `sqlite-vec` inside `rusty.db`: one embedding per page, note and memory chunk.
-- Embedding providers behind one trait: Ollama locally when present (default), OpenAI
-  through the secrets vault otherwise. No key, no vectors, and the app still works.
-- Hybrid retrieval (FTS5 and vectors merged) behind `brain_search`, incremental indexing
-  from the watcher, a re-embed command.
-
-### M5. Skills, secrets, settings
-
-- **Skills**: editable inside the app, frontmatter as a form, body in an editor, the
-  staging and approval flow and the safety scan carried over from v2.
-- **Secrets**: the vault as a list, set and delete, values never rendered twice.
-- **Settings**: paths, providers, theme sync, keybinding hints.
-
-### M6. Omarchy packaging and cutover
-
-- `omarchy/install.sh`: dependencies through `omarchy pkg add`, the desktop entry, a
-  keybinding snippet, the theme hook, the MCP config snippet for Claude Code and Codex.
-- Packaging for the Omarchy or AUR channel once the install script is boring.
-- Retire the v2 web UI and server. Docs, screenshots, release.
-
-### Later
-
-- Background agents tab (dispatch, watch, results).
-- Phone access through Obsidian Sync of the vault.
-- A macOS build, if anyone wants one; nothing in the core is Linux-only.
 
 ## Non-goals
 

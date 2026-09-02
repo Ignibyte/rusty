@@ -17,48 +17,27 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabNames.length }
     Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: stack.currentIndex = (stack.currentIndex + tabNames.length - 1) % tabNames.length }
 
-    // One agent = one tmux session. Embedded mode shows it in the widget; alacritty mode
-    // opens a real Alacritty window on the same session, so switching keeps the conversation.
+    // One agent tab = one tmux session in the built-in terminal, coloured like Alacritty.
+    // Closing the window leaves the session running.
     component AgentTab: Item {
         id: tab
         property string sessionName
         property string program
         property string label
-
-        Loader {
+        QMLTermWidget {
+            id: term
             anchors.fill: parent
-            active: settings.terminalMode === "embedded"
-            sourceComponent: QMLTermWidget {
-                id: term
-                font.family: termFont
-                font.pointSize: 11
-                colorScheme: termScheme
-                session: QMLTermSession {
-                    id: termSession
-                    initialWorkingDirectory: homeDir
-                    shellProgram: "tmux"
-                    shellProgramArgs: ["new-session", "-A", "-s", tab.sessionName, tab.program]
-                }
-                Component.onCompleted: { termSession.startShellProgram(); term.forceActiveFocus() }
-                QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: omarchyTheme.accent; opacity: 0.4; radius: 4 } }
+            font.family: termFont
+            font.pointSize: 11
+            colorScheme: termScheme
+            session: QMLTermSession {
+                id: termSession
+                initialWorkingDirectory: homeDir
+                shellProgram: "tmux"
+                shellProgramArgs: ["new-session", "-A", "-s", tab.sessionName, tab.program]
             }
-        }
-
-        ColumnLayout {
-            anchors.centerIn: parent
-            visible: settings.terminalMode !== "embedded"
-            spacing: 14
-            width: 520
-            Text { text: tab.label + " runs in Alacritty"; color: omarchyTheme.foreground; font.pixelSize: 22; font.bold: true }
-            Text {
-                text: "tmux session " + tab.sessionName + ". The window is a view on it; close the window and the conversation keeps going. Switch back to the embedded terminal in Settings and you land in the same session."
-                color: omarchyTheme.foreground; opacity: 0.75; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.fillWidth: true
-            }
-            Button {
-                text: settings.isOpen(tab.sessionName) ? "Focus the Alacritty window" : "Open " + tab.label + " in Alacritty"
-                onClicked: { settings.launchOrFocus(tab.sessionName, tab.program); refresh.restart() }
-                Timer { id: refresh; interval: 1500; onTriggered: parent.text = settings.isOpen(tab.sessionName) ? "Focus the Alacritty window" : "Open " + tab.label + " in Alacritty" }
-            }
+            Component.onCompleted: { termSession.startShellProgram(); term.forceActiveFocus() }
+            QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: omarchyTheme.accent; opacity: 0.4; radius: 4 } }
         }
     }
 
@@ -115,27 +94,16 @@ ApplicationWindow {
                     Text { anchors.centerIn: parent; text: modelData + " tab: data comes from rusty-mcp over local HTTP (M2, M3)"; color: omarchyTheme.foreground; font.pixelSize: 16 }
                 }
             }
-            // Settings: the one setting the prototype has.
+            // Settings: kept as a page; the first real settings arrive with M2 (paths, theme,
+            // terminal font) and M4 (embedding provider).
             Rectangle {
                 color: omarchyTheme.background
                 ColumnLayout {
                     anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 32
-                    spacing: 12
-                    Text { text: "Agent terminals"; color: omarchyTheme.foreground; font.pixelSize: 22; font.bold: true }
-                    Text { text: "Where Claude and Codex run. Both choices attach to the same tmux sessions."; color: omarchyTheme.foreground; opacity: 0.75; font.pixelSize: 14 }
-                    RadioButton {
-                        text: "Embedded terminal, styled with the Omarchy theme's Alacritty colours"
-                        checked: settings.terminalMode === "embedded"
-                        onToggled: if (checked) settings.terminalMode = "embedded"
-                        contentItem: Text { text: parent.text; color: omarchyTheme.foreground; font.pixelSize: 14; leftPadding: parent.indicator.width + 8; verticalAlignment: Text.AlignVCenter }
-                    }
-                    RadioButton {
-                        text: "Alacritty windows, opened and focused from the tab"
-                        checked: settings.terminalMode === "alacritty"
-                        onToggled: if (checked) settings.terminalMode = "alacritty"
-                        contentItem: Text { text: parent.text; color: omarchyTheme.foreground; font.pixelSize: 14; leftPadding: parent.indicator.width + 8; verticalAlignment: Text.AlignVCenter }
-                    }
-                    Text { text: "font " + termFont + "  ·  scheme " + termScheme + "  ·  " + configPath; color: omarchyTheme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 12 }
+                    spacing: 10
+                    Text { text: "Settings"; color: omarchyTheme.foreground; font.pixelSize: 22; font.bold: true }
+                    Text { text: "Nothing to configure yet. Settings land with the features that need them: paths and theme (M2), embedding provider (M4), skills and secrets (M5)."; color: omarchyTheme.foreground; opacity: 0.75; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.preferredWidth: 640 }
+                    Text { text: "terminal font " + termFont + "  ·  colour scheme " + termScheme + "  ·  theme accent " + omarchyTheme.accent; color: omarchyTheme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
                 }
             }
         }
