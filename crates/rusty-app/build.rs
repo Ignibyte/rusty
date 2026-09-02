@@ -7,9 +7,9 @@ fn main() {
     let builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("dev.ignibyte.rusty")
             .version(1, 0)
-            .qml_file("qml/Main.qml"),
+            .qml_files(["qml/Main.qml", "qml/TasksPage.qml"]),
     )
-    .files(["src/theme.rs", "src/terminals.rs"])
+    .files(["src/theme.rs", "src/terminals.rs", "src/backend.rs"])
     .qt_module("Quick")
     .qt_module("Qml");
     // SAFETY: the closure only adds a diagnostic flag. It touches no include paths,

@@ -24,6 +24,7 @@ ApplicationWindow {
 
     Theme { id: theme }
     Terminals { id: terminals }
+    Backend { id: backend }
 
     // Agent tabs come first in the rail and the stack; the pages follow.
     readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Settings"]
@@ -35,6 +36,7 @@ ApplicationWindow {
 
     Component.onCompleted: {
         theme.watch()
+        backend.start()
         const saved = JSON.parse(terminals.load())
         for (const t of saved)
             tabs.append({ name: t.name, session: t.session, program: t.program })
@@ -85,8 +87,10 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
     Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: stack.currentIndex = (stack.currentIndex + tabCount - 1) % tabCount }
     Shortcut { sequences: ["Ctrl+Shift+T"]; onActivated: newTabDialog.openFresh() }
-    Shortcut { sequences: ["Ctrl+Shift+W"]; onActivated: if (currentIsAgent()) closeTab(stack.currentIndex, false) }
-    Shortcut { sequences: ["F2"]; onActivated: if (currentIsAgent()) renameDialog.openFor(stack.currentIndex) }
+    // Only live on agent tabs: otherwise they would swallow the keys before a page
+    // (the task list uses F2 to rename a task) ever sees them.
+    Shortcut { sequences: ["Ctrl+Shift+W"]; enabled: currentIsAgent(); onActivated: closeTab(stack.currentIndex, false) }
+    Shortcut { sequences: ["F2"]; enabled: currentIsAgent(); onActivated: renameDialog.openFor(stack.currentIndex) }
 
     // One agent tab = one tmux session in the built-in terminal, coloured like Alacritty.
     // Closing the tab or the window leaves the session running.
@@ -243,6 +247,8 @@ ApplicationWindow {
                 if (currentIsAgent()) {
                     const item = agentTabs.itemAt(currentIndex)
                     if (item) item.focusTerminal()
+                } else if (currentIndex === pageIndex(0)) {
+                    tasksPage.focusAdd()
                 }
             }
             Repeater {
@@ -250,8 +256,9 @@ ApplicationWindow {
                 model: tabs
                 delegate: AgentTab {}
             }
+            TasksPage { id: tasksPage; backend: backend; theme: theme }
             Repeater {
-                model: ["Tasks", "Brain", "Notes", "Memory", "Skills"]
+                model: ["Brain", "Notes", "Memory", "Skills"]
                 delegate: Rectangle {
                     required property string modelData
                     color: theme.background
@@ -267,7 +274,7 @@ ApplicationWindow {
                     spacing: 10
                     Text { text: "Settings"; color: theme.foreground; font.pixelSize: 22; font.bold: true }
                     Text { text: "Nothing to configure yet. Settings land with the features that need them: paths and theme (M2), embedding provider (M4), skills and secrets (M5)."; color: theme.foreground; opacity: 0.75; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.preferredWidth: 640 }
-                    Text { text: theme.facts + "\ntabs file: " + terminals.tabsPath; color: theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
+                    Text { text: theme.facts + "\ntabs file: " + terminals.tabsPath + "\nback end: " + backend.url + " (" + backend.status + ")"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.topMargin: 8 }
                     Text { text: "Ctrl+Shift+T new terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn switch"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12 }
                     Button { text: "Re-read theme"; onClicked: theme.reload() }
                 }

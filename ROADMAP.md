@@ -95,7 +95,10 @@ Done when the app replaces a terminal for daily Claude and Codex use.
 - [x] `rusty-app` crate: cxx-qt 0.10 on Qt 6.11, one window, side rail, tab stack; the
       prototype's QML ported, `Theme` served from Rust (binary `rusty`, app_id
       `com.ignibyte.rusty`)
-- [ ] MCP client over Streamable HTTP with typed models for the tabs
+- [x] MCP client over Streamable HTTP: the `Backend` type keeps one session on a tokio
+      runtime, reconnects every 3s, forwards tool calls and answers as JSON through a
+      `result` signal, and turns `resources/list_changed` into `dataChanged` (the tabs parse
+      the JSON in QML; typed Rust models can come when a tab needs one)
 - [x] Terminals: qmltermwidget per tab, one tmux session per tab, new tab and rename, close
       (keeping or ending the session), pick the agent (Claude, Codex, shell), attach an
       existing session; tabs persist in `~/.config/rusty/tabs.json`; Ctrl+Shift+T/W, F2
@@ -104,8 +107,10 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       no root-owned file; font from the Alacritty config
 - [x] Live re-theme: the app watches `~/.config/omarchy/current` and reloads when
       `omarchy theme set` repoints the theme link (no hook script to install)
-- [ ] Tasks: lists, quick add, toggle, archive, rename, reorder, keyboard first, live updates
-      from notifications
+- [x] Tasks: lists (add, rename, delete with confirm), quick add, toggle, archive and
+      restore, inline rename (F2), reorder (Ctrl+Up/Down), delete; keyboard first (Enter,
+      arrows, Space, Delete, Escape); live refresh on `dataChanged`; verified against the
+      running service on the box
 - [ ] Settings page: paths, theme and terminal font shown; the first editable settings
 - [ ] Desktop entry, icon, stable `app_id`, `omarchy launch or focus rusty`, a default key
       (entry `omarchy/com.ignibyte.rusty.desktop` and the app_id are in; icon, focus

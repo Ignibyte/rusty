@@ -6,6 +6,7 @@
 //! and colour scheme) and, as the milestones land, the models behind each tab. Data
 //! comes from `rusty-mcp` over local HTTP; the app holds no store of its own.
 
+mod backend;
 mod omarchy;
 mod terminals;
 mod theme;
