@@ -28,7 +28,7 @@ mod qobject {
         #[qproperty(QString, tabs_path)]
         type Terminals = super::TerminalsRust;
 
-        /// The saved tabs as JSON (`[{name, session, program}]`), or the defaults.
+        /// The saved tabs as JSON (`[{name, session, program, cwd}]`), or the defaults.
         #[qinvokable]
         fn load(self: &Terminals) -> QString;
 
@@ -67,6 +67,8 @@ pub struct Tab {
     pub session: String,
     /// `claude`, `codex` or `shell`.
     pub program: String,
+    /// Working directory the session starts in; empty means the home directory.
+    pub cwd: String,
 }
 
 /// The Rust side of [`qobject::Terminals`].
@@ -96,26 +98,29 @@ pub fn default_tabs() -> Vec<Tab> {
             name: "Claude".into(),
             session: "rusty-claude".into(),
             program: "claude".into(),
+            cwd: String::new(),
         },
         Tab {
             name: "Codex".into(),
             session: "rusty-codex".into(),
             program: "codex".into(),
+            cwd: String::new(),
         },
     ]
 }
 
-/// Tabs as the JSON the QML side reads. Hand-rolled: three string fields, no serde
+/// Tabs as the JSON the QML side reads. Hand-rolled: four string fields, no serde
 /// needed in this crate.
 pub fn tabs_to_json(tabs: &[Tab]) -> String {
     let items: Vec<String> = tabs
         .iter()
         .map(|t| {
             format!(
-                "{{\"name\":{},\"session\":{},\"program\":{}}}",
+                "{{\"name\":{},\"session\":{},\"program\":{},\"cwd\":{}}}",
                 json_string(&t.name),
                 json_string(&t.session),
-                json_string(&t.program)
+                json_string(&t.program),
+                json_string(&t.cwd)
             )
         })
         .collect();
@@ -271,7 +276,7 @@ mod tests {
         let json = tabs_to_json(&default_tabs());
         assert_eq!(
             json,
-            r#"[{"name":"Claude","session":"rusty-claude","program":"claude"},{"name":"Codex","session":"rusty-codex","program":"codex"}]"#
+            r#"[{"name":"Claude","session":"rusty-claude","program":"claude","cwd":""},{"name":"Codex","session":"rusty-codex","program":"codex","cwd":""}]"#
         );
         assert_eq!(json_string("a \"quoted\" tab\n"), r#""a \"quoted\" tab\n""#);
     }

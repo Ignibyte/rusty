@@ -13,6 +13,8 @@ Item {
     property var pagesByType: ({})
     property var expanded: ({})
     property var results: []
+    property var recent: []
+    property int hit: -1
     property string notice: ""
     property var pending: ({})
 
@@ -22,8 +24,10 @@ Item {
     }
     function refresh() {
         ask("brain_page_types", {}, "types")
+        ask("brain_list_pages", { limit: 20 }, "recent")
         for (const t in expanded) if (expanded[t]) loadType(t)
     }
+    function openHit(i) { if (i >= 0 && i < results.length) pageView.open(results[i].slug) }
     function loadType(t) { ask("brain_list_pages", { page_type: t, limit: 500 }, "pages:" + t) }
     function toggleType(t) {
         const e = expanded; e[t] = !e[t]; expanded = e
@@ -49,7 +53,8 @@ Item {
             page.notice = ""
             if (kind === "types") page.types = JSON.parse(json).filter(t => t.count > 0)
             else if (kind.startsWith("pages:")) { const m = page.pagesByType; m[kind.slice(6)] = JSON.parse(json); page.pagesByType = m }
-            else if (kind === "search") page.results = JSON.parse(json)
+            else if (kind === "recent") page.recent = JSON.parse(json)
+            else if (kind === "search") { page.results = JSON.parse(json); page.hit = page.results.length > 0 ? 0 : -1 }
             else if (kind === "capture") { captureField.text = ""; const r = JSON.parse(json); page.notice = "captured to " + r.slug }
         }
         function onDataChanged() { page.refresh(); if (searchField.text.length > 0) page.search(searchField.text) }
@@ -73,9 +78,12 @@ Item {
                 TextField {
                     id: searchField
                     Layout.fillWidth: true
-                    placeholderText: "Search the brain"
+                    placeholderText: "Search the brain (Enter opens, arrows move)"
                     onTextChanged: searchDebounce.restart()
+                    onAccepted: page.openHit(page.hit >= 0 ? page.hit : 0)
                     Keys.onEscapePressed: text = ""
+                    Keys.onDownPressed: if (page.results.length > 0) page.hit = Math.min(page.hit + 1, page.results.length - 1)
+                    Keys.onUpPressed: if (page.results.length > 0) page.hit = Math.max(page.hit - 1, 0)
                 }
                 Flickable {
                     id: tree
@@ -92,11 +100,14 @@ Item {
                         Repeater {
                             model: searchField.text.trim().length > 0 ? page.results : []
                             delegate: Rectangle {
+                                required property int index
                                 required property var modelData
                                 Layout.fillWidth: true
                                 height: hitCol.implicitHeight + 10
                                 radius: 6
-                                color: pageView.slug === modelData.slug ? Qt.rgba(1, 1, 1, 0.1) : (hitHover.hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                                color: pageView.slug === modelData.slug ? Qt.rgba(1, 1, 1, 0.1) : (page.hit === index || hitHover.hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                                border.width: page.hit === index ? 1 : 0
+                                border.color: page.theme.accent
                                 ColumnLayout {
                                     id: hitCol
                                     anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 5
@@ -109,6 +120,26 @@ Item {
                             }
                         }
                         Text { visible: searchField.text.trim().length > 0 && page.results.length === 0; text: "no matches"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12; Layout.leftMargin: 6 }
+                        // Recently updated, when not searching
+                        Text { visible: searchField.text.trim().length === 0 && page.recent.length > 0; text: "Recent"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.leftMargin: 6; Layout.topMargin: 2 }
+                        Repeater {
+                            model: searchField.text.trim().length > 0 ? [] : page.recent.slice(0, 8)
+                            delegate: Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                height: 26
+                                radius: 6
+                                color: pageView.slug === modelData.slug ? page.theme.accent : (recentHover.hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 8; anchors.right: parent.right; anchors.rightMargin: 6
+                                    text: modelData.title; elide: Text.ElideRight; font.pixelSize: 13
+                                    color: pageView.slug === modelData.slug ? page.theme.background : page.theme.foreground
+                                }
+                                HoverHandler { id: recentHover }
+                                TapHandler { onTapped: pageView.open(modelData.slug) }
+                            }
+                        }
+                        Text { visible: searchField.text.trim().length === 0; text: "Browse"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.leftMargin: 6; Layout.topMargin: 8 }
                         // Type tree
                         Repeater {
                             model: searchField.text.trim().length > 0 ? [] : page.types

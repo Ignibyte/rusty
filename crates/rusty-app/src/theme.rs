@@ -30,6 +30,7 @@ mod qobject {
         #[qproperty(QString, term_font)]
         #[qproperty(QString, term_scheme)]
         #[qproperty(QString, home_dir)]
+        #[qproperty(QString, host_name)]
         #[qproperty(QString, facts)]
         #[qproperty(i32, start_tab)]
         type Theme = super::ThemeRust;
@@ -55,6 +56,7 @@ pub struct ThemeRust {
     term_font: QString,
     term_scheme: QString,
     home_dir: QString,
+    host_name: QString,
     facts: QString,
     start_tab: i32,
 }
@@ -74,6 +76,7 @@ impl Default for ThemeRust {
                     .to_string_lossy()
                     .into_owned(),
             ),
+            host_name: QString::from(&host_name()),
             facts: QString::default(),
             start_tab: start_tab_from_env(),
         };
@@ -99,12 +102,23 @@ impl ThemeRust {
     }
 }
 
-/// `RUSTY_TAB=3` opens the fourth tab; anything else opens the first.
+/// This machine's host name, which tmux uses as the default terminal title.
+fn host_name() -> String {
+    std::fs::read_to_string("/etc/hostname")
+        .ok()
+        .map(|h| h.trim().to_string())
+        .filter(|h| !h.is_empty())
+        .or_else(|| std::env::var("HOSTNAME").ok())
+        .unwrap_or_default()
+}
+
+/// `RUSTY_TAB=3` opens the fourth tab; unset means -1, and the shell then opens the tab
+/// it remembers from last time.
 fn start_tab_from_env() -> i32 {
     std::env::var("RUSTY_TAB")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(0)
+        .unwrap_or(-1)
 }
 
 impl qobject::Theme {

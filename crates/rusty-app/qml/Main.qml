@@ -1,5 +1,7 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import QMLTermWidget
 import dev.ignibyte.rusty
@@ -26,28 +28,43 @@ ApplicationWindow {
     Terminals { id: terminals }
     Backend { id: backend }
 
+    // Remembered between runs: window size and the tab that was open.
+    Settings {
+        id: ui
+        category: "window"
+        property int width: 1500
+        property int height: 950
+        property int lastTab: 0
+    }
+    onWidthChanged: if (visible) ui.width = width
+    onHeightChanged: if (visible) ui.height = height
+
     // Agent tabs come first in the rail and the stack; the pages follow.
     readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Secrets", "Settings"]
     readonly property int tabCount: tabs.count + pageNames.length
     function pageIndex(i) { return tabs.count + i }
     function currentIsAgent() { return stack.currentIndex < tabs.count }
 
+    // name, session, program, cwd are saved; unread and title live only while running.
     ListModel { id: tabs }
 
     Component.onCompleted: {
+        win.width = ui.width
+        win.height = ui.height
         theme.watch()
         backend.start()
         const saved = JSON.parse(terminals.load())
         for (const t of saved)
-            tabs.append({ name: t.name, session: t.session, program: t.program })
-        stack.currentIndex = Math.min(theme.startTab, tabCount - 1)
+            tabs.append({ name: t.name, session: t.session, program: t.program, cwd: t.cwd || "", unread: false, title: "" })
+        const wanted = theme.startTab >= 0 ? theme.startTab : ui.lastTab
+        stack.currentIndex = Math.max(0, Math.min(wanted, tabCount - 1))
     }
 
     function saveTabs() {
         const out = []
         for (let i = 0; i < tabs.count; i++) {
             const t = tabs.get(i)
-            out.push({ name: t.name, session: t.session, program: t.program })
+            out.push({ name: t.name, session: t.session, program: t.program, cwd: t.cwd })
         }
         terminals.save(JSON.stringify(out))
     }
@@ -59,10 +76,10 @@ ApplicationWindow {
         return names
     }
 
-    function addTab(name, program, session) {
+    function addTab(name, program, session, cwd) {
         const label = name.trim().length > 0 ? name.trim() : program.charAt(0).toUpperCase() + program.slice(1)
         const sess = session.length > 0 ? session : terminals.sessionName(label, takenSessions())
-        tabs.append({ name: label, session: sess, program: program })
+        tabs.append({ name: label, session: sess, program: program, cwd: cwd.trim(), unread: false, title: "" })
         saveTabs()
         stack.currentIndex = tabs.count - 1
     }
@@ -82,6 +99,12 @@ ApplicationWindow {
         saveTabs()
     }
 
+    function folderPath(url) {
+        let s = String(url)
+        if (s.startsWith("file://")) s = s.slice(7)
+        return decodeURIComponent(s)
+    }
+
     // Ctrl+PgUp / Ctrl+PgDn cycle; Ctrl+Shift+T / Ctrl+Shift+W add and close agent tabs.
     // None of these are used by Claude Code or Codex.
     Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
@@ -96,8 +119,13 @@ ApplicationWindow {
     // Closing the tab or the window leaves the session running.
     component AgentTab: Item {
         id: tab
+        required property int index
         required property string session
         required property string program
+        required property string cwd
+        readonly property bool isCurrent: stack.currentIndex === index
+        readonly property string startDir: cwd.length > 0 ? cwd : theme.homeDir
+        onIsCurrentChanged: if (isCurrent) { tabs.setProperty(index, "unread", false); term.forceActiveFocus() }
         QMLTermWidget {
             id: term
             anchors.fill: parent
@@ -106,39 +134,81 @@ ApplicationWindow {
             colorScheme: theme.termScheme
             session: QMLTermSession {
                 id: termSession
-                initialWorkingDirectory: theme.homeDir
+                initialWorkingDirectory: tab.startDir
                 shellProgram: "tmux"
-                shellProgramArgs: ["new-session", "-A", "-s", tab.session, terminals.commandFor(tab.program)]
+                shellProgramArgs: ["new-session", "-A", "-s", tab.session, "-c", tab.startDir, terminals.commandFor(tab.program)]
             }
             // An empty session name would make tmux attach to whatever session it used last.
             Component.onCompleted: { if (tab.session.length > 0) termSession.startShellProgram(); term.forceActiveFocus() }
             QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: theme.accent; opacity: 0.4; radius: 4 } }
         }
         function focusTerminal() { term.forceActiveFocus() }
+        function markUnread() { if (!tab.isCurrent) tabs.setProperty(tab.index, "unread", true) }
+        // The widget and its session each expose some of these; unknown ones are ignored.
+        Connections {
+            target: termSession
+            ignoreUnknownSignals: true
+            function onTitleChanged() { tabs.setProperty(tab.index, "title", termSession.title || "") }
+            function onActivity() { tab.markUnread() }
+            function onBell() { tab.markUnread() }
+            function onReceivedData() { tab.markUnread() }
+        }
+        Connections {
+            target: term
+            ignoreUnknownSignals: true
+            function onActivity() { tab.markUnread() }
+            function onBell() { tab.markUnread() }
+            function onNotifyBell() { tab.markUnread() }
+        }
     }
 
     component RailItem: Rectangle {
         id: item
         property string label
+        property string subtitle: ""
         property int stackIndex
         property bool agent: false
+        property bool unread: false
         signal activated()
         signal menuRequested()
         Layout.fillWidth: true
-        height: 34
+        height: subtitle.length > 0 ? 40 : 34
         radius: 6
         color: stack.currentIndex === stackIndex ? theme.accent : (hover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-        Text {
+        ColumnLayout {
             anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12
-            anchors.right: parent.right; anchors.rightMargin: 8
-            text: item.label
-            elide: Text.ElideRight
-            color: stack.currentIndex === stackIndex ? theme.background : theme.foreground
-            font.pixelSize: 14
+            anchors.right: dot.visible ? dot.left : parent.right; anchors.rightMargin: 8
+            spacing: 0
+            Text {
+                text: item.label
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+                color: stack.currentIndex === item.stackIndex ? theme.background : theme.foreground
+                font.pixelSize: 14
+            }
+            Text {
+                visible: item.subtitle.length > 0
+                text: item.subtitle
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+                color: stack.currentIndex === item.stackIndex ? theme.background : theme.foreground
+                opacity: 0.6
+                font.pixelSize: 10
+            }
+        }
+        Rectangle {
+            id: dot
+            visible: item.unread
+            width: 8; height: 8; radius: 4
+            anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter
+            color: stack.currentIndex === item.stackIndex ? theme.background : theme.accent
         }
         HoverHandler { id: hover }
         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: item.activated() }
         TapHandler { acceptedButtons: Qt.RightButton; enabled: item.agent; onTapped: item.menuRequested() }
+        ToolTip.visible: hover.hovered && item.subtitle.length > 0
+        ToolTip.text: item.subtitle
+        ToolTip.delay: 600
     }
 
     Menu {
@@ -147,6 +217,12 @@ ApplicationWindow {
         MenuItem { text: "Rename…"; onTriggered: renameDialog.openFor(tabMenu.tabIndex) }
         MenuItem { text: "Close tab (keep session)"; onTriggered: closeTab(tabMenu.tabIndex, false) }
         MenuItem { text: "Close tab and end session"; onTriggered: closeTab(tabMenu.tabIndex, true) }
+    }
+
+    FolderDialog {
+        id: folderDialog
+        title: "Working directory"
+        onAccepted: cwdField.text = folderPath(selectedFolder)
     }
 
     Dialog {
@@ -161,10 +237,11 @@ ApplicationWindow {
             sessionBox.model = ["new session"].concat(terminals.sessions())
             sessionBox.currentIndex = 0
             nameField.text = ""
+            cwdField.text = ""
             open()
             nameField.forceActiveFocus()
         }
-        onAccepted: addTab(nameField.text, programBox.currentText, sessionBox.currentIndex > 0 ? sessionBox.currentText : "")
+        onAccepted: addTab(nameField.text, programBox.currentText, sessionBox.currentIndex > 0 ? sessionBox.currentText : "", cwdField.text)
         ColumnLayout {
             spacing: 10
             Label { text: "Name (optional)" }
@@ -173,6 +250,12 @@ ApplicationWindow {
             ComboBox { id: programBox; Layout.preferredWidth: 320 }
             Label { text: "Session" }
             ComboBox { id: sessionBox; Layout.preferredWidth: 320 }
+            Label { text: "Working directory" }
+            RowLayout {
+                spacing: 6
+                TextField { id: cwdField; Layout.preferredWidth: 240; placeholderText: theme.homeDir; onAccepted: newTabDialog.accept() }
+                Button { text: "Browse…"; onClicked: { folderDialog.currentFolder = "file://" + (cwdField.text.length > 0 ? cwdField.text : theme.homeDir); folderDialog.open() } }
+            }
         }
     }
 
@@ -206,7 +289,10 @@ ApplicationWindow {
                     delegate: RailItem {
                         required property int index
                         required property string name
+                        required property string title
+                        required property bool unread
                         label: name
+                        subtitle: (title.length === 0 || title === theme.hostName || title.startsWith(theme.hostName + ":")) ? "" : title
                         stackIndex: index
                         agent: true
                         onActivated: stack.currentIndex = index
@@ -244,6 +330,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             onCurrentIndexChanged: {
+                ui.lastTab = currentIndex
                 if (currentIsAgent()) {
                     const item = agentTabs.itemAt(currentIndex)
                     if (item) item.focusTerminal()

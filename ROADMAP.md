@@ -16,7 +16,8 @@ The shape is in `docs/architecture.md`.
 | M3 Knowledge tabs: Brain, Notes, Memory | done 2026-09-02 |
 | M4 Semantic search | done 2026-09-02 |
 | M5 Skills, Secrets, Settings | done 2026-09-02 |
-| M6 Omarchy packaging and cutover | next |
+| M6 Omarchy packaging and cutover | next (waits on Chad) |
+| M7 Daily use | in progress |
 
 ## M0. Foundation (done 2026-09-02)
 
@@ -168,6 +169,24 @@ Done when the app replaces a terminal for daily Claude and Codex use.
       the private repo keeps the ops handbook and machine commands either way)
 - [ ] Docs, screenshots, first release (docs are current; screenshots need a scratch vault so
       no real data ships; the release tag is Chad's to cut)
+
+## M7. Daily use
+
+What using the app every day asks for, added as it comes up.
+
+- [x] Terminal tabs start in a working directory (typed or picked when the tab is made, saved
+      with the tab; verified: a tab made for `/srv/stacks/rusty-v3` opened its shell there)
+- [ ] A tab that gets output or a bell while another tab is showing is marked in the rail;
+      the mark clears when it is shown (built 2026-09-02 on the session's data and bell
+      signals; needs a hands-on check)
+- [ ] The terminal's title (what Claude Code or Codex set) shows under the tab name (built;
+      tmux's default title, the host name, is hidden; needs a hands-on check with Claude Code)
+- [x] The window remembers its size and the last tab between runs
+      (`~/.config/Ignibyte/rusty.conf`; `RUSTY_TAB` still overrides)
+- [ ] Brain tab: recently updated pages when idle; arrows and Enter open search results
+      (built; needs a hands-on check)
+- [ ] Desktop notification when an agent tab rings the bell while the window is not focused
+- [ ] Drag to reorder tasks and tabs
 
 ## Later
 
