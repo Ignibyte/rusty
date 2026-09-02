@@ -1,9 +1,12 @@
-/target
-/prototype/__pycache__
-*.pyc
-.venv
-node_modules
 dist
 .env
 .env.*
 .mcp.json
+node_modules
+packaging/pkg/
+packaging/*.pkg.tar.zst
+packaging/src/
+/prototype/__pycache__
+*.pyc
+/target
+.venv

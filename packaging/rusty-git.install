@@ -1,0 +1,13 @@
+post_install() {
+  cat <<'MSG'
+  Rusty: start the back end and register the brain with Obsidian (when installed):
+      systemctl --user enable --now rusty-mcp
+      rusty-cli obsidian register      # with Obsidian closed
+  Agents: add {"rusty": {"type": "stdio", "command": "rusty-mcp"}} to your MCP config
+  (see /usr/share/rusty/mcp-config.json). A key binding snippet for Hyprland is in
+  /usr/share/rusty/hyprland-bindings.conf.
+MSG
+}
+post_upgrade() {
+  systemctl --user try-restart rusty-mcp 2>/dev/null || true
+}
