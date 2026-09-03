@@ -206,6 +206,10 @@ What using the app every day asks for, added as it comes up.
       up|down|status` is the entry point the installer, the desktop entry and the key share,
       and the compositor drop-in and the earlyoom line ship as pointers
 
+- [x] Top bar, command and agents (TICKET-011, 2026-09-03): the command button and one glyph
+      per agent CLI move into the top bar (click for a tab, right-click for the agent pane), the
+      Hyprland workspace strip goes (waybar has it), the ribbon keeps the vault and the views
+
 ## M8. Knowledge workspace (Obsidian inside Rusty)
 
 Chad, 2026-09-02: skip the Obsidian API and remake Obsidian inside Rusty; the Replit mock

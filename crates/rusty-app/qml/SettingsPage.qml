@@ -83,7 +83,7 @@ Item {
                 color: page.theme.foreground; opacity: 0.75; font.pixelSize: 13
                 wrapMode: Text.WrapAnywhere; Layout.fillWidth: true
             }
-            Text { text: "Click an agent in the top bar to open it in a new tab · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12 }
+            Text { text: "Click an agent in the top bar to open it in a new tab, right-click it for the agent pane · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12 }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
 
             Text { text: "Skin"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }

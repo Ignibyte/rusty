@@ -35,10 +35,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
+generated: {by: "claude-code", at: "2026-09-03T21:03:48.186Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T13:09:51.830Z
+    at: 2026-09-03T21:03:48.186Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -73,7 +73,8 @@ every view backed by the MCP server that agents share.
   palette, the Alacritty font and colours, and writes the Konsole scheme. `main.rs` sets
   the application font from the saved skin before any item exists.
 - `src/desk.rs`: `Desk`, what the top bar reads: memory in use, the CPU's share, the
-  clock, Hyprland's workspaces and the active one through `hyprctl -j`, the login name.
+  clock, the login name. It asks the compositor for nothing; the Hyprland workspace strip
+  went with TICKET-011, since waybar shows the workspaces.
 - `src/terminals.rs`: `Terminals`, the tabs file (`~/.config/rusty/tabs.json`), the
   workspace state file (`~/.config/rusty/workspace.json`), tmux session names and
   listing, installed agents, desktop notifications.
@@ -87,8 +88,10 @@ every view backed by the MCP server that agents share.
 
 ## Runtime flow
 
-- Layout: a ribbon (new note, daily note, palette, Tasks, Memory, Skills, Secrets, one
-  button per agent CLI on `PATH`, Settings), a left sidebar (files, search, bookmarks), the main
+- Layout: a top bar (`TopBar.qml`: the brand, the command button, one glyph per agent
+  CLI on `PATH` with a click for a new tab and a right-click for the agent pane, the
+  vault's state, memory, CPU, the clock), a ribbon (new note, daily note, graph, Tasks,
+  Memory, Skills, Secrets, Settings), a left sidebar (files, search, bookmarks), the main
   area (tab strip and a stack of `TabHost`s), a right sidebar (backlinks with context,
   outgoing links, outline, tags as a tree with counts, an agent pane), a status bar
   with the counts.

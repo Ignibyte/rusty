@@ -1,11 +1,12 @@
 ---
 title: TICKET-011-top-bar-command-and-agents
-status: open
+status: done
 ticket_number: 011
 type: feature
 created: 2026-09-03
+closed: 2026-09-03
 intake:
-pipeline_spec: docs/planning/pipeline/active/top-bar-command-and-agents.spec.md
+pipeline_spec: docs/planning/pipeline/completed/top-bar-command-and-agents.spec.md
 ---
 
 # TICKET-011-top-bar-command-and-agents
@@ -40,7 +41,7 @@ as very small icons, and the duplicate switcher gone.
 
 ## Notes
 
-- Pipeline spec: docs/planning/pipeline/active/top-bar-command-and-agents.spec.md
+- Pipeline spec: docs/planning/pipeline/completed/top-bar-command-and-agents.spec.md
 - Related docs: `docs/architecture.md` (as built: the workspace), `crates/rusty-app/qml/TopBar.qml`, `crates/rusty-app/src/desk.rs`.
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:40: "command should probably move up into the very top bar along with the claude, codex, gemini in very small icons. lets replace the omarchy window switcher since the os already has some with the command/ai".
 - Follow-ups opened: none.

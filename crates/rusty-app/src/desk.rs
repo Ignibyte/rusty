@@ -1,11 +1,9 @@
 //! The `Desk` QML type: what the top bar reads off the machine. Memory in use, the
-//! CPU's share since the last reading, the clock, and Hyprland's workspaces with the
-//! active one, read through `hyprctl -j` when the app runs under Hyprland. Offscreen
-//! or on another compositor the strip shows a static one-to-four with the first lit,
-//! which is what the mock shows.
+//! CPU's share since the last reading, the clock, and the login name for the rail's
+//! avatar. The Hyprland workspace strip went with TICKET-011: waybar shows the
+//! workspaces, so the bar no longer asks the compositor for them.
 
 use core::pin::Pin;
-use std::process::Command;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
@@ -25,19 +23,12 @@ mod qobject {
         #[qproperty(QString, memory)]
         #[qproperty(QString, cpu)]
         #[qproperty(QString, clock)]
-        #[qproperty(QString, workspaces)]
-        #[qproperty(i32, active_workspace)]
-        #[qproperty(bool, hyprland)]
         #[qproperty(QString, user)]
         type Desk = super::DeskRust;
 
         /// Take every reading again; the shell calls this on a timer.
         #[qinvokable]
         fn refresh(self: Pin<&mut Desk>);
-
-        /// Ask Hyprland to show a workspace.
-        #[qinvokable]
-        fn switch_workspace(self: &Desk, id: i32);
     }
 }
 
@@ -46,10 +37,6 @@ pub struct DeskRust {
     memory: QString,
     cpu: QString,
     clock: QString,
-    /// Workspace ids as a JSON array, ascending.
-    workspaces: QString,
-    active_workspace: i32,
-    hyprland: bool,
     /// The login name, for the rail's avatar.
     user: QString,
     /// The last `/proc/stat` totals, for the CPU share.
@@ -62,10 +49,6 @@ impl Default for DeskRust {
             memory: QString::default(),
             cpu: QString::default(),
             clock: QString::default(),
-            workspaces: QString::from("[1,2,3,4]"),
-            active_workspace: 1,
-            hyprland: std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE")
-                .is_some_and(|v| !v.is_empty()),
             user: QString::from(&std::env::var("USER").unwrap_or_default()),
             last_cpu: None,
         };
@@ -81,18 +64,6 @@ impl DeskRust {
         self.last_cpu = totals;
         self.cpu = QString::from(&share.map(|s| format!("{s:02}%")).unwrap_or_default());
         self.clock = QString::from(&clock());
-        if self.hyprland {
-            if let Some((ids, active)) = hyprland_workspaces() {
-                self.workspaces = QString::from(&format!(
-                    "[{}]",
-                    ids.iter()
-                        .map(|i| i.to_string())
-                        .collect::<Vec<_>>()
-                        .join(",")
-                ));
-                self.active_workspace = active;
-            }
-        }
     }
 }
 
@@ -104,9 +75,6 @@ impl qobject::Desk {
             memory: QString::default(),
             cpu: QString::default(),
             clock: QString::default(),
-            workspaces: self.workspaces().clone(),
-            active_workspace: *self.active_workspace(),
-            hyprland: *self.hyprland(),
             user: self.user().clone(),
             last_cpu: self.rust().last_cpu,
         };
@@ -115,20 +83,6 @@ impl qobject::Desk {
         self.as_mut().set_memory(inner.memory);
         self.as_mut().set_cpu(inner.cpu);
         self.as_mut().set_clock(inner.clock);
-        self.as_mut().set_workspaces(inner.workspaces);
-        self.as_mut().set_active_workspace(inner.active_workspace);
-    }
-
-    /// `hyprctl dispatch workspace <id>`; nothing happens off Hyprland.
-    pub fn switch_workspace(&self, id: i32) {
-        if !*self.hyprland() {
-            return;
-        }
-        let _ = Command::new("hyprctl")
-            .args(["dispatch", "workspace", &id.to_string()])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn();
     }
 }
 
@@ -176,34 +130,6 @@ fn cpu_share(last: Option<(u64, u64)>) -> (Option<u64>, Option<(u64, u64)>) {
 /// The local time as `HH:MM`.
 fn clock() -> String {
     chrono::Local::now().format("%H:%M").to_string()
-}
-
-/// Hyprland's workspace ids, ascending, and the active one.
-fn hyprland_workspaces() -> Option<(Vec<i32>, i32)> {
-    let out = Command::new("hyprctl")
-        .args(["-j", "workspaces"])
-        .output()
-        .ok()?;
-    let list: Vec<serde_json::Value> = serde_json::from_slice(&out.stdout).ok()?;
-    let mut ids: Vec<i32> = list
-        .iter()
-        .filter_map(|w| w.get("id")?.as_i64())
-        .map(|i| i as i32)
-        .filter(|i| *i > 0)
-        .collect();
-    ids.sort_unstable();
-    ids.dedup();
-    let out = Command::new("hyprctl")
-        .args(["-j", "activeworkspace"])
-        .output()
-        .ok()?;
-    let active: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
-    let active = active.get("id")?.as_i64()? as i32;
-    if !ids.contains(&active) {
-        ids.push(active);
-        ids.sort_unstable();
-    }
-    Some((ids, active))
 }
 
 #[cfg(test)]

@@ -8,8 +8,7 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (Phase 1, awaiting Chad's seal, 2026-09-03)
-- [`TICKET-011` — Top bar: command and agents](open/TICKET-011-top-bar-command-and-agents.md) (queued 2026-09-03)
+- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (queued, awaiting Chad's seal, 2026-09-03)
 - [`TICKET-012` — Text size](open/TICKET-012-text-size.md) (queued 2026-09-03)
 - [`TICKET-013` — Favorites](open/TICKET-013-favorites.md) (queued 2026-09-03)
 - [`TICKET-014` — Notes into the vault](open/TICKET-014-notes-into-the-vault.md) (queued 2026-09-03)
@@ -20,6 +19,7 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Closed
 
+- [`TICKET-011` — Top bar: command and agents](closed/TICKET-011-top-bar-command-and-agents.md) (done 2026-09-03)
 - [`TICKET-009` — Session resilience](closed/TICKET-009-session-resilience.md) (done 2026-09-03)
 - [`TICKET-008` — Amber phosphor and themes](closed/TICKET-008-amber-phosphor-and-themes.md) (done 2026-09-03)
 - [`TICKET-006` — Retire the Obsidian bridge](closed/TICKET-006-retire-obsidian-bridge.md) (done 2026-09-03)

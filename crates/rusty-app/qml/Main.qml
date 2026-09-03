@@ -713,7 +713,16 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        TopBar { Layout.fillWidth: true; theme: win.theme; desk: desk; backend: win.backend; pages: win.tree ? win.tree.pages : 0; onQuit: Qt.quit() }
+        TopBar {
+            Layout.fillWidth: true
+            theme: win.theme; desk: desk; backend: win.backend
+            pages: win.tree ? win.tree.pages : 0
+            agents: win.agents; agentGlyphs: win.agentGlyphs; agentNames: win.agentNames
+            onQuit: Qt.quit()
+            onCommandRequested: palette.show()
+            onAgentRequested: (p) => win.openTerminal(p, "", "", "")
+            onAgentPaneRequested: (p) => { rightPane.program = p; win.showRight("agent") }
+        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -735,24 +744,11 @@ ApplicationWindow {
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; label: "new"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; label: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; label: "graph"; tip: "Graph view (Ctrl+G)"; active: win.currentTab() !== null && win.currentTab().kind === "graph"; onClicked: win.openGraph(false) }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "command"; label: "cmd"; tip: "Command palette (Ctrl+P)"; onClicked: palette.show() }
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; label: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "memory"; label: "memory"; tip: "Memory"; active: win.currentTab() !== null && win.currentTab().kind === "memory"; onClicked: win.openView("memory") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "skills"; label: "skills"; tip: "Skills"; active: win.currentTab() !== null && win.currentTab().kind === "skills"; onClicked: win.openView("skills") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "secrets"; label: "secrets"; tip: "Secrets"; active: win.currentTab() !== null && win.currentTab().kind === "secrets"; onClicked: win.openView("secrets") }
-                    Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
-                    Repeater {
-                        model: win.agents
-                        delegate: RibbonButton {
-                            required property string modelData
-                            Layout.alignment: Qt.AlignHCenter
-                            glyph: win.agentGlyph(modelData)
-                            label: modelData.slice(0, 6)
-                            tip: "Open " + win.agentLabel(modelData) + " in a new tab"
-                            onClicked: win.openTerminal(modelData, "", "", "")
-                        }
-                    }
                     Item { Layout.fillHeight: true }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "settings"; label: "setup"; tip: "Settings (Ctrl+,)"; active: win.currentTab() !== null && win.currentTab().kind === "settings"; onClicked: win.openView("settings") }
                     Rectangle {

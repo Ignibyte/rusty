@@ -29,10 +29,11 @@ rusty-cli brain search "orbit"
 
 ## The workspace
 
-The window is Obsidian's layout. A ribbon on the left: new note, today's daily note, the
-command palette, then Tasks, Memory, Skills and Secrets, one button per agent CLI found on
-the machine (Claude Code, Codex, Gemini, Aider, OpenCode, a shell), and Settings at the
-bottom. The left sidebar holds the file explorer (the vault's real folders, with new note,
+The window is Obsidian's layout. A top bar carries the brand, the command palette button
+and one small glyph per agent CLI found on the machine (Claude Code, Codex, Gemini, Aider,
+OpenCode, a shell): a click opens the agent in a new tab, a right-click opens it in the
+pane beside the note. A ribbon on the left: new note, today's daily note, the graph, then
+Tasks, Memory, Skills and Secrets, and Settings at the bottom. The left sidebar holds the file explorer (the vault's real folders, with new note,
 new folder, rename, move and delete on a right click; a rename rewrites every link to the
 page) and search. The main area holds tabs: pages, agent terminals and the built-in views,
 each closable, pinnable and remembered between runs. The right sidebar holds backlinks with
@@ -100,8 +101,8 @@ design mock; Green phosphor, Ice and Paper ship beside it; "Follow Omarchy" maps
 desktop theme onto the same roles and follows `omarchy theme set`; and a file in
 `~/.config/rusty/themes/<name>.toml` is a skin of your own (a `[colors]` table with `bg`,
 `text` and `accent` at least, the rest derived). Settings picks the skin and the CRT
-scanline overlay. The chrome is the mock's too: a top bar with the brand, Hyprland's
-workspaces, the vault's state, memory, CPU and the clock; rail buttons with labels; pane
+scanline overlay. The chrome is the mock's too: a top bar with the brand, the command
+button and the agents, the vault's state, memory, CPU and the clock; rail buttons with labels; pane
 heads as micro-labels; a note's meta line, heading marks, code header strips and "linked
 from" footer; the assistant's header and context card on the agent pane.
 

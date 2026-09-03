@@ -1,6 +1,6 @@
 ---
 title: TICKET-010-scripts-as-commands
-status: in-progress
+status: open
 ticket_number: 010
 type: feature
 created: 2026-09-03
@@ -48,4 +48,14 @@ hand-made link in `~/.local/bin`.
 - Related docs: `omarchy/README.md` (the session script is not a store script; it stays in the repo), `~/.rusty/skills/.claude/skills/dev-box-usb/usb-reset.sh` (the first script, and the smoke target), `CLAUDE.md` in omarchy-ops (the skills-as-commands convention `bin/install.sh` links into `~/.claude/skills/`; scripts want the same link into `~/.local/bin` or the resolver makes it unnecessary).
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words
   at 14:40: "we should probably create a script i can just run. that makes me think we could create a command line rusty for things like rusty <command> that are basically shells. so i could do rusty usb etc. we could make the scripts editable and viewable here as well."
+- Decisions for the seal (from the Phase 1 pass of 2026-09-03, spec to be recreated when
+  the ticket is picked up): the entry point for `rusty <name>` (the app binary dispatching
+  before Qt starts, `rusty-cli <name>`, or a small `rusty` shim that execs the app when no
+  subcommand matches; the recommendation is the CLI plus the shim, the app binary being the
+  heaviest program to start for a script); whether `script_run` belongs on the MCP surface
+  at all (recommendation: not yet; list and view only); the store layout (recommendation:
+  scripts beside their skills, the `usb-reset.sh` form); the app surface (recommendation: a
+  Scripts section of the Skills tab).
+- Locked already: scripts live in the store, committed and gated like skills; a script runs
+  as the user, root only through `sudo -n`.
 - Follow-ups opened: none.
