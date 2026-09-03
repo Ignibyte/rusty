@@ -23,6 +23,10 @@ Item {
     signal created(string slug)
     signal expandedEdited()
     signal requestBookmark(var row)
+    // The bookmarked files and folders, shown above the tree; the window owns the list.
+    property var favorites: []
+    signal openFavorite(var bookmark)
+    signal removeFavorite(var bookmark)
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -121,6 +125,45 @@ Item {
             NavButton { icon: "new-folder"; tip: "New folder"; onClicked: folderDialog.openFor(explorer.currentFolder) }
             NavButton { icon: "collapse"; tip: "Collapse all"; onClicked: explorer.collapseAll() }
             Item { Layout.fillWidth: true }
+        }
+
+        // Favorites: the bookmarked files and folders, gathered above the tree. A click
+        // opens one; a right-click removes it.
+        ColumnLayout {
+            visible: explorer.favorites.length > 0
+            Layout.fillWidth: true
+            Layout.leftMargin: 8
+            Layout.rightMargin: 8
+            Layout.topMargin: 6
+            spacing: 0
+            Text { text: "Favorites"; color: explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.bottomMargin: 2 }
+            Repeater {
+                model: explorer.favorites
+                delegate: Rectangle {
+                    id: fav
+                    required property var modelData
+                    Layout.fillWidth: true
+                    height: Math.round(22 * explorer.theme.scale)
+                    radius: explorer.theme.radius
+                    color: favHover.hovered ? explorer.theme.hover : "transparent"
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 6
+                        anchors.rightMargin: 6
+                        spacing: 6
+                        Text { text: "★"; color: explorer.theme.gold; font.pixelSize: Math.round(11 * explorer.theme.scale) }
+                        Icon { name: fav.modelData.kind === "folder" ? "folder" : "file"; color: explorer.theme.muted; size: 13 }
+                        Text { text: fav.modelData.title; color: explorer.theme.foreground; font.pixelSize: Math.round(12 * explorer.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                    }
+                    HoverHandler { id: favHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { acceptedButtons: Qt.LeftButton; onTapped: explorer.openFavorite(fav.modelData) }
+                    TapHandler { acceptedButtons: Qt.RightButton; onTapped: explorer.removeFavorite(fav.modelData) }
+                    ToolTip.visible: favHover.hovered
+                    ToolTip.text: fav.modelData.path + " (right-click removes)"
+                    ToolTip.delay: 600
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: explorer.theme.line; Layout.topMargin: 6 }
         }
 
         ListView {

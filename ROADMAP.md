@@ -243,6 +243,9 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-008 The mock's look as a skin: colour roles, the Amber phosphor preset and
       three more, Follow Omarchy, theme files, the skin picker; the top bar, rail labels,
       pane heads, tabs, note furniture, the assistant header, a CRT overlay (2026-09-03)
+- [x] TICKET-013 Favorites over the bookmarks (2026-09-03): a star on the note header, Ctrl+D, a
+      Favorites section above the explorer's tree, favorites first in the quick switcher; the
+      storage unchanged
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

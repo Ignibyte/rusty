@@ -9,6 +9,9 @@ Popup {
     required property var theme
     property var pages: []
     property var matches: []
+    // Slugs of the bookmarked pages: first on an empty query, starred in the list.
+    property var favorites: []
+    function isFavorite(slug) { return pop.favorites.indexOf(slug) >= 0 }
     property int selected: 0
     signal openPage(string slug)
     signal createPage(string name)
@@ -42,7 +45,11 @@ Popup {
     }
     function refilter() {
         const q = field.text.trim().toLowerCase()
-        if (q.length === 0) { matches = pages.slice(0, 30); selected = 0; return }
+        if (q.length === 0) {
+            const fav = pages.filter(function (p) { return pop.isFavorite(p.slug) })
+            const rest = pages.filter(function (p) { return !pop.isFavorite(p.slug) })
+            matches = fav.concat(rest).slice(0, 30); selected = 0; return
+        }
         const scored = []
         for (const p of pages) {
             const a = score(p.title, q)
@@ -96,6 +103,7 @@ Popup {
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
                     spacing: 10
+                    Text { visible: pop.isFavorite(modelData.slug); text: "★"; color: pop.theme.gold; font.pixelSize: Math.round(13 * pop.theme.scale) }
                     Text { text: modelData.title; color: pop.theme.foreground; font.pixelSize: Math.round(14 * pop.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
                     Text { text: modelData.slug; color: pop.theme.faint; font.pixelSize: Math.round(12 * pop.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: 260 }
                 }

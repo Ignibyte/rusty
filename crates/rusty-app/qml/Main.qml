@@ -421,6 +421,7 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+Shift+F"]; enabled: !win.terminalFocused; onActivated: win.showLeft("search") }
     Shortcut { sequences: ["Ctrl+,"]; enabled: !win.terminalFocused; onActivated: win.openView("settings") }
     Shortcut { sequences: ["Ctrl+G"]; enabled: !win.terminalFocused; onActivated: win.openGraph(false) }
+    Shortcut { sequences: ["Ctrl+D"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.bookmarkCurrentPage() }
     Shortcut { sequences: ["Ctrl+=", "Ctrl++"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(theme.baseSize + 1) }
     Shortcut { sequences: ["Ctrl+-"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(theme.baseSize - 1) }
     Shortcut { sequences: ["Ctrl+0"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(14) }
@@ -451,7 +452,7 @@ ApplicationWindow {
             { name: "Files: Create new folder", keys: "", run: function () { win.showLeft("files"); explorer.newFolderAtRoot() } },
             { name: "Search: Search in all files", keys: "Ctrl+Shift+F", run: function () { win.showLeft("search") } },
             { name: "Bookmarks: Show bookmarks", keys: "", run: function () { win.showLeft("bookmarks") } },
-            { name: "Bookmarks: Bookmark the current file", keys: "", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
+            { name: "Favorites: Add or remove the current file", keys: "Ctrl+D", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
             { name: "Bookmarks: Bookmark the current search", keys: "", enabled: searchPane.query.trim().length > 0, run: function () { win.addBookmark({ kind: "search", query: searchPane.query.trim(), title: searchPane.query.trim() }) } },
             { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
             { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },
@@ -488,7 +489,7 @@ ApplicationWindow {
         return list
     }
 
-    QuickSwitcher { id: switcher; theme: win.theme; pages: win.pageList; onOpenPage: (slug) => win.openPage(slug, false); onCreatePage: (name) => win.createPage(name) }
+    QuickSwitcher { id: switcher; theme: win.theme; pages: win.pageList; favorites: win.bookmarkList.filter(function (b) { return b.kind === "file" }).map(function (b) { return b.path }); onOpenPage: (slug) => win.openPage(slug, false); onCreatePage: (name) => win.createPage(name) }
     CommandPalette { id: palette; theme: win.theme; onAboutToShow: commands = win.commandList() }
 
     Dialog {
@@ -807,6 +808,9 @@ ApplicationWindow {
                             backend: win.backend
                             theme: win.theme
                             tree: win.tree
+                            favorites: win.bookmarkList.filter(function (b) { return b.kind === "file" || b.kind === "folder" })
+                            onOpenFavorite: (b) => win.openBookmark(b)
+                            onRemoveFavorite: (b) => win.addBookmark(b)
                             onOpenPage: (slug) => win.openPage(slug, false)
                             onCreated: (slug) => { win.openPage(slug, false); Qt.callLater(function () { if (win.currentNote && win.currentNote.slug === slug) win.currentNote.editTitle() }) }
                             onExpandedEdited: ui.expanded = JSON.stringify(expanded)

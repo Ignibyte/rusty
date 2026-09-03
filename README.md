@@ -78,8 +78,11 @@ match case and regular expressions; the third bookmarks the search. `brain_searc
 the same query and the two modes as `case_sensitive` and `regex`, so an agent narrows a
 search the way the pane does. The Bookmarks tab of the left sidebar keeps files,
 folders, searches and headings, added from a page's menu, the explorer, the search pane,
-the outline or the palette; a click opens the target. Settings lists every command with
-its key in a Hotkeys table with a filter.
+the outline or the palette; a click opens the target. The files and folders among them
+are your favorites: a star beside the reading toggle adds or removes the open page
+(Ctrl+D does the same), a Favorites section sits above the file explorer's tree, and the
+quick switcher lists favorites first, starred, until you type. Settings lists every
+command with its key in a Hotkeys table with a filter.
 
 ![Bookmarks](docs/screenshots/bookmarks.png)
 

@@ -15,6 +15,8 @@ sources:
     resource: repo://crates/rusty-app/qml/Main.qml
   - id: openwiki-source-d678395ec2ca71c73018a3fd
     resource: repo://crates/rusty-app/qml/NoteTab.qml
+  - id: openwiki-source-05432e517df5ee62fccde076
+    resource: repo://crates/rusty-app/qml/QuickSwitcher.qml
   - id: openwiki-source-6790183f51655ba192900138
     resource: repo://crates/rusty-app/qml/RightPane.qml
   - id: openwiki-source-5a3d0a4f21f2ef012ca2b079
@@ -35,10 +37,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T21:14:42.210Z"}
+generated: {by: "claude-code", at: "2026-09-03T21:23:20.744Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T21:14:42.210Z
+    at: 2026-09-03T21:23:20.744Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -141,6 +143,11 @@ every view backed by the MCP server that agents share.
   runs the search, or opens the page and scrolls to the heading once it has rendered.
   Settings renders the palette's command list as the Hotkeys table, the terminal keys
   added, with a filter field.
+  The file and folder bookmarks are the favorites (TICKET-013): a star beside the note's
+  reading toggle adds or removes the open page (Ctrl+D and a palette command do the
+  same), the explorer gathers them in a Favorites section above the tree (click opens,
+  right-click removes), and the quick switcher lists them first and starred on an empty
+  query; nothing new is stored.
 - The look (`TopBar`, the rail, the pane heads, the tree, the tab strip, the note's
   furniture, the assistant header, the toast, `Scanlines`) follows the design mock:
   uppercase micro-labels, square corners unless the skin sets a radius, the accent on

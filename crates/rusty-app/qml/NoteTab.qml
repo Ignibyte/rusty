@@ -304,6 +304,17 @@ Item {
                 Text { text: note.fileName; color: note.theme.accent; font.pixelSize: Math.round(10 * note.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: 360 }
                 Text { visible: note.dirty; text: "•"; color: note.theme.accent; font.pixelSize: Math.round(14 * note.theme.scale) }
                 Item { Layout.fillWidth: true }
+                // The favorite star: the page's bookmark, toggled here or with Ctrl+D.
+                Text {
+                    text: note.bookmarked ? "★" : "☆"
+                    color: note.bookmarked || starHover.hovered ? note.theme.gold : note.theme.muted
+                    font.pixelSize: Math.round(14 * note.theme.scale)
+                    HoverHandler { id: starHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: note.requestBookmark(note.slug, note.title) }
+                    ToolTip.visible: starHover.hovered
+                    ToolTip.text: note.bookmarked ? "Remove from favorites (Ctrl+D)" : "Add to favorites (Ctrl+D)"
+                    ToolTip.delay: 600
+                }
                 Text {
                     text: note.editing ? "[ EDIT ]" : "[ READ ]"
                     color: readHover.hovered ? note.theme.accent : note.theme.muted
@@ -323,7 +334,7 @@ Item {
                 MenuItem { text: "Rename…"; onTriggered: note.editTitle() }
                 MenuItem { text: "Move file to…"; onTriggered: note.requestMove(note.slug) }
                 MenuItem { text: "Open local graph"; onTriggered: note.requestLocalGraph(note.slug) }
-                MenuItem { text: note.bookmarked ? "Remove bookmark" : "Bookmark…"; onTriggered: note.requestBookmark(note.slug, note.title) }
+                MenuItem { text: note.bookmarked ? "Remove from favorites" : "Add to favorites"; onTriggered: note.requestBookmark(note.slug, note.title) }
                 MenuSeparator {}
                 MenuItem { text: "Delete file"; onTriggered: note.requestDelete(note.slug) }
             }

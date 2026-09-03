@@ -1,11 +1,12 @@
 ---
 title: TICKET-013-favorites
-status: open
+status: done
 ticket_number: 013
 type: feature
 created: 2026-09-03
+closed: 2026-09-03
 intake:
-pipeline_spec: docs/planning/pipeline/active/favorites.spec.md
+pipeline_spec: docs/planning/pipeline/completed/favorites.spec.md
 ---
 
 # TICKET-013-favorites
@@ -39,7 +40,7 @@ of the left sidebar. Chad did not find them. The feature is there; the affordanc
 
 ## Notes
 
-- Pipeline spec: docs/planning/pipeline/active/favorites.spec.md
+- Pipeline spec: docs/planning/pipeline/completed/favorites.spec.md
 - Related docs: `crates/rusty-app/qml/BookmarksPane.qml`, `Explorer.qml`, `QuickSwitcher.qml`, `NoteTab.qml`; TICKET-005.
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:40: "we should have a way to favorite some documents".
 - Follow-ups opened: none.
