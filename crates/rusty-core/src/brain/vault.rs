@@ -17,6 +17,7 @@ const TYPE_DIRS: &[(&str, &str)] = &[
     ("idea", "ideas"),
     ("daily", "daily"),
     ("inbox", "inbox"),
+    ("decision", "decisions"),
     ("conversation", "conversations"),
 ];
 

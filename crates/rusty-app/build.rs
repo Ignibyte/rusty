@@ -15,6 +15,7 @@ fn main() {
                 "qml/Icon.qml",
                 "qml/Explorer.qml",
                 "qml/FileTab.qml",
+                "qml/DecisionsPage.qml",
                 "qml/SearchPane.qml",
                 "qml/NoteTab.qml",
                 "qml/RightPane.qml",

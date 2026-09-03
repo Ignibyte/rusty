@@ -24,6 +24,8 @@ Item {
     property string filter: ""
     property bool showTags: false
     property bool showUnresolved: false
+    // A decision's typed edges (consulted, supersedes, follows_up), drawn dashed in the accent.
+    property bool showDecisions: true
     property bool showOrphans: true
     // Groups: [{query, colour}]
     property var groups: []
@@ -72,6 +74,7 @@ Item {
     onDepthChanged: if (around.length > 0) { load(); persist() }
     onShowTagsChanged: { load(); persist() }
     onShowUnresolvedChanged: { load(); persist() }
+    onShowDecisionsChanged: { load(); persist() }
     onShowOrphansChanged: { applyFilter(); persist() }
     onFilterChanged: applyFilter()
     onGroupsChanged: { colour(); canvas.requestPaint(); persist() }
@@ -88,6 +91,7 @@ Item {
         if (!s) return
         if (typeof s.showTags === "boolean") showTags = s.showTags
         if (typeof s.showUnresolved === "boolean") showUnresolved = s.showUnresolved
+        if (typeof s.showDecisions === "boolean") showDecisions = s.showDecisions
         if (typeof s.showOrphans === "boolean") showOrphans = s.showOrphans
         if (Array.isArray(s.groups)) groups = s.groups
         if (typeof s.arrows === "boolean") arrows = s.arrows
@@ -96,7 +100,7 @@ Item {
     }
     function persist() {
         if (!loaded) return
-        settingsEdited({ showTags: showTags, showUnresolved: showUnresolved, showOrphans: showOrphans, groups: groups, arrows: arrows,
+        settingsEdited({ showTags: showTags, showUnresolved: showUnresolved, showDecisions: showDecisions, showOrphans: showOrphans, groups: groups, arrows: arrows,
                           textFade: textFade, nodeSize: nodeSize, linkThickness: linkThickness, centerForce: centerForce, repelForce: repelForce,
                           linkForce: linkForce, linkDistance: linkDistance, depth: depth })
     }
@@ -136,7 +140,7 @@ Item {
         for (const edge of g.edges) {
             const a = index[edge.from], b = index[edge.to]
             if (a === undefined || b === undefined) continue
-            e.push({ a: a, b: b })
+            e.push({ a: a, b: b, kind: edge.kind || "link" })
             next[a].degree++
             next[b].degree++
         }
@@ -296,10 +300,13 @@ Item {
             for (const e of view.edges) {
                 const a = n[e.a], b = n[e.b]
                 if (!a.visible || !b.visible) continue
+                const typed = e.kind !== "link"
+                if (typed && !view.showDecisions) continue
                 const lit = hover < 0 || e.a === hover || e.b === hover
-                ctx.globalAlpha = hover < 0 ? 0.55 : (lit ? 0.95 : 0.08)
-                ctx.strokeStyle = lit && hover >= 0 ? view.theme.accent : line
-                ctx.lineWidth = view.linkThickness / view.zoom * (lit && hover >= 0 ? 1.6 : 1)
+                ctx.globalAlpha = hover < 0 ? (typed ? 0.8 : 0.55) : (lit ? 0.95 : 0.08)
+                ctx.strokeStyle = typed ? view.theme.accent : (lit && hover >= 0 ? view.theme.accent : line)
+                ctx.lineWidth = view.linkThickness / view.zoom * (lit && hover >= 0 ? 1.6 : 1) * (typed ? 1.3 : 1)
+                ctx.setLineDash(typed ? [6 / view.zoom, 4 / view.zoom] : [])
                 ctx.beginPath()
                 ctx.moveTo(a.x, a.y)
                 ctx.lineTo(b.x, b.y)
@@ -482,6 +489,7 @@ Item {
                         spacing: 4
                         TextField { Layout.fillWidth: true; placeholderText: "Search files…"; font.pixelSize: Math.round(12 * view.theme.scale); text: view.filter; onTextChanged: view.filter = text }
                         CheckBox { text: "Tags"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.showTags; onToggled: view.showTags = checked }
+                        CheckBox { text: "Decision edges"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.showDecisions; onToggled: view.showDecisions = checked }
                         CheckBox { text: "Existing files only"; font.pixelSize: Math.round(12 * view.theme.scale); checked: !view.showUnresolved; onToggled: view.showUnresolved = !checked }
                         CheckBox { text: "Orphans"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.showOrphans; onToggled: view.showOrphans = checked }
                         RowLayout {

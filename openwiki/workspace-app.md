@@ -7,6 +7,8 @@ sources:
     resource: repo://crates/rusty-app/qml/AgentTerminal.qml
   - id: openwiki-source-1762a766e47a090b0ce4e932
     resource: repo://crates/rusty-app/qml/BookmarksPane.qml
+  - id: openwiki-source-5db647af1e42157766e439f7
+    resource: repo://crates/rusty-app/qml/DecisionsPage.qml
   - id: openwiki-source-4345f12b3a27e0b9f51220b5
     resource: repo://crates/rusty-app/qml/Explorer.qml
   - id: openwiki-source-9b55c0d3f46c1b691eb75ceb
@@ -43,10 +45,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T23:11:49.896Z"}
+generated: {by: "claude-code", at: "2026-09-03T23:29:57.910Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T23:11:49.896Z
+    at: 2026-09-03T23:29:57.910Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -194,6 +196,14 @@ the desktop. A folder's menu offers one entry per installed agent and a shell, e
 `openTerminal` with that folder as the working directory, copy path, reveal in the file
 manager, and Refresh. Links, backlinks, graph and search never see a root. File operations
 and git decorations are TICKET-019 and TICKET-020.
+
+The Decisions view (`DecisionsPage.qml`, opened from the ribbon, the palette or
+`openView("decisions")`) is fed by one tool, `brain_due`: the follow-ups due first, then
+every decision with its status and dates; a click opens the page. The graph view draws a
+decision's typed edges (a `kind` other than `link`: consulted, supersedes, follows up)
+dashed in the accent colour behind a "Decision edges" filter that persists with the other
+graph settings. The loop itself is the back end's (`mcp-back-end.md`); the hooks that make
+an agent run it are in `workflow-and-gates.md`.
 
 ## Invariants
 

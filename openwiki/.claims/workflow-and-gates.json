@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:7bd48d9a21a3f2538c1438c21231105a2d7d780de00833d78d101e8dd277e5dd",
+  "pageVersion": "sha256:3b3a8f0ac9df437fc6f19f52aaab0dec0ff42e308d79cfcf0f3dca0a79fac0e2",
   "claims": [
     {
       "id": "claim_ba5269afe6054bbbaef8c6effa948261",
@@ -49,10 +49,28 @@
           "version": "repo-lines-v1:sha256:e895958071ccbf2d0187fa68dd39f947b9beb044e658e1dbb7542838d829e632:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmVlYWNiM2Q0YWZkM2UwMGM1YmM2NGY3ZTMyYTcyMDBiMzRiYWEwNTljODU0N2VmNTUyZDIxOWMxN2IzYzAxZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTFhYjRkZGI4MmJjODQ2YWMwMWYwZWQyMDZmN2RmZmQwMWI3NzE4OGZjMDg1MzE1NTMwNmQwY2M3NGQ0YTdlNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODZlNDdiYjU1OTk3YzRhOTEwYTdiNTE2Mzg1ZTVkYzBhYjg1MmQzMzMzYTYxNTRmOGM0YzAzNGJiNTI1NjFlYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmI0NDRiNDU3NjQzOGU4ZjY0ZWVjNWE3OTMxNDZjYjk1ZDA5NTIxNzRlNTViOTRlZDg3ODA1YmQ3OTE3N2VhYSJ9"
         }
       ]
+    },
+    {
+      "id": "claim_7deb11bb36054dddaa972213c7c36033",
+      "statement": "Two Claude Code hooks for the brain loop ship inside `rusty-cli` and are installed by `rusty-cli hooks install` (scripts to `~/.rusty/hooks/`, entries added to `~/.claude/settings.json` idempotently with every other entry kept; `status` and `uninstall` exist): in a working directory whose `.mcp.json` names a rusty server, the PreToolUse hook blocks a Write or Edit under that directory until the transcript holds a `mcp__rusty__brain_ask` tool use whose result was not an error, and the Stop hook refuses a stop once (`stop_hook_active` passes the retry) when files were written and no non-error `brain_decide` or `brain_no_decision` follows; both fail open without jq or a readable transcript; a corpus test runs the shipped scripts.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-cli/hooks/brain-ask-before-write.sh",
+          "version": "repo-file-v1:sha256:4a871a6d7743a518fb6f4e46acfa6001252d61e7e5c09847f513596c4be45ced"
+        },
+        {
+          "resource": "repo://crates/rusty-cli/hooks/brain-decide-before-stop.sh",
+          "version": "repo-file-v1:sha256:dc2dd6dd4e2fec6711a051e3a98a346ce8a053d7a92daa434a2550c3e1f57c21"
+        },
+        {
+          "resource": "repo://crates/rusty-cli/src/hooks.rs#L101-L180",
+          "version": "repo-lines-v1:sha256:83996f6ee39e8d1037f74c21e3ebe0cd798d1fdce2a0b683bd3fb9c02c188bfb:eyJzZWxlY3RlZExpbmVDb3VudCI6ODAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2NWI4YzAwMDlhYTZhOGQ4NDIxODFlZTI2NGY4NzBlMTdhNDllMjMyNDZlM2ZhM2I4YTMwNGZjOGFlMzU3YTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFlMGFmM2ZkNGE0YzNhMWQ0N2M3ZjQ3MGVkMGQ4NmQ5MGQ5ZGUyMTBhNWViMTQ1NWZiZDk0NDgyYTQ3NjViNzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkMGY5YjViNjhjZTE2MWFiNDBlMTg3NzM1ODFmYzg3YzU3M2JlYWYzNmRmYmY5NjA2MDRkZmFiZmJlMmJmNjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM0ZGU2YTJlMzQ4ZjA1ZWU2YzEwMzQ5NTlhOWQwNTI4NDM0MWJkZGQ2MTVhZDA1NGYxZjVkM2U0ZTY4ZDM4NGMifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T04:50:24.252Z"
+    "at": "2026-09-03T23:29:57.910Z"
   }
 }

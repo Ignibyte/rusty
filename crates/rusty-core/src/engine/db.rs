@@ -244,6 +244,13 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_brain_versions_slug
                 ON brain_versions(slug);
 
+            CREATE TABLE IF NOT EXISTS brain_consultations (
+                id TEXT PRIMARY KEY,
+                question TEXT NOT NULL,
+                hits TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                outcome TEXT
+            );
             CREATE TABLE IF NOT EXISTS brain_aliases (
                 slug          TEXT NOT NULL,
                 alias         TEXT NOT NULL,

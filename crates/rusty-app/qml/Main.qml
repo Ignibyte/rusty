@@ -138,7 +138,7 @@ ApplicationWindow {
     readonly property bool terminalFocused: activeFocusItem !== null && activeFocusItem !== undefined && activeFocusItem.objectName === "term"
     readonly property var agentNames: ({ claude: "Claude Code", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", shell: "Shell" })
     readonly property var agentGlyphs: ({ claude: "✳", codex: "◇", gemini: "✦", aider: "⌁", opencode: "◈", shell: "$" })
-    readonly property var viewTitles: ({ tasks: "Tasks", memory: "Memory", skills: "Skills", secrets: "Secrets", settings: "Settings", graph: "Graph view" })
+    readonly property var viewTitles: ({ tasks: "Tasks", memory: "Memory", skills: "Skills", secrets: "Secrets", settings: "Settings", graph: "Graph view", decisions: "Decisions" })
     // The page a local graph follows: the last page tab that was current.
     property string lastPageSlug: ""
     readonly property var graphSettings: { try { return JSON.parse(ui.graph || "{}") } catch (e) { return ({}) } }
@@ -501,6 +501,7 @@ ApplicationWindow {
             { name: "Graph view: Open local graph", keys: "", enabled: win.currentNote !== null || win.lastPageSlug.length > 0, run: function () { win.openGraph(true) } },
             { name: "Tasks: Open tasks", keys: "", run: function () { win.openView("tasks") } },
             { name: "Memory: Open memories", keys: "", run: function () { win.openView("memory") } },
+            { name: "Decisions: Open decisions", keys: "", run: function () { win.openView("decisions") } },
             { name: "Skills: Open skills", keys: "", run: function () { win.openView("skills") } },
             { name: "Secrets: Open secrets", keys: "", run: function () { win.openView("secrets") } },
             { name: "Settings: Open settings", keys: "Ctrl+,", run: function () { win.openView("settings") } },
@@ -627,6 +628,7 @@ ApplicationWindow {
                            : host.kind === "terminal" ? termComp
                            : host.kind === "tasks" ? tasksComp
                            : host.kind === "memory" ? memoryComp
+                           : host.kind === "decisions" ? decisionsComp
                            : host.kind === "skills" ? skillsComp
                            : host.kind === "secrets" ? secretsComp
                            : host.kind === "settings" ? settingsComp
@@ -682,6 +684,7 @@ ApplicationWindow {
         }
         Component { id: tasksComp; TasksPage { backend: win.backend; theme: win.theme } }
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
+        Component { id: decisionsComp; DecisionsPage { backend: win.backend; theme: win.theme; onOpenPage: (s) => win.openPage(s, false) } }
         Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
         Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on); onSetTextSize: (n) => win.setTextSize(n) } }
@@ -796,6 +799,7 @@ ApplicationWindow {
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; label: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "memory"; label: "memory"; tip: "Memory"; active: win.currentTab() !== null && win.currentTab().kind === "memory"; onClicked: win.openView("memory") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "check-square"; label: "decide"; tip: "Decisions"; active: win.currentTab() !== null && win.currentTab().kind === "decisions"; onClicked: win.openView("decisions") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "skills"; label: "skills"; tip: "Skills"; active: win.currentTab() !== null && win.currentTab().kind === "skills"; onClicked: win.openView("skills") }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "secrets"; label: "secrets"; tip: "Secrets"; active: win.currentTab() !== null && win.currentTab().kind === "secrets"; onClicked: win.openView("secrets") }
                     Item { Layout.fillHeight: true }

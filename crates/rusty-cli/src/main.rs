@@ -7,6 +7,8 @@
 //! this CLI deliberately covers only the brain, where the SQLite side is derived
 //! state that must stay in sync with the markdown vault.
 
+mod hooks;
+
 use rusty_core::brain::semantic;
 use rusty_core::brain::{BrainManager, CaptureTarget};
 use rusty_core::engine::conversation_archive::ConversationArchive;
@@ -38,6 +40,12 @@ USAGE:\n\
   rusty-cli brain stats\n\
   rusty-cli notes path                        (the notes folder the tools use)\n\
   rusty-cli notes adopt [--dry-run]           (move an older notes folder into the vault, once)\n\
+  rusty-cli hooks install|uninstall|status    (the brain loop's Claude Code hooks, in ~/.claude/settings.json)\n\
+  rusty-cli brain ask <question>              (the brain loop: pages, decisions and follow-ups, a consultation id)\n\
+  rusty-cli brain decide <id> --title T --choice C --rationale R [--alt A]... [--follow-up-by DATE] [--supersedes SLUG]\n\
+  rusty-cli brain follow-up <slug> --status kept|revised|superseded --outcome O [--successor SLUG] [--follow-up-by DATE]\n\
+  rusty-cli brain no-decision <id> <reason>   (the honest way out of the loop)\n\
+  rusty-cli brain due [--days N]              (follow-ups due today and overdue, or within N days)\n\
   rusty-cli skills list [--all]\n\
   rusty-cli skills view <name>\n\
   rusty-cli skills new <name> [--desc <text>] [--body <text>] [--force]\n\
@@ -59,6 +67,7 @@ fn main() {
     ) {
         (Some("brain"), Some(sub)) => run_brain(sub, &args[3..]),
         (Some("notes"), Some(sub)) => run_notes(sub, &args[3..]),
+        (Some("hooks"), sub) => run_hooks(sub),
         (Some("skills"), _) => {
             let sub = args.get(2).map(String::as_str).unwrap_or("list");
             run_skills(sub, args.get(3..).unwrap_or_default());
@@ -497,6 +506,129 @@ fn run_brain(sub: &str, rest: &[String]) {
             }
             brain.flush_commits();
         }
+        "ask" => {
+            let question = rest.join(" ");
+            match brain().ask(&question, None, None) {
+                Ok(c) => {
+                    println!("consultation {}", c.id);
+                    for p in &c.pages {
+                        println!(
+                            "  {}  {}  {}",
+                            p.slug,
+                            p.title,
+                            p.snippet.replace('\n', " ")
+                        );
+                    }
+                    for d in &c.decisions {
+                        println!("  decision {}  {}  {}", d.slug, d.status, d.title);
+                    }
+                    for d in &c.due {
+                        println!("  due {}  {}  {}", d.follow_up_by, d.slug, d.title);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("brain ask: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "decide" => {
+            let mut input = rusty_core::brain::decisions::Decide::default();
+            let mut it = rest.iter();
+            input.consultation = it.next().cloned().unwrap_or_default();
+            while let Some(flag) = it.next() {
+                let value = it.next().cloned().unwrap_or_default();
+                match flag.as_str() {
+                    "--title" => input.title = value,
+                    "--choice" => input.choice = value,
+                    "--rationale" => input.rationale = value,
+                    "--alt" => input.alternatives.push(value),
+                    "--follow-up-by" => input.follow_up_by = Some(value),
+                    "--supersedes" => input.supersedes = Some(value),
+                    other => {
+                        eprintln!("brain decide: unknown flag {other}");
+                        std::process::exit(2);
+                    }
+                }
+            }
+            match brain().decide(&input) {
+                Ok(page) => {
+                    println!("{}", page.slug);
+                    refresh_signal();
+                }
+                Err(e) => {
+                    eprintln!("brain decide: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "follow-up" => {
+            let mut input = rusty_core::brain::decisions::FollowUp::default();
+            let mut it = rest.iter();
+            input.slug = it.next().cloned().unwrap_or_default();
+            while let Some(flag) = it.next() {
+                let value = it.next().cloned().unwrap_or_default();
+                match flag.as_str() {
+                    "--status" => input.status = value,
+                    "--outcome" => input.outcome = value,
+                    "--successor" => input.successor = Some(value),
+                    "--follow-up-by" => input.follow_up_by = Some(value),
+                    other => {
+                        eprintln!("brain follow-up: unknown flag {other}");
+                        std::process::exit(2);
+                    }
+                }
+            }
+            match brain().follow_up(&input) {
+                Ok(page) => {
+                    println!("{}", page.slug);
+                    refresh_signal();
+                }
+                Err(e) => {
+                    eprintln!("brain follow-up: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "no-decision" => {
+            let id = rest.first().cloned().unwrap_or_default();
+            let reason = rest.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
+            match brain().no_decision(&id, &reason) {
+                Ok(()) => println!("recorded"),
+                Err(e) => {
+                    eprintln!("brain no-decision: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "due" => {
+            let days = rest
+                .iter()
+                .position(|a| a == "--days")
+                .and_then(|i| rest.get(i + 1))
+                .and_then(|v| v.parse::<i64>().ok())
+                .unwrap_or(0);
+            match brain().due(days) {
+                Ok(d) => {
+                    for x in &d.due {
+                        println!(
+                            "{}  {}  {}{}",
+                            x.follow_up_by,
+                            x.slug,
+                            x.title,
+                            if x.overdue { "  (overdue)" } else { "" }
+                        );
+                    }
+                    if d.due.is_empty() {
+                        println!("nothing due");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("brain due: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         "types" => match brain().page_types() {
             Ok(types) => {
                 for t in types {
@@ -789,6 +921,61 @@ fn refresh_signal() {
 fn fail(msg: &str) -> ! {
     eprintln!("error: {msg}");
     exit(1);
+}
+
+/// `rusty-cli hooks install|uninstall|status`: the brain loop's Claude Code hooks.
+fn run_hooks(sub: Option<&str>) {
+    let home = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("/"));
+    match sub {
+        Some("install") => match hooks::install(&home) {
+            Ok(r) => println!(
+                "hooks: {} script(s) in {}, {} entr{} added to {}",
+                r.scripts_written,
+                hooks::hooks_dir(&home).display(),
+                r.entries_added,
+                if r.entries_added == 1 { "y" } else { "ies" },
+                hooks::settings_path(&home).display()
+            ),
+            Err(e) => {
+                eprintln!("hooks install: {e}");
+                std::process::exit(1);
+            }
+        },
+        Some("uninstall") => match hooks::uninstall(&home) {
+            Ok(r) => println!(
+                "hooks: {} entr{} removed, {} script(s) removed",
+                r.entries_removed,
+                if r.entries_removed == 1 { "y" } else { "ies" },
+                r.scripts_removed
+            ),
+            Err(e) => {
+                eprintln!("hooks uninstall: {e}");
+                std::process::exit(1);
+            }
+        },
+        Some("status") | None => {
+            let s = hooks::status(&home);
+            let word = |b: bool| if b { "yes" } else { "no" };
+            println!(
+                "{}: script {}, wired {}",
+                hooks::ASK_HOOK_NAME,
+                word(s.ask_script),
+                word(s.ask_wired)
+            );
+            println!(
+                "{}: script {}, wired {}",
+                hooks::STOP_HOOK_NAME,
+                word(s.stop_script),
+                word(s.stop_wired)
+            );
+        }
+        Some(other) => {
+            eprintln!("unknown hooks command: {other}");
+            std::process::exit(2);
+        }
+    }
 }
 
 #[cfg(test)]

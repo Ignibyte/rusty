@@ -50,7 +50,56 @@ const MAX_SKILL_MD_BYTES: u64 = 256 * 1024;
 ///
 /// Each entry is `(directory_name, SKILL.md contents)`. Seeds must be safe to run
 /// unattended: no pre-approved `allowed-tools`, no `` !`command` `` dynamic injection.
+/// The brain loop for agents: Ask, Decide, Follow up (TICKET-018).
+const SEED_ASK_DECIDE_FOLLOW_UP: &str = r#"---
+name: ask-decide-follow-up
+description: >-
+  The brain loop: consult the brain before a decision (brain_ask), record the decision as
+  a page linked to what it rested on (brain_decide), come back to say how it went
+  (brain_follow_up). Use before any change of direction, design choice or tool pick.
+---
+
+Rusty's brain holds facts; this loop adds the reasoning. Two hooks make the first two
+steps happen in a repository wired to Rusty (a `.mcp.json` with a `rusty` server): the
+first file write waits for a `brain_ask`, and a session that wrote files cannot stop
+without a `brain_decide` or a `brain_no_decision`.
+
+## Ask
+
+Before you decide, call `brain_ask` with the question in plain words. It returns the
+pages that touch it (text and vectors when a provider is set), the decisions already
+taken on the topic with their status, the follow-ups due, and a consultation id. Read
+what came back; a decision already taken and kept is the answer unless you have a reason
+it no longer holds.
+
+## Decide
+
+Call `brain_decide` with the consultation id, a title, the choice, the rationale, the
+alternatives you set aside, and a `follow_up_by` date when the outcome is worth checking
+(a week for a tool pick, a month for a design). The page lands under `decisions/`, links
+to every consulted page, and each of those pages gets a timeline entry. To replace an
+earlier decision, pass its slug as `supersedes`.
+
+When the consultation led to no decision, say so: `brain_no_decision` with the reason.
+That is the honest exit, and the Stop hook accepts it.
+
+## Follow up
+
+When the date comes (`brain_due`, the Decisions view, `/brief`), call
+`brain_follow_up` with the slug, the outcome and a status: `kept` (clears the date),
+`revised` (a new `follow_up_by`), or `superseded` (with the successor's slug).
+
+## From a terminal
+
+`rusty-cli brain ask <question>`, `brain decide <id> --title T --choice C --rationale R
+[--alt A]... [--follow-up-by DATE] [--supersedes SLUG]`, `brain follow-up <slug> --status
+kept|revised|superseded --outcome O [--successor SLUG]`, `brain no-decision <id> <reason>`,
+`brain due [--days N]`. `rusty-cli hooks install` wires the two hooks into
+`~/.claude/settings.json`; `hooks status` shows them; `hooks uninstall` removes them.
+"#;
+
 const SEED_SKILLS: &[(&str, &str)] = &[
+    ("ask-decide-follow-up", SEED_ASK_DECIDE_FOLLOW_UP),
     ("file-research-finding", SEED_FILE_RESEARCH_FINDING),
     ("morning-brief", SEED_MORNING_BRIEF),
     ("no-ai-slop", SEED_NO_AI_SLOP),

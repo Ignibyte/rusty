@@ -109,6 +109,41 @@ does every person page.
 
 > Evidence goes in the timeline; the compiled truth is what you would tell a newcomer.
 MD
+mkdir -p "$vault/decisions"
+cat > "$vault/decisions/keep-sqlite.md" <<'MD'
+---
+title: Keep SQLite as the index
+type: decision
+question: Should the index move off SQLite?
+status: decided
+decided: 2026-09-01
+follow_up_by: 2026-09-02
+consulted:
+  - projects/orbit
+  - concepts/compiled-truth
+---
+
+## Question
+
+Should the index move off SQLite?
+
+## Choice
+
+Keep SQLite; the vault stays the truth and the index is rebuilt from it.
+
+## Rationale
+
+Nothing outgrew it, and a rebuild is one command.
+
+## Alternatives
+
+- Postgres
+
+## Consulted
+
+- [[projects/orbit]]
+- [[concepts/compiled-truth]]
+MD
 cat > "$vault/daily/2026-09-02.md" <<'MD'
 ---
 title: 2026-09-02

@@ -308,6 +308,72 @@ pub struct SecretSetParams {
     pub value: String,
 }
 
+/// Parameters for `brain_ask`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct AskParams {
+    /// The question you are about to decide, in plain words.
+    pub question: String,
+    /// How many pages to rank (default 8).
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+/// Parameters for `brain_decide`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct DecideParams {
+    /// The consultation id `brain_ask` returned.
+    pub consultation: String,
+    /// The decision's title (the page name).
+    pub title: String,
+    /// What was chosen.
+    pub choice: String,
+    /// Why.
+    pub rationale: String,
+    /// What was set aside.
+    #[serde(default)]
+    pub alternatives: Vec<String>,
+    /// When to come back and say how it went (ISO date).
+    #[serde(default)]
+    pub follow_up_by: Option<String>,
+    /// The decision this one replaces (a `decisions/` slug).
+    #[serde(default)]
+    pub supersedes: Option<String>,
+}
+
+/// Parameters for `brain_follow_up`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct FollowUpParams {
+    /// The decision's slug.
+    pub slug: String,
+    /// How it went.
+    pub outcome: String,
+    /// `kept`, `revised` or `superseded`.
+    pub status: String,
+    /// The successor when superseded (a `decisions/` slug).
+    #[serde(default)]
+    pub successor: Option<String>,
+    /// A new follow-up date when revised (ISO date); cleared otherwise.
+    #[serde(default)]
+    pub follow_up_by: Option<String>,
+}
+
+/// Parameters for `brain_no_decision`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct NoDecisionParams {
+    /// The consultation id `brain_ask` returned.
+    pub consultation: String,
+    /// Why nothing was decided.
+    pub reason: String,
+}
+
+/// Parameters for `brain_due`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct DueParams {
+    /// Follow-ups due within this many days (default 0: today and overdue).
+    #[serde(default)]
+    pub days: Option<i64>,
+}
+
 /// Parameters for `secret_pin_set`.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct PinSetParams {
@@ -920,6 +986,82 @@ impl Rusty {
     #[tool(description = "The page types the vault knows, with their folders and page counts")]
     fn brain_page_types(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.page_types())
+    }
+
+    #[tool(
+        description = "Consult the brain before a decision: ranked pages (text and vectors when a provider is set), the decisions that touch the question with their status, the follow-ups due, and a consultation id for brain_decide"
+    )]
+    async fn brain_ask(
+        &self,
+        Parameters(p): Parameters<AskParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let core = Arc::clone(&self.core);
+        let result = tokio::task::spawn_blocking(move || {
+            let embedder = core.embedder();
+            core.brain_manager
+                .ask(&p.question, p.limit, embedder.as_deref())
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        json_result(result)
+    }
+
+    #[tool(
+        description = "Record a decision as a page under decisions/: the question, the choice, the rationale, the alternatives, links to every consulted page, a follow-up date; each consulted page gets a timeline entry"
+    )]
+    fn brain_decide(
+        &self,
+        Parameters(p): Parameters<DecideParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = rusty_core::brain::decisions::Decide {
+            consultation: p.consultation,
+            title: p.title,
+            choice: p.choice,
+            rationale: p.rationale,
+            alternatives: p.alternatives,
+            follow_up_by: p.follow_up_by,
+            supersedes: p.supersedes,
+        };
+        self.mutate(self.core.brain_manager.decide(&input))
+    }
+
+    #[tool(
+        description = "Say how a decision went: append the outcome, set the status to kept, revised or superseded (with the successor), clear or reschedule the follow-up date"
+    )]
+    fn brain_follow_up(
+        &self,
+        Parameters(p): Parameters<FollowUpParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let input = rusty_core::brain::decisions::FollowUp {
+            slug: p.slug,
+            outcome: p.outcome,
+            status: p.status,
+            successor: p.successor,
+            follow_up_by: p.follow_up_by,
+        };
+        self.mutate(self.core.brain_manager.follow_up(&input))
+    }
+
+    #[tool(
+        description = "Record that a consultation led to no decision, with the reason; the honest way out of the brain loop"
+    )]
+    fn brain_no_decision(
+        &self,
+        Parameters(p): Parameters<NoDecisionParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .brain_manager
+                .no_decision(&p.consultation, &p.reason)
+                .map(|_| "recorded"),
+        )
+    }
+
+    #[tool(
+        description = "The follow-ups due (today and overdue, or within `days`) and every decision with its status and dates"
+    )]
+    fn brain_due(&self, Parameters(p): Parameters<DueParams>) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.due(p.days.unwrap_or(0)))
     }
 
     #[tool(
@@ -1834,6 +1976,11 @@ mod tests {
         "brain_set_property",
         "brain_remove_property",
         "brain_graph",
+        "brain_ask",
+        "brain_decide",
+        "brain_follow_up",
+        "brain_no_decision",
+        "brain_due",
     ];
 
     #[test]

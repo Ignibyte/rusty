@@ -264,6 +264,89 @@ async fn a_real_client_can_list_call_and_read() {
         graph_text.contains("\"from\": \"ideas/Linker\""),
         "{graph_text}"
     );
+    // The brain loop: ask, decide, due, follow up, and the typed edges in the graph.
+    let asked = client
+        .call_tool(
+            CallToolRequestParams::new("brain_ask")
+                .with_arguments(args(serde_json::json!({"question": "Moved plan"}))),
+        )
+        .await
+        .unwrap();
+    let asked: serde_json::Value = serde_json::from_str(&text_of(&asked)).unwrap();
+    let consultation = asked["id"].as_str().unwrap().to_string();
+    assert_eq!(consultation.len(), 32, "{asked}");
+    assert!(
+        asked["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["slug"] == "concepts/Moved plan"),
+        "{asked}"
+    );
+    let decided = client
+        .call_tool(
+            CallToolRequestParams::new("brain_decide").with_arguments(args(serde_json::json!({
+                "consultation": consultation,
+                "title": "Keep the moved plan",
+                "choice": "Keep it where it is",
+                "rationale": "The links followed the move.",
+                "alternatives": ["Move it back"],
+                "follow_up_by": "2000-01-01"
+            }))),
+        )
+        .await
+        .unwrap();
+    let decided: serde_json::Value = serde_json::from_str(&text_of(&decided)).unwrap();
+    let decision_slug = decided["slug"].as_str().unwrap().to_string();
+    assert!(decision_slug.starts_with("decisions/"), "{decided}");
+    let due = client
+        .call_tool(
+            CallToolRequestParams::new("brain_due").with_arguments(args(serde_json::json!({}))),
+        )
+        .await
+        .unwrap();
+    let due: serde_json::Value = serde_json::from_str(&text_of(&due)).unwrap();
+    assert_eq!(due["due"][0]["slug"], decision_slug, "{due}");
+    assert_eq!(due["due"][0]["overdue"], true, "{due}");
+    let followed = client
+        .call_tool(
+            CallToolRequestParams::new("brain_follow_up").with_arguments(args(serde_json::json!({
+                "slug": decision_slug,
+                "outcome": "Nobody missed the old place.",
+                "status": "kept"
+            }))),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&followed).contains("Follow-up"),
+        "{}",
+        text_of(&followed)
+    );
+    let loop_graph = client
+        .call_tool(
+            CallToolRequestParams::new("brain_graph").with_arguments(args(serde_json::json!({}))),
+        )
+        .await
+        .unwrap();
+    let loop_graph_text = text_of(&loop_graph);
+    assert!(
+        loop_graph_text.contains("\"kind\": \"consulted\""),
+        "{loop_graph_text}"
+    );
+    let no_decision = client
+        .call_tool(
+            CallToolRequestParams::new("brain_no_decision").with_arguments(args(
+                serde_json::json!({
+                    "consultation": "absent", "reason": "nothing to decide"
+                }),
+            )),
+        )
+        .await;
+    assert!(
+        no_decision.is_err() || no_decision.as_ref().unwrap().is_error == Some(true),
+        "an unknown consultation is refused"
+    );
     let removed = client
         .call_tool(
             CallToolRequestParams::new("brain_remove_property").with_arguments(args(

@@ -256,6 +256,9 @@ workflow in `CONSTITUTION.md`.
       remembered per machine; markdown, text and images viewed in a tab; an agent or a shell opened
       in a folder from its menu. Parts two (file operations) and three (git decorations) are
       TICKET-019 and TICKET-020
+- [x] TICKET-018 The brain loop (2026-09-03): Ask, Decide, Follow up as a decision page type,
+      five tools, typed graph edges, a Decisions view, the CLI mirror, the seed skill and two
+      Claude Code hooks shipped in rusty-cli (`hooks install`)
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

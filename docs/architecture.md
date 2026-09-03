@@ -138,8 +138,8 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index, skills,
   secrets, settings), the semantic index (`brain::semantic`: chunks,
   providers, sqlite-vec, fusion), the vault migration, the file watcher and the event bus.
-- `crates/rusty-mcp`: 71 tools (2026-09-03, six of them the PIN and the reveal behind the
-  Secrets tab since TICKET-015), five resources plus templates, `list_changed` notifications,
+- `crates/rusty-mcp`: 76 tools (2026-09-03: six of them the PIN and the reveal behind the
+  Secrets tab since TICKET-015, five the brain loop since TICKET-018), five resources plus templates, `list_changed` notifications,
   a background indexer for embeddings; stdio for agents, Streamable HTTP for the app.
 - `crates/rusty-app`: cxx-qt 0.10 on Qt 6. Rust types exposed to QML: `Theme` (Omarchy
   colours and the tokens read from the theme's `obsidian.css` and Alacritty palette, font,
@@ -170,6 +170,14 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   `brain_render` given the text, text with line numbers, images fitted), and a folder's
   menu opens an agent or a shell there. The vault's links, graph and search do not see the
   roots. File operations and git decorations are TICKET-019 and TICKET-020.
+- The brain loop (2026-09-03, TICKET-018): a `decision` page type under `decisions/`,
+  the consultation record `brain_consultations` in `rusty.db`, the tools `brain_ask`,
+  `brain_decide`, `brain_follow_up`, `brain_no_decision` and `brain_due`, typed edges in
+  `brain_graph` (`consulted`, `supersedes`, `follows_up`) drawn dashed in the app behind a
+  filter, a Decisions view, the CLI mirror, the seed skill `ask-decide-follow-up`, and two
+  Claude Code hooks shipped inside `rusty-cli` (`hooks install|uninstall|status`) that read
+  the transcript: the first write waits for a `brain_ask`, a stop after writes waits once
+  for a `brain_decide` or a `brain_no_decision`. The ADR: `docs/architecture/brain-loop.md`.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   `brain semantic`, and `notes adopt` (2026-09-03, TICKET-014: the notes folder lives in
   the vault under `notes/`, and the one-shot moves an older `~/.rusty/notes` in).

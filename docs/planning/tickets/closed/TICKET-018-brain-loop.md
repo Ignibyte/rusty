@@ -1,9 +1,10 @@
 ---
 title: TICKET-018-brain-loop
-status: open
+status: done
 ticket_number: 018
 type: workflow
 created: 2026-09-03
+closed: 2026-09-03
 intake:
 pipeline_spec: docs/planning/pipeline/active/brain-loop.spec.md
 ---
@@ -50,4 +51,9 @@ learned where the next session finds it. This is the same loop for the brain.
 - Decisions for the seal: where the hooks live (this repo for consumers, omarchy-ops for the box, or both); receipts by transcript scan, which rustal proves and which the server cannot do since it never sees the session id; how strict the Stop rule is (refuse once, with an explicit `brain_no_decision` as the honest way out); one decision page per question, or one per topic with a log; whether only `brain_ask` counts as consultation, since it is the call that records the receipt.
 - Related docs: rustal's `enforce-docs-before-code.sh` and its capture rule (`/srv/stacks/rustal/CLAUDE.md`, Local knowledge base), omarchy-ops `auto-capture-conversation.sh`, `docs/architecture.md`, the brain tools in `crates/rusty-mcp/src/main.rs`, `brain_page_types`.
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:45: "we need to look at defining a system in which you should always use the brain for consulting and also ensure we are interacting with the brain (updates and such). This will be a workflow similar to Plan->code->test->document building but its the brain with decision graphs from the MCP layer. Ask->Decide->Follow up".
-- Follow-ups opened: none.
+- Delivered on 2026-09-03 with the rustal session's four answers as the seal (Chad at
+  17:20: "lets run them all including 010"). The write hook is scoped to files under
+  the working directory as well (the rustal session's review). The ADR:
+  `docs/architecture/brain-loop.md`.
+- Follow-ups opened: none. Seams: mining decisions out of archived transcripts; an
+  indexed property when decisions count in the thousands.

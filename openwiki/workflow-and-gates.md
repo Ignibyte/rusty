@@ -11,12 +11,18 @@ sources:
     resource: repo://bin/gate.sh
   - id: openwiki-source-0118ed911c8f8689e6c1c0a1
     resource: repo://bin/lib-gate.sh
+  - id: openwiki-source-307dfaff33e13bcb825730f9
+    resource: repo://crates/rusty-cli/hooks/brain-ask-before-write.sh
+  - id: openwiki-source-c176a432c8e7e89d8ba4f4a3
+    resource: repo://crates/rusty-cli/hooks/brain-decide-before-stop.sh
+  - id: openwiki-source-428803b45520d00a9ba153d7
+    resource: repo://crates/rusty-cli/src/hooks.rs
   - id: openwiki-source-58e168516499e3589535de84
     resource: repo://scripts/lib-openwiki.sh
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T23:29:57.910Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T23:29:57.910Z
 ---
 
 # Workflow and gates: how a change moves through this repository
@@ -108,6 +114,20 @@ recall → plan → design → implement → inspect → validate → complete �
   `openwiki_resolve_claims`, `openwiki_finish`); the host agent writes the pages, so
   nothing is sent to a provider. `scripts/check-pipeline.sh` verifies the wiring and
   keeps `AGENTS.md` and `CLAUDE.md` identical.
+
+## The brain loop's hooks
+
+Two Claude Code hooks ship inside `rusty-cli` (`crates/rusty-cli/hooks/`, embedded in the
+binary). `rusty-cli hooks install` writes them to `~/.rusty/hooks/` and adds a PreToolUse
+entry (Edit, Write, MultiEdit, NotebookEdit) and a Stop entry to `~/.claude/settings.json`,
+idempotently and keeping every other entry; `hooks status` and `hooks uninstall` exist. In
+a working directory whose `.mcp.json` names a rusty server, the write hook blocks a write
+under that directory until the transcript holds a `mcp__rusty__brain_ask` tool use whose
+result was not an error (a file elsewhere, a scratch script, passes), and the stop hook
+refuses a stop once when files were written and no non-error `brain_decide` or
+`brain_no_decision` follows; `stop_hook_active` passes the retry. Both fail open without
+jq or a readable transcript. The corpus test in `crates/rusty-cli/src/hooks.rs` runs the
+shipped scripts under bash. The record is `docs/architecture/brain-loop.md`.
 
 ## Invariants
 

@@ -5,10 +5,14 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-1de5221fd140fd89f39f87cd
     resource: repo://crates/rusty-cli/src/main.rs
+  - id: openwiki-source-d2476bcfdf1c1072b66eb52b
+    resource: repo://crates/rusty-core/src/brain/decisions.rs
   - id: openwiki-source-c7501cab00d475ec77094adb
     resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-705d180fc941297b1e844397
     resource: repo://crates/rusty-core/src/core.rs
+  - id: openwiki-source-8f342262c76136dc27154aaf
+    resource: repo://crates/rusty-core/src/engine/db.rs
   - id: openwiki-source-bb352c1ae3d0e8267aac9d76
     resource: repo://crates/rusty-core/src/engine/pin_lock.rs
   - id: openwiki-source-5097c4ef41727eee45d8c689
@@ -21,10 +25,10 @@ sources:
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-03T23:11:49.896Z"}
+generated: {by: "claude-code", at: "2026-09-03T23:29:57.910Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T23:11:49.896Z
+    at: 2026-09-03T23:29:57.910Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -81,6 +85,18 @@ the way an agent would.
   the screen: the secrets file's format and permissions do not change, because the back
   end reads it headless for the embeddings key.
 - Settings: get, set, list with credential-looking values masked.
+- The brain loop (TICKET-018): `brain_ask` runs the hybrid search (text alone without
+  a provider), lists the decisions touching the question with their status and the
+  follow-ups due, and records a consultation (`brain_consultations`: id, question, hits,
+  outcome) whose id the next step needs. `brain_decide` writes a `decision` page under
+  `decisions/` (question, choice, rationale, alternatives, a wikilink per consulted page,
+  `status: decided`, `decided`, `follow_up_by`, `consulted`, `supersedes`), adds a
+  timeline entry to every consulted page, marks a superseded decision, and sets the
+  consultation's outcome. `brain_follow_up` appends a dated outcome and sets kept, revised
+  or superseded (with the successor); `brain_no_decision` records the reason nothing was
+  decided; `brain_due` lists the follow-ups due within `days` and every decision.
+  `brain_graph` edges carry a `kind`: `link`, or a decision's `consulted`, `supersedes`
+  and `follows_up`, read from its frontmatter. The record is `docs/architecture/brain-loop.md`.
 - Text that is not a page: `brain_render` given `markdown` renders that text with the
   page renderer (links resolve against the vault as in a page; the slug may be empty),
   which is how the app shows a markdown file from a folder root.
@@ -136,6 +152,9 @@ router fails the test, and every tool must carry a description.
   a render with a style, a rename with its link rewrite, the tree, no unresolved links).
 - `cargo test -p rusty-core pin_lock`: set, unlock, check and lock; the short and the
   wrong PIN; the lockout; the expiry; a PIN change needing the token; the file mode.
+- `cargo test -p rusty-core decisions`: the consultation record, the decision page with
+  its links and timeline entries, the follow-up's status and date, the due list, the
+  typed edges; the smoke test walks the loop over stdio.
 
 ## Primary sources
 

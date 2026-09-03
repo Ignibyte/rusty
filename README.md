@@ -139,7 +139,7 @@ completed pipeline is delivered only with the completion receipt that run leaves
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 71 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 76 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -201,6 +201,37 @@ the `notes_path` setting names. An older install kept notes in `~/.rusty/notes`;
 `rusty-cli notes adopt` once (`--dry-run` first, if you like) to move them in. It refuses
 when a name already exists in the vault, deletes nothing, leaves a README behind that
 says where the notes went, and points `notes_path` at the new folder.
+
+## The brain loop
+
+Ask, Decide, Follow up. Before a decision an agent calls `brain_ask` with the question:
+the answer is the pages that touch it (text, and vectors when a provider is set), the
+decisions already taken on the topic with their status, the follow-ups due, and a
+consultation id. `brain_decide` records the decision as a page under `decisions/` with the
+question, the choice, the rationale, the alternatives, a link to every consulted page (each
+of which gets a timeline entry) and a `follow_up_by` date; `supersedes` names the decision
+it replaces. When the date comes (`brain_due`, the Decisions view, `/brief`),
+`brain_follow_up` appends the outcome and sets the status to kept, revised or superseded.
+`brain_no_decision` records that a consultation led nowhere, with the reason. The graph
+draws a decision's typed edges (consulted, supersedes, follows up) dashed, behind a filter.
+
+Two Claude Code hooks make the first two steps happen in a repository wired to Rusty (a
+`.mcp.json` naming a `rusty` server): the first file write waits for a `brain_ask` that
+did not fail, and a session that wrote files is refused its stop once until a
+`brain_decide` or a `brain_no_decision` is in its transcript. They read the transcript,
+fail open when they cannot, and ship inside `rusty-cli`:
+
+```bash
+rusty-cli hooks install      # ~/.rusty/hooks/*.sh, wired into ~/.claude/settings.json
+rusty-cli hooks status
+rusty-cli hooks uninstall
+rusty-cli brain ask "should the index move off SQLite"
+rusty-cli brain decide <id> --title "Keep SQLite" --choice "..." --rationale "..." --follow-up-by 2026-10-01
+rusty-cli brain follow-up decisions/keep-sqlite --status kept --outcome "..."
+rusty-cli brain due --days 7
+```
+
+The seed skill `ask-decide-follow-up` carries the loop for agents.
 
 ## Folders
 

@@ -5,6 +5,7 @@
 //! are the source of truth; the database is a derived index that can be rebuilt
 //! from the vault at any time.
 
+pub mod decisions;
 pub mod enrichment;
 pub mod frontmatter;
 pub mod links;
@@ -245,6 +246,10 @@ pub struct GraphNode {
     pub tags: Vec<String>,
 }
 
+fn default_edge_kind() -> String {
+    "link".to_string()
+}
+
 /// One edge, from a page to a page, a tag or an unresolved target.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GraphEdge {
@@ -252,6 +257,9 @@ pub struct GraphEdge {
     pub from: String,
     /// The target node id.
     pub to: String,
+    /// `link`, or a decision's `consulted`, `supersedes` or `follows_up`.
+    #[serde(default = "default_edge_kind")]
+    pub kind: String,
 }
 
 /// The vault as a graph.
@@ -932,20 +940,27 @@ impl BrainManager {
         }
         let mut edges: Vec<GraphEdge> = Vec::new();
         let mut seen_edges: HashSet<(String, String)> = HashSet::new();
-        let mut push_edge = |from: &str, to: &str, edges: &mut Vec<GraphEdge>| {
+        let mut push_edge = |from: &str, to: &str, kind: &str, edges: &mut Vec<GraphEdge>| {
             if seen_edges.insert((from.to_string(), to.to_string())) {
                 edges.push(GraphEdge {
                     from: from.to_string(),
                     to: to.to_string(),
+                    kind: kind.to_string(),
                 });
             }
         };
+        // A decision's typed edges first, so they win over the plain links its body holds.
+        for (from, to, kind) in self.decision_edges()? {
+            if known.contains(&from) && known.contains(&to) {
+                push_edge(&from, &to, &kind, &mut edges);
+            }
+        }
         for (from, to, resolved) in &links {
             if !known.contains(from) {
                 continue;
             }
             if *resolved {
-                push_edge(from, to, &mut edges);
+                push_edge(from, to, "link", &mut edges);
             } else if options.unresolved {
                 let id = format!("new:{to}");
                 if known.insert(id.clone()) {
@@ -958,7 +973,7 @@ impl BrainManager {
                         tags: Vec::new(),
                     });
                 }
-                push_edge(from, &id, &mut edges);
+                push_edge(from, &id, "link", &mut edges);
             }
         }
         if options.tags {
@@ -977,7 +992,7 @@ impl BrainManager {
                         tags: Vec::new(),
                     });
                 }
-                push_edge(slug, &id, &mut edges);
+                push_edge(slug, &id, "link", &mut edges);
             }
         }
         let Some(around) = options
