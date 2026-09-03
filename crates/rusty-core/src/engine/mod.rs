@@ -7,6 +7,7 @@ pub mod db;
 pub mod mcp_config;
 pub mod memory_manager;
 pub mod output_parser;
+pub mod pin_lock;
 pub mod process_manager;
 pub mod secrets_manager;
 pub mod settings_manager;

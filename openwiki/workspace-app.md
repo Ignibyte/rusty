@@ -21,6 +21,8 @@ sources:
     resource: repo://crates/rusty-app/qml/RightPane.qml
   - id: openwiki-source-5a3d0a4f21f2ef012ca2b079
     resource: repo://crates/rusty-app/qml/SearchPane.qml
+  - id: openwiki-source-d5146c6223f7d1c9aa012aca
+    resource: repo://crates/rusty-app/qml/SecretsPage.qml
   - id: openwiki-source-157820f2258f93d1ba08859f
     resource: repo://crates/rusty-app/qml/SettingsPage.qml
   - id: openwiki-source-f536fe8c8de4eb428d24ba4b
@@ -37,10 +39,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T21:23:20.744Z"}
+generated: {by: "claude-code", at: "2026-09-03T22:26:22.287Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T21:23:20.744Z
+    at: 2026-09-03T22:26:22.287Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -164,6 +166,15 @@ every view backed by the MCP server that agents share.
   delay and quits; `RUSTY_SHOT_SCENE` opens the switcher, the palette, the editor, a pane
   or a search first. `scripts/screenshot.sh` runs this against a scratch vault.
 
+The Secrets page (`SecretsPage.qml`) masks every value. When the server reports no PIN it
+offers to set one; with one set it asks for the PIN, sends it to `secret_unlock` and keeps
+the token in the page's memory alone. Unlocked, each row gains a reveal (one row at a time,
+through `secret_reveal`), a copy through a hidden text editor, and an inline edit saved on
+Enter through `secret_update`; a Lock control and a Change PIN control sit in the lock
+block. The page relocks on the expiry the unlock answered, when the window loses focus, on
+Lock, and whenever a reveal or update fails, and it polls the status every few seconds
+while a lockout runs. `pin_timeout_minutes` is among the known settings.
+
 ## Invariants
 
 - The app holds no store; every view calls tools and renders JSON.
@@ -174,6 +185,8 @@ every view backed by the MCP server that agents share.
   first.
 - App state that is not the window geometry lives in the JSON files the Rust side
   owns, not in QtCore `Settings` (which rewrote string properties with their defaults).
+- The app touches nothing under `~/.rusty` itself: the PIN, its hash and the secrets
+  file are the back end's; a value reaches the page only through a tool answer.
 
 ## Failure modes
 

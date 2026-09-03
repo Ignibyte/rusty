@@ -139,7 +139,7 @@ completed pipeline is delivered only with the completion receipt that run leaves
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 65 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 71 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -201,6 +201,19 @@ the `notes_path` setting names. An older install kept notes in `~/.rusty/notes`;
 `rusty-cli notes adopt` once (`--dry-run` first, if you like) to move them in. It refuses
 when a name already exists in the vault, deletes nothing, leaves a README behind that
 says where the notes went, and points `notes_path` at the new folder.
+
+## Secrets
+
+Keys for providers and services live in `~/.rusty/.secret`, mode 600. The Secrets tab
+lists names; a value is written once. Behind a PIN the back end keeps (an argon2id hash
+in `~/.rusty/.pin`, mode 600, set from the tab), the tab reveals one value at a time,
+edits it in place and copies it; the unlock lasts `pin_timeout_minutes` (five by default)
+and ends on Lock, when the window loses focus, and when the back end restarts; five wrong
+PINs in a row lock it for a minute. The PIN protects the screen, not the file: the back
+end reads the file headless for the embeddings key, and an agent with a shell reads it
+regardless. Never type the PIN to an agent. The tools behind it are `secret_pin_status`,
+`secret_pin_set`, `secret_unlock`, `secret_lock`, `secret_reveal` and `secret_update`;
+`secret_list` stays name-only, and no tool returns a value without a live unlock token.
 
 ## Vault tools
 

@@ -1,11 +1,11 @@
 ---
 title: Secrets behind a PIN
 pipeline_id: 3b0bcb0e-430a-4733-ac06-1f7ff3b35104
-status: Phase 1 — Plan PASS; awaiting Chad's seal before Phase 2 — Design
+status: Phase 5 — Complete: PASS (delivered 2026-09-03)
 ticket: TICKET-015
 ticket_doc: docs/planning/tickets/open/TICKET-015-secrets-behind-a-pin.md
 aar: docs/planning/knowledge/aar/AAR-015-secrets-behind-a-pin.md
-sealed:
+sealed: Chad, 2026-09-03 17:12, in the rustal session (relayed): "that sounds good to me ill defer you on safety", said to the server-owned PIN shape with argon2 accepted as a new dependency; the safety rules delegated to the rustal session are recorded under Locked decisions
 created: 2026-09-03
 ---
 
@@ -39,7 +39,7 @@ for the embeddings key.
 | REQ-005 | The server shall keep `secret_list` name-only, and no tool shall return a value without a live unlock that only the PIN grants. | tool-list test; tool tests |
 | REQ-006 | WHEN the Secrets tab is shown, it shall state what the PIN protects and that the file stays owner-readable for the back end and agents. | doc review |
 
-## Open before the seal (Chad decides)
+## Open before the seal (settled by the seal of 17:12)
 
 1. **Where the reveal lives.** The ticket's draft has the app read and write the secrets
    file itself through its own Rust type, an exception to
@@ -63,6 +63,10 @@ for the embeddings key.
 |---|---|---|---|
 | 1 | The file format and permissions do not change; the PIN is a screen lock. | The back end reads the file headless; a PIN as a key would break the embeddings at every start. | Encrypting the file with the PIN. |
 | 2 | `secret_list` stays name-only. | Nothing an agent could not already read appears in a tool answer by default. | A list with values behind the token (one call reveals everything). |
+| 3 | The back end owns the PIN: an argon2id hash at `~/.rusty/.pin` (0600), set through the app when none exists, six or more characters. | The seal; the app reads and writes nothing under `~/.rusty` itself (`AD-rusty-mcp-only-back-end-001` holds). | The app-side file read in the draft. |
+| 4 | `secret_unlock(pin)` returns a random token good for `pin_timeout_minutes` (default five), invalidated by `secret_lock`, by a server restart and by any new unlock; five wrong PINs in a row refuse further tries for one minute, counted server-side. | The safety rules delegated by Chad. | A per-session lockout (an agent could retry from a new session). |
+| 5 | `secret_reveal(key, token)` and `secret_update(key, value, token)` need a live token; `secret_list` stays name-only; no reveal exists without a token on either transport; tokens and values never reach a log. | The same. | A reveal tool without a token. |
+| 6 | The app masks by default, reveals one value at a time per row, relocks on the timer, on window focus loss and on Lock; its text says the PIN protects the screen while the file stays owner-readable, and that the PIN is never typed to an agent. | The same. | A page that stays open once unlocked. |
 
 ## Linked artifacts
 

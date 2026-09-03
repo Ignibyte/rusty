@@ -1,9 +1,10 @@
 ---
 title: TICKET-015-secrets-behind-a-pin
-status: in-progress
+status: done
 ticket_number: 015
 type: feature
 created: 2026-09-03
+closed: 2026-09-03
 intake:
 pipeline_spec: docs/planning/pipeline/active/secrets-behind-a-pin.spec.md
 ---
@@ -49,4 +50,7 @@ alone.
 - Decision for the seal: REQ-005 has the app read and write the secrets file itself, an
   exception to `AD-rusty-mcp-only-back-end-001` (the app reaches the store only through the
   back end); the spec must amend that decision or find a shape that keeps it.
-- Follow-ups opened: none.
+- Delivered on 2026-09-03 in the shape the seal chose (the back end owns the PIN; six
+  tools; the app touches nothing under `~/.rusty`). Chad's seal at 17:12 through the
+  rustal session: "that sounds good to me ill defer you on safety".
+- Follow-ups opened: none. Encryption at rest stays a seam (its own ticket if wanted).

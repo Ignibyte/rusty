@@ -7,6 +7,7 @@ use crate::brain::BrainManager;
 use crate::engine::agent_manager::AgentManager;
 use crate::engine::db::Database;
 use crate::engine::memory_manager::MemoryManager;
+use crate::engine::pin_lock::PinLock;
 use crate::engine::secrets_manager::SecretsManager;
 use crate::engine::settings_manager::SettingsManager;
 use crate::engine::task_manager::TaskManager;
@@ -45,6 +46,8 @@ pub struct Core {
     pub settings_manager: Arc<SettingsManager>,
     /// The secrets vault.
     pub secrets_manager: Arc<SecretsManager>,
+    /// The PIN behind the Secrets tab and its unlock.
+    pub pin_lock: Arc<PinLock>,
     /// The brain vault and its index.
     pub brain_manager: Arc<BrainManager>,
     /// The skills store.
@@ -107,6 +110,7 @@ impl Core {
         };
         let skills_manager = Arc::new(SkillsManager::new(skills_root.clone()));
         let secrets_manager = Arc::new(SecretsManager::new(secrets_path));
+        let pin_lock = Arc::new(PinLock::new(default_home.join(".rusty").join(".pin")));
 
         crate::engine::tools::notes::register(&tool_registry, Arc::clone(&notes_manager));
         crate::engine::tools::tasks::register(&tool_registry, Arc::clone(&user_task_manager));
@@ -134,6 +138,7 @@ impl Core {
             agent_manager,
             settings_manager,
             secrets_manager,
+            pin_lock,
             brain_manager,
             skills_manager,
             notes_path: PathBuf::from(&notes_path),

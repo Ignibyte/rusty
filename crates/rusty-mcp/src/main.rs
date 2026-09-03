@@ -308,6 +308,43 @@ pub struct SecretSetParams {
     pub value: String,
 }
 
+/// Parameters for `secret_pin_set`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct PinSetParams {
+    /// The new PIN or passphrase, six characters or more.
+    pub pin: String,
+    /// The live unlock token, needed when a PIN already exists.
+    #[serde(default)]
+    pub token: Option<String>,
+}
+
+/// Parameters for `secret_unlock`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct PinParams {
+    /// The PIN or passphrase, typed in the app.
+    pub pin: String,
+}
+
+/// Parameters for `secret_reveal`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SecretRevealParams {
+    /// The vault key.
+    pub key: String,
+    /// The live unlock token from `secret_unlock`.
+    pub token: String,
+}
+
+/// Parameters for `secret_update`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SecretUpdateParams {
+    /// The vault key.
+    pub key: String,
+    /// The new value; it is written to the vault and never echoed back.
+    pub value: String,
+    /// The live unlock token from `secret_unlock`.
+    pub token: String,
+}
+
 /// A settings key.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct SettingKeyParams {
@@ -1345,6 +1382,87 @@ impl Rusty {
         self.mutate(self.core.secrets_manager.delete(&p.key).map(|_| "deleted"))
     }
 
+    #[tool(
+        description = "Whether a PIN is set for the Secrets tab, whether the vault is unlocked right now, and any lockout left"
+    )]
+    fn secret_pin_status(&self) -> Result<CallToolResult, McpError> {
+        json_result(Ok::<_, String>(self.core.pin_lock.status()))
+    }
+
+    #[tool(
+        description = "Set the PIN behind the Secrets tab (six characters or more); changing an existing one needs the live unlock token. The PIN is typed in the app; never give it to an agent"
+    )]
+    fn secret_pin_set(
+        &self,
+        Parameters(p): Parameters<PinSetParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .pin_lock
+                .set(&p.pin, p.token.as_deref())
+                .map(|_| "set"),
+        )
+    }
+
+    #[tool(
+        description = "Unlock the secrets vault with the PIN for a few minutes (the pin_timeout_minutes setting): returns the token secret_reveal and secret_update need. Five wrong PINs in a row lock it for a minute. The PIN is typed in the app; never give it to an agent"
+    )]
+    fn secret_unlock(
+        &self,
+        Parameters(p): Parameters<PinParams>,
+    ) -> Result<CallToolResult, McpError> {
+        use rusty_core::engine::pin_lock::{DEFAULT_TIMEOUT_MINUTES, TIMEOUT_SETTING};
+        let minutes = self
+            .core
+            .settings_manager
+            .get_or_default(TIMEOUT_SETTING, &DEFAULT_TIMEOUT_MINUTES.to_string())
+            .ok()
+            .and_then(|v| v.trim().parse::<u64>().ok())
+            .filter(|m| *m > 0)
+            .unwrap_or(DEFAULT_TIMEOUT_MINUTES);
+        json_result(
+            self.core
+                .pin_lock
+                .unlock(&p.pin, std::time::Duration::from_secs(minutes * 60)),
+        )
+    }
+
+    #[tool(description = "Lock the secrets vault now; the unlock token stops working")]
+    fn secret_lock(&self) -> Result<CallToolResult, McpError> {
+        self.core.pin_lock.lock();
+        json_result(Ok::<_, String>("locked"))
+    }
+
+    #[tool(
+        description = "Read one secret's value with a live unlock token; without one nothing is returned"
+    )]
+    fn secret_reveal(
+        &self,
+        Parameters(p): Parameters<SecretRevealParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(self.core.pin_lock.check(&p.token).and_then(|_| {
+            self.core
+                .secrets_manager
+                .get(&p.key)
+                .map(|value| serde_json::json!({ "key": p.key, "value": value }))
+                .ok_or_else(|| format!("no secret named {}", p.key))
+        }))
+    }
+
+    #[tool(description = "Replace one secret's value with a live unlock token")]
+    fn secret_update(
+        &self,
+        Parameters(p): Parameters<SecretUpdateParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(
+            self.core
+                .pin_lock
+                .check(&p.token)
+                .and_then(|_| self.core.secrets_manager.set(&p.key, &p.value))
+                .map(|_| "updated"),
+        )
+    }
+
     #[tool(description = "Read one setting; null when unset")]
     fn setting_get(
         &self,
@@ -1679,6 +1797,12 @@ mod tests {
         "secret_list",
         "secret_set",
         "secret_delete",
+        "secret_pin_status",
+        "secret_pin_set",
+        "secret_unlock",
+        "secret_lock",
+        "secret_reveal",
+        "secret_update",
         "setting_get",
         "setting_set",
         "reorder_tasks",

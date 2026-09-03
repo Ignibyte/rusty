@@ -9,6 +9,8 @@ sources:
     resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-705d180fc941297b1e844397
     resource: repo://crates/rusty-core/src/core.rs
+  - id: openwiki-source-bb352c1ae3d0e8267aac9d76
+    resource: repo://crates/rusty-core/src/engine/pin_lock.rs
   - id: openwiki-source-5097c4ef41727eee45d8c689
     resource: repo://crates/rusty-core/src/lib.rs
   - id: openwiki-source-2bac0135ef08343388f2c7a1
@@ -19,10 +21,10 @@ sources:
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
+generated: {by: "claude-code", at: "2026-09-03T22:26:22.287Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T21:33:14.198Z
+    at: 2026-09-03T22:26:22.287Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -67,7 +69,17 @@ the way an agent would.
   (`tag:`, `path:`, `file:`, `type:`, `-` excluding) in the query and the two text modes
   as `case_sensitive` and `regex`.
 - Skills: list, view, create, update, scan, approve, reject, delete.
-- Secrets: list names, set, delete; a value is never returned.
+- Secrets: list names, set, delete; and, since TICKET-015, the PIN behind the Secrets
+  tab, which the server owns. `PinLock` (`rusty-core::engine::pin_lock`) keeps an
+  argon2id hash at `~/.rusty/.pin` (mode 0600) and one in-memory token. `secret_pin_status`
+  reports set, unlocked and any lockout; `secret_pin_set` sets the PIN (six characters or
+  more) and needs the live token once one exists; `secret_unlock` verifies the PIN,
+  counts five wrong tries in a row into a one-minute lockout, and returns a token good
+  for `pin_timeout_minutes` (default five); `secret_reveal` and `secret_update` require
+  that token; `secret_lock`, a new unlock and a server restart end it. `secret_list`
+  stays name-only, so no tool returns a value without a live unlock. The PIN protects
+  the screen: the secrets file's format and permissions do not change, because the back
+  end reads it headless for the embeddings key.
 - Settings: get, set, list with credential-looking values masked.
 
 The Obsidian bridge (six `obsidian_*` tools over Obsidian's CLI) was retired on
@@ -98,11 +110,15 @@ router fails the test, and every tool must carry a description.
 - No tool reaches the database directly; managers do.
 - A renamed or removed tool is a versioned break; new tools are additive.
 - Long work runs in `spawn_blocking` so the server keeps answering.
+- A secret's value leaves the server only against the live PIN token, and no call
+  logs a PIN, a token or a value.
 
 ## Failure modes
 
 - Without an embedding provider `brain_reembed` errors and search stays full text.
 - A lost HTTP session makes the app reconnect every three seconds.
+- Five wrong PINs in a row refuse every unlock for a minute, the right PIN included;
+  the lockout and the token live in memory, so a restart clears both.
 
 ## Extension points
 
@@ -115,6 +131,8 @@ router fails the test, and every tool must carry a description.
 - `cargo test -p rusty-mcp`: the router tests and the smoke test (list tools, a task
   group, resources, a new page, a whole-file write,
   a render with a style, a rename with its link rewrite, the tree, no unresolved links).
+- `cargo test -p rusty-core pin_lock`: set, unlock, check and lock; the short and the
+  wrong PIN; the lockout; the expiry; a PIN change needing the token; the file mode.
 
 ## Primary sources
 

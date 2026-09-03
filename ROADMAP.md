@@ -249,6 +249,9 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-014 Notes into the vault (2026-09-03): the notes folder defaults to `<vault>/notes`,
       `rusty-cli notes adopt` moves an older folder in once (refusing clashes, deleting nothing,
       leaving a README), the watcher covers it through the vault
+- [x] TICKET-015 Secrets behind a PIN (2026-09-03): the back end keeps an argon2id PIN and a
+      five-minute unlock token, six tools (status, set, unlock, lock, reveal, update), the tab
+      reveals one value at a time, edits in place and copies; `secret_list` stays name-only
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

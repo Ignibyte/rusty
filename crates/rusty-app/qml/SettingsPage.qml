@@ -37,6 +37,7 @@ Item {
         { key: "embedding_provider", about: "auto (Ollama when it answers), ollama, openai (needs openai_api_key in Secrets), or off.", fallback: "auto" },
         { key: "embedding_model", about: "Overrides the provider's default model (nomic-embed-text, text-embedding-3-small).", fallback: "provider default" },
         { key: "ollama_url", about: "Where Ollama listens.", fallback: "http://127.0.0.1:11434" },
+        { key: "pin_timeout_minutes", about: "How long an unlock of the Secrets tab lasts.", fallback: "5" },
         { key: "skills_enabled", about: "Whether the skills store is served to agents.", fallback: "true" },
         { key: "skills_path", about: "Where skills live (active/ and staging/).", fallback: "~/.rusty/skills" },
         { key: "brain_auto_enrich", about: "Enrich captured pages automatically.", fallback: "false" },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8c902af830de2f9aca53fc16d68dea1ca9f2c01bf777ce222c8dcedb685c774b",
+  "pageVersion": "sha256:f10d2de92033045e026c7fd8505930bcadc430a61fc6e69f7a2f4b5507a4a09f",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -333,10 +333,28 @@
           "version": "repo-lines-v1:sha256:089f40f1bd276cf9b6aa4000802c55d02b4ac02f1089b08d0947542055b501fd:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWM5MzAzOTRlNmUyZjEyZGViOGU3MzMzNzYxMGM0YzU1OGM0YjhhYThjM2U2MDFkMGE5ZmUwM2NmYmM0NzdmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTZiMDQ0OTE0Njk3MjJlODM2M2E5NGU0MDQ0NTM4ZTAxM2EyYTIxN2UzNmIxZTU2OGJhNjBhY2I3YjRjOGYyZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWU2NTA3NGNiMjAyZWFiYmI4NWUzNjkzZmNlZDQ1NWZlOGZmNWVkMmU5NjNlYzVlMGQ2NmFkMDc4ZTNhOWU5OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTNiODhmYTc4ZjlkM2VlYjQ1NTY4ZDk0NWUyNTdmYzI5YThlNzQxOTgxNWFkOTQyYjk0YjJhOWVmZDIyMTE3OCJ9"
         }
       ]
+    },
+    {
+      "id": "claim_eb36402a137941089ca41d95951e4e25",
+      "statement": "The Secrets page masks every value, offers to set a PIN when the server reports none, unlocks through `secret_unlock` and keeps the token in the page's memory alone, reveals one row at a time through `secret_reveal`, saves an inline edit on Enter through `secret_update`, copies through a hidden text editor, and relocks on the expiry the unlock answered, on window focus loss, on Lock and whenever a reveal or update fails; `pin_timeout_minutes` is among the known settings.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/SecretsPage.qml#L31-L62",
+          "version": "repo-lines-v1:sha256:d6d76a9b866b815e63d54013d5c930ebcc46b1883129d4889a30cc1ecd6d1075:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2MmFmOTk5MDkyYzdjOWE4MGE1MzU3NjM0MTE5YmExMjhlMzFiZDgzOTFjMzQ0MWY1OTdjYTQ2MTZlM2YyOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNWIyMGU0NDAxZTJhOGEwMGMyOTFjZDkwZTdiYWQ1ZWE0NjM5MzJiN2FjZGIyMmIxMjg5NmMyYWZhNjFhYzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI1MWYyNTQzMWYwOWY0YjQwZjA3ZTgyNDViNWE2NDRiMzg5NDJlMjE1MjhlMzMyOGE5M2E2M2ExY2NiMjM2ZGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFjMTgwYzA3Y2YzNzUwOTcwMDk5ZDgyOWY4ODVjOGNmZmMxYzBjMWVjNWJiNzI0NjIyNDc5ZmNiZmRhZTNmNjUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/SecretsPage.qml#L64-L95",
+          "version": "repo-lines-v1:sha256:81ab23c62d9914a4caf807c701182b03b4a6dd4d95cd3901e04e80c5d46ae6f5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3YmZhNjJjNmJjODVlNzUwMmM1Y2E0MzEyZTdlMGE0ZTdjYzI3MzYwZTU4ZGM5OGVkZjRiOWJkNDA1MTJmZGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1ZGVmNTA0MDhiZjA3ZDcxYjFkZWM0MWFmZTRmNGM1Mjc2YTMxMDYzZGQyMmM0YzEyMGQ0MDllOWU4ZDM4OWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIyMjljMWYzMzIzNDhkMzhkOGFkODU3MTI3MTM1NWE4YmViN2M4Y2VkNzJkNTUyMThjOGViMjA1ZTFiMTE4MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkxZGQyYzA0MjIwOGYxZDcyZGU2ODE4MTJhODVlOWNkZTZjOWY5MzMzYzYwMzQ2Yjg4NzM3OWY5YTc1MDU3MWEifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/SettingsPage.qml#L40-L40",
+          "version": "repo-lines-v1:sha256:c516b81c0fb7ab937b72f8dd59600bb5a874b52985c0f040d9458c21a4950650:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzUxNmI4MWMwZmI3YWI5MzdiNzJmOGRkNTk2MDBiYjVhODc0YjUyOTg1YzBmMDQwZDk0NThjMjFhNDk1MDY1MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzUxNmI4MWMwZmI3YWI5MzdiNzJmOGRkNTk2MDBiYjVhODc0YjUyOTg1YzBmMDQwZDk0NThjMjFhNDk1MDY1MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWU2YjA0MzZiOGE4NTM0YzJlM2M4ODBlMzhjYTAxNGMyZGQ0MjQ1NTY0MDA4NDFlM2VmZWUwM2E3OTI0NGNmNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmMzN2E1OWZkYTFhNmM3MGEzMTlhYWM1NDM5NTJlNzE5YmNkMGE1Njk1NzkwNjA0MWJlYjYxNDFmMDU2NTM4NCJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T21:23:20.744Z"
+    "at": "2026-09-03T22:26:22.287Z"
   }
 }
