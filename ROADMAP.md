@@ -223,7 +223,10 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-005 Search operators (`path:`, `file:`, `tag:`, `type:`, exclusion, match case,
       regex, in the pane and in `brain_search`), a Bookmarks tab (files, folders, searches,
       headings) and a Hotkeys table in Settings (2026-09-03)
-- [ ] TICKET-006 Retire the Obsidian bridge once the tiers above are in daily use
+- [x] TICKET-006 Retire the Obsidian bridge: the six tools, the core module, the CLI
+      commands, the installer's registration and the app's theme-snippet call are gone; the
+      vault stays an Obsidian vault by format (2026-09-03, on Chad's approval of tickets 2
+      to 6 rather than on daily use)
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

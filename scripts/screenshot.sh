@@ -164,7 +164,7 @@ cat > "$scratch/tabs.json" <<'JSON'
  {"kind":"tasks","title":"Tasks","slug":"","session":"","program":"","cwd":"","pinned":false}]
 JSON
 
-HOME="$scratch" XDG_CONFIG_HOME="$scratch/.config" XDG_RUNTIME_DIR="$scratch/run" RUSTY_OBSIDIAN_CLI=rusty-no-obsidian-here \
+HOME="$scratch" XDG_CONFIG_HOME="$scratch/.config" XDG_RUNTIME_DIR="$scratch/run" \
   "$target/debug/rusty-mcp" --http "127.0.0.1:$port" >"$scratch/server.log" 2>&1 &
 server=$!
 for _ in $(seq 1 50); do

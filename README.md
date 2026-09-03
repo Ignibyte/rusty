@@ -13,10 +13,10 @@ for the shape.
 ## Status
 
 Milestones M0 to M5 and M7 of `ROADMAP.md` landed on 2026-09-02: the back end, the desktop
-app with agent terminals, the Obsidian bridge, and semantic search behind a provider setting.
-M8 (Obsidian inside Rusty) is under way: the workspace shell (TICKET-002) is in; tags and
-properties, graph views, search operators and bookmarks, and the bridge's retirement follow.
-What is left in M6 is the first release.
+app with agent terminals, and semantic search behind a provider setting. M8 (Obsidian inside
+Rusty) landed on 2026-09-03: the workspace shell, tags and properties, graph views, search
+operators and bookmarks, and the retirement of the Obsidian bridge. What is left in M6 is the
+first release.
 
 ## Run it
 
@@ -119,7 +119,7 @@ completed pipeline is delivered only with the completion receipt that run leaves
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 71 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 65 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -151,8 +151,8 @@ rusty-mcp --http                 # Streamable HTTP at http://127.0.0.1:4174/mcp
 ```
 
 On a machine that will run Rusty for real, `omarchy/install.sh` builds both binaries into
-`~/.local/bin`, installs and starts the `rusty-mcp` user service, and registers the brain with
-Obsidian when it is installed. Run it again after pulling; every step is idempotent.
+`~/.local/bin`, and installs and starts the `rusty-mcp` user service. Run it again after
+pulling; every step is idempotent.
 
 ## Semantic search
 
@@ -183,23 +183,17 @@ they change.
 
 ## Obsidian
 
-Obsidian still opens the same folder, and its bridge stays until the workspace has replaced
-it in daily use (TICKET-006). The brain folder is a plain Obsidian vault, and six tools (`obsidian_status`, `obsidian_open`,
-`obsidian_backlinks`, `obsidian_links`, `obsidian_unresolved`, `obsidian_rename_page`) reach the
-running app through Obsidian's own command-line interface (Obsidian 1.12.4 or newer). The app has
-to know the vault and have the CLI switched on; `rusty-cli obsidian register` writes both into
-Obsidian's config while the app is closed (and sets the vault to rewrite links on rename without
-asking, so `obsidian_rename_page` never waits on a dialog), and `rusty-cli obsidian open <slug>` starts the app
-when it is not running. Obsidian's per-machine state in `.obsidian/` stays out of the vault's git
-history. Without Obsidian, those six tools answer with a clear error and nothing else changes.
+The brain folder is a plain Obsidian vault, and Obsidian still opens it; Rusty's own
+workspace is where the vault is read and written. The bridge that drove Obsidian's
+command-line interface (six `obsidian_*` tools, `rusty-cli obsidian`, the installer's
+registration, the app's theme-snippet call) was retired on 2026-09-03 (TICKET-006) once the
+workspace covered what it did: `brain_get_links`, `brain_unresolved` and `brain_rename` answer
+for links and renames, and the app opens pages. Obsidian's per-machine state in `.obsidian/`
+stays out of the vault's git history.
 
 Two vault rules keep the two writers agreeing. A page's timeline is its `## Timeline` section,
 and wikilinks are vault paths (`[[projects/orbit]]`). `rusty-cli brain migrate --dry-run` shows what
 an older vault would change; without the flag it rewrites the pages, reindexes, and commits.
-
-On Arch the package launcher passes `~/.config/obsidian/user-flags.conf` to every invocation,
-including CLI calls. A single-dash flag there (`-disable-gpu`, which Omarchy ships) reaches the
-CLI as a command; write it as `--disable-gpu` and the CLI drops it.
 
 ## License
 

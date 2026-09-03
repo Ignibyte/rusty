@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Install Rusty's back end on this machine: the two binaries, the user service, the
-# Obsidian vault registration when Obsidian is installed, and a reminder of the MCP
-# config. Every step is idempotent, so run it again after pulling.
+# Install Rusty's back end on this machine: the two binaries, the user service and a
+# reminder of the MCP config. Every step is idempotent, so run it again after pulling.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,7 +30,6 @@ if [ "${#missing[@]}" -gt 0 ]; then
 else
   echo "    tmux, qt6-base, qt6-declarative, qmltermwidget: present"
 fi
-command -v obsidian >/dev/null 2>&1 || echo "    obsidian: not installed (optional; the obsidian_* tools will say so)"
 
 echo "==> building rusty-mcp and rusty-cli into $bin"
 cargo install --path "$repo/crates/rusty-mcp" --root "$HOME/.local" --force --locked
@@ -71,23 +69,6 @@ if [ -z "$answered" ]; then
   exit 1
 fi
 echo "    answering on $mcp_url"
-
-echo "==> obsidian"
-if command -v obsidian >/dev/null 2>&1; then
-  flags="$HOME/.config/obsidian/user-flags.conf"
-  if [ -f "$flags" ] && grep -qx -- '-disable-gpu' "$flags"; then
-    sed -i 's/^-disable-gpu$/--disable-gpu/' "$flags"
-    echo "    user-flags.conf: -disable-gpu became --disable-gpu (the CLI read it as a command)"
-  fi
-  if "$bin/rusty-cli" obsidian register >/dev/null 2>&1; then
-    echo "    brain registered as an Obsidian vault, CLI switched on"
-  else
-    "$bin/rusty-cli" obsidian configure >/dev/null 2>&1 || true
-    echo "    Obsidian is running: quit it once and run  rusty-cli obsidian register"
-  fi
-else
-  echo "    Obsidian is not installed; the obsidian_* tools will say so when called"
-fi
 
 echo "==> desktop"
 echo "    launch or focus:  omarchy-launch-or-focus rusty"

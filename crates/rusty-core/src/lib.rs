@@ -7,7 +7,6 @@ mod core;
 pub mod engine;
 pub mod events;
 pub mod notes;
-pub mod obsidian;
 pub mod skills;
 
 pub use core::Core;

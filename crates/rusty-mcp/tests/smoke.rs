@@ -34,8 +34,7 @@ async fn a_real_client_can_list_call_and_read() {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_rusty-mcp"));
     cmd.env("HOME", &home)
         .env("XDG_CONFIG_HOME", home.join(".config"))
-        .env("XDG_RUNTIME_DIR", home.join("run"))
-        .env("RUSTY_OBSIDIAN_CLI", "rusty-no-obsidian-here");
+        .env("XDG_RUNTIME_DIR", home.join("run"));
     let client =
         ().serve(TokioChildProcess::new(cmd).expect("spawn rusty-mcp"))
             .await
@@ -50,11 +49,10 @@ async fn a_real_client_can_list_call_and_read() {
     assert!(server_name.contains("rusty"), "{server_name}");
 
     let tools = client.list_all_tools().await.unwrap();
-    assert!(tools.len() >= 71, "{} tools", tools.len());
+    assert!(tools.len() >= 65, "{} tools", tools.len());
     for name in [
         "list_task_groups",
         "brain_capture",
-        "obsidian_status",
         "settings_list",
         "brain_tree",
         "brain_render",
@@ -76,18 +74,6 @@ async fn a_real_client_can_list_call_and_read() {
         .await
         .unwrap();
     assert!(text_of(&groups).contains("Smoke"), "{}", text_of(&groups));
-
-    // Without Obsidian the bridge reports itself rather than failing the call.
-    let status = client
-        .call_tool(CallToolRequestParams::new("obsidian_status"))
-        .await
-        .unwrap();
-    let status_text = text_of(&status);
-    assert!(
-        status_text.contains("\"installed\": false"),
-        "{status_text}"
-    );
-    assert!(status_text.contains("\"running\": false"), "{status_text}");
 
     let resources = client.list_all_resources().await.unwrap();
     assert!(resources.iter().any(|r| r.uri == "rusty://tasks"));

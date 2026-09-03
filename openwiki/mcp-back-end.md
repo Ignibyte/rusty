@@ -5,6 +5,8 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-c7501cab00d475ec77094adb
     resource: repo://crates/rusty-core/src/brain/mod.rs
+  - id: openwiki-source-5097c4ef41727eee45d8c689
+    resource: repo://crates/rusty-core/src/lib.rs
   - id: openwiki-source-087a3c8d2ec2da0b0f978302
     resource: repo://crates/rusty-mcp/src/main.rs
   - id: openwiki-source-84acb13abf83511312610cd3
@@ -12,7 +14,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:46:21.914Z
+    at: 2026-09-03T05:53:02.624Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -54,9 +56,10 @@ the way an agent would.
 - Skills: list, view, create, update, scan, approve, reject, delete.
 - Secrets: list names, set, delete; a value is never returned.
 - Settings: get, set, list with credential-looking values masked.
-- Obsidian bridge: status, open, backlinks, links, unresolved, rename through
-  Obsidian's CLI when the app is running; scheduled for retirement once the workspace
-  has replaced it in daily use.
+
+The Obsidian bridge (six `obsidian_*` tools over Obsidian's CLI) was retired on
+2026-09-03; `brain_get_links`, `brain_unresolved` and `brain_rename` cover what it did,
+and the app opens pages.
 
 `EXPECTED` in the router test lists every name; a tool missing from it or from the
 router fails the test, and every tool must carry a description.
@@ -85,8 +88,6 @@ router fails the test, and every tool must carry a description.
 
 ## Failure modes
 
-- Without Obsidian the six bridge tools answer with a clear error and nothing else
-  changes.
 - Without an embedding provider `brain_reembed` errors and search stays full text.
 - A lost HTTP session makes the app reconnect every three seconds.
 
@@ -99,7 +100,7 @@ router fails the test, and every tool must carry a description.
 ## Tests
 
 - `cargo test -p rusty-mcp`: the router tests and the smoke test (list tools, a task
-  group, the Obsidian status without Obsidian, resources, a new page, a whole-file write,
+  group, resources, a new page, a whole-file write,
   a render with a style, a rename with its link rewrite, the tree, no unresolved links).
 
 ## Primary sources

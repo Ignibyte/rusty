@@ -12,7 +12,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T05:53:02.624Z
 ---
 
 # Development and validation
@@ -39,8 +39,8 @@ change, and the ways the machine's state is kept out of the record.
 - `cargo test -p rusty-core`: the managers, the vault, the renderer, the scanner, the
   semantic index; scratch directories under the system temp dir, an in-memory database.
 - `cargo test -p rusty-mcp`: the router tests and `tests/smoke.rs`, which spawns the
-  built binary over stdio in a scratch `HOME` with `RUSTY_OBSIDIAN_CLI` pointed at a
-  missing program, and walks tasks, the Obsidian status, resources and the workspace tools.
+  built binary over stdio in a scratch `HOME` and walks tasks, resources and the
+  workspace tools.
 - `cargo test -p rusty-app`: the highlighter's tokenizer, the tabs JSON, the theme
   tokens and colour math.
 - UI probes never drive the app with synthetic input on the user's desktop and never

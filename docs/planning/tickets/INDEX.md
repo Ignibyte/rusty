@@ -9,10 +9,11 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-(empty; next up TICKET-006, retiring the Obsidian bridge)
+(empty; M8 is complete, the next ticket takes number 008)
 
 ## Closed
 
+- [`TICKET-006` — Retire the Obsidian bridge](closed/TICKET-006-retire-obsidian-bridge.md) (done 2026-09-03)
 - [`TICKET-005` — Search operators, bookmarks, hotkeys](closed/TICKET-005-search-bookmarks-hotkeys.md) (done 2026-09-03)
 - [`TICKET-004` — Graph views](closed/TICKET-004-graph-views.md) (done 2026-09-03)
 - [`TICKET-003` — Tags and properties](closed/TICKET-003-tags-and-properties.md) (done 2026-09-03)

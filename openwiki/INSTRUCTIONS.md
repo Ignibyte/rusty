@@ -10,7 +10,7 @@ Prioritise:
 - the vault as the truth and SQLite as a rebuildable index: page rules, frontmatter,
   the timeline section, wikilinks as vault paths, lenient pages, soft deletes;
 - the `rusty-mcp` tool surface (tasks, notes, memories, brain, skills, secrets, settings,
-  the workspace tools, the Obsidian bridge) and its two transports;
+  the workspace tools) and its two transports;
 - the app: the workspace layout, tabs, the renderer to Qt rich text, the source editor and
   its highlighter, the terminals on tmux, theme tokens from Omarchy, the workspace state;
 - semantic search and the embedding providers, and the setting that gates what leaves

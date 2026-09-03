@@ -105,11 +105,16 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 ## Decided on 2026-09-02
 
 - Obsidian is reached through its official CLI, never through its plugin API or a community REST
-  server. `rusty_core::obsidian` wraps it; the app stays optional.
+  server. `rusty_core::obsidian` wraps it; the app stays optional. (Retired on 2026-09-03; see
+  the next bullet.)
 - The vault is registered by writing Obsidian's config file (vault entry plus `cli: true`) while the
   app is closed. Opening an unregistered folder through an `obsidian://open?path=` URL left the app
   in its picker for five minutes on the box, so that route is out.
 - `.obsidian/` is per-machine viewer state and is gitignored in the vault.
+- Retired on 2026-09-03 (TICKET-006): the CLI bridge (`rusty_core::obsidian`, the six
+  `obsidian_*` tools, `rusty-cli obsidian`, the installer's registration, the app's theme-snippet
+  call) went once the workspace tiers covered links, unresolved targets, renames and opening
+  pages. The vault stays an Obsidian vault by format.
 - Vault rules, applied by `rusty-cli brain migrate`: the timeline is a `## Timeline` section (the
   bare `---` rule is read for compatibility, never written), and wikilinks are vault paths,
   `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).
@@ -119,9 +124,9 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 ## As built (2026-09-02)
 
 - `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index, skills,
-  secrets, settings), the Obsidian bridge, the semantic index (`brain::semantic`: chunks,
+  secrets, settings), the semantic index (`brain::semantic`: chunks,
   providers, sqlite-vec, fusion), the vault migration, the file watcher and the event bus.
-- `crates/rusty-mcp`: 59 tools, five resources plus templates, `list_changed` notifications,
+- `crates/rusty-mcp`: 65 tools (2026-09-03), five resources plus templates, `list_changed` notifications,
   a background indexer for embeddings; stdio for agents, Streamable HTTP for the app.
 - `crates/rusty-app`: cxx-qt 0.10 on Qt 6. Rust types exposed to QML: `Theme` (Omarchy
   colours and the tokens read from the theme's `obsidian.css` and Alacritty palette, font,
@@ -146,6 +151,6 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   the index rows follow; deletes are soft (`archive/`). Link rows in `brain_links` hold the
   resolved slug (or the raw target when nothing matches) and the line the link sits on.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
-  `brain semantic` and `obsidian register|configure|open`.
+  and `brain semantic`.
 - `omarchy/`: installer, user service, desktop entry and icon, key binding snippet, MCP
   config snippet.

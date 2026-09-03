@@ -13,7 +13,6 @@ use rusty_core::engine::conversation_archive::ConversationArchive;
 use rusty_core::engine::db::Database;
 use rusty_core::engine::secrets_manager::SecretsManager;
 use rusty_core::engine::settings_manager::SettingsManager;
-use rusty_core::obsidian::Obsidian;
 use rusty_core::skills::{self, SkillsManager};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -48,10 +47,6 @@ USAGE:\n\
   rusty-cli ingest-conversation <path|session-id>   (archive a Claude Code transcript + brain node)\n\
   rusty-cli ingest-conversation --all [--dir <path>] [--limit N]   (backfill a project's transcripts)\n\
   rusty-cli conversations search <query...> [--limit N]\n\
-  rusty-cli obsidian status|register|launch|configure   (the brain as an Obsidian vault)\n\
-  rusty-cli obsidian open <slug>              (show a page in Obsidian, starting it if needed)\n\
-  rusty-cli obsidian backlinks <slug>\n\
-  rusty-cli obsidian unresolved               (wikilinks with no page behind them)\n\
   rusty-cli refresh   (signal the GUI to reload after a data change)";
 
 fn main() {
@@ -71,10 +66,6 @@ fn main() {
         (Some("conversations"), _) => {
             let sub = args.get(2).map(String::as_str).unwrap_or("search");
             run_conversations(sub, args.get(3..).unwrap_or_default());
-        }
-        (Some("obsidian"), _) => {
-            let sub = args.get(2).map(String::as_str).unwrap_or("status");
-            run_obsidian(sub, args.get(3..).unwrap_or_default());
         }
         (Some("refresh"), _) => refresh_signal(),
         (Some("--help") | Some("-h"), _) | (None, _) => {
@@ -720,58 +711,6 @@ fn refresh_signal() {
 fn fail(msg: &str) -> ! {
     eprintln!("error: {msg}");
     exit(1);
-}
-
-/// `rusty-cli obsidian ...`: the Obsidian bridge from the terminal.
-fn run_obsidian(sub: &str, rest: &[String]) {
-    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
-    let obsidian = Obsidian::new(configured_brain_path(&db));
-    let rt = tokio::runtime::Runtime::new()
-        .unwrap_or_else(|e| fail(&format!("start async runtime: {e}")));
-    let print_json = |value: serde_json::Value| {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string())
-        )
-    };
-    let page = || {
-        rest.first()
-            .cloned()
-            .unwrap_or_else(|| fail("a page slug or vault path is required"))
-    };
-    match sub {
-        "status" => {
-            print_json(serde_json::to_value(rt.block_on(obsidian.status())).unwrap_or_default())
-        }
-        "register" => match obsidian.register() {
-            Ok(r) => print_json(serde_json::to_value(r).unwrap_or_default()),
-            Err(e) => fail(&e),
-        },
-        "launch" => match rt.block_on(obsidian.launch()) {
-            Ok(()) => println!("Obsidian is up with vault `{}`", obsidian.vault_name()),
-            Err(e) => fail(&e),
-        },
-        "open" => match rt.block_on(obsidian.open(&page(), false)) {
-            Ok(reply) => println!("{reply}"),
-            Err(e) => fail(&e),
-        },
-        "backlinks" => match rt.block_on(obsidian.backlinks(&page())) {
-            Ok(links) => print_json(serde_json::to_value(links).unwrap_or_default()),
-            Err(e) => fail(&e),
-        },
-        "configure" => match obsidian.configure_vault() {
-            Ok(()) => println!("vault settings written to .obsidian/app.json"),
-            Err(e) => fail(&e),
-        },
-        "unresolved" => match rt.block_on(obsidian.unresolved()) {
-            Ok(links) => print_json(serde_json::to_value(links).unwrap_or_default()),
-            Err(e) => fail(&e),
-        },
-        _ => {
-            eprintln!("{USAGE}");
-            exit(2);
-        }
-    }
 }
 
 #[cfg(test)]
