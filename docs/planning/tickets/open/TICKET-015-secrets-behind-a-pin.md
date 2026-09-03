@@ -1,6 +1,6 @@
 ---
 title: TICKET-015-secrets-behind-a-pin
-status: open
+status: in-progress
 ticket_number: 015
 type: feature
 created: 2026-09-03

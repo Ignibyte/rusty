@@ -9,7 +9,7 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 ## Open queue
 
 - [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (queued, awaiting Chad's seal, 2026-09-03)
-- [`TICKET-015` — Secrets behind a PIN](open/TICKET-015-secrets-behind-a-pin.md) (queued 2026-09-03)
+- [`TICKET-015` — Secrets behind a PIN](open/TICKET-015-secrets-behind-a-pin.md) (Phase 1, awaiting Chad's seal, 2026-09-03)
 - [`TICKET-016` — Folders, part one](open/TICKET-016-folders.md) (queued 2026-09-03)
 - [`TICKET-017` — Ribbon redo](open/TICKET-017-ribbon-redo.md) (queued, waiting for Chad's explanation, 2026-09-03)
 - [`TICKET-018` — The brain loop: Ask, Decide, Follow up](open/TICKET-018-brain-loop.md) (queued 2026-09-03)
