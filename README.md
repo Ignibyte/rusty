@@ -76,8 +76,11 @@ Spec-driven and phase-gated: `CONSTITUTION.md` is the law, `AGENTS.md` (and `CLA
 route the work, `.claude/skills/rusty-workflow/` is the driving manual, and
 `docs/planning/` holds tickets, the active spec/notes pair, the knowledge register and the
 after-action reviews. `bin/gate.sh --diff` is the gate; green writes a receipt bound to the
-worktree, and gated files cannot be committed without one. CodeGraph
-(`scripts/setup-pipeline-tools.sh`) supplies structural evidence at design and inspect.
+worktree, and gated files cannot be committed without one. CodeGraph supplies structural
+evidence at design and inspect, and OpenWiki keeps the generated engineering wiki under
+`openwiki/`: every pipeline reconciles it at complete through the `openwiki` skill, and a
+completed pipeline is delivered only with the completion receipt that run leaves.
+`scripts/setup-pipeline-tools.sh` installs both, pinned and project-local.
 
 ## Layout
 

@@ -5,8 +5,9 @@
 Before opening or resuming work:
 
 - Read `docs/planning/bulletins/INDEX.md`; a critical bulletin blocks work.
-- Search `docs/planning/knowledge/INDEX.md`, the nearest completed pipeline notes, and
-  the relevant `docs/architecture/` documents.
+- Search `docs/planning/knowledge/INDEX.md`, the nearest completed pipeline notes,
+  `openwiki/quickstart.md` and the wiki pages the work touches, and the relevant
+  `docs/architecture/` documents.
 - Search the brain (`brain_search`, `brain_context` on the `rusty` MCP server) for the
   project's pages and lessons.
 - Inspect the affected code, callers and tests. CodeGraph for Rust; QML and shell by hand.
@@ -99,22 +100,28 @@ Set the status to `Phase 4 — Validate PASS; ready for Phase 5 — Complete`.
 
 1. Audit every requirement: satisfied with named evidence, split to a follow-up ticket,
    or waived with a reason.
-2. Update `docs/architecture.md`, `README.md`, `ROADMAP.md` (tick what landed) and any
+2. Run the `openwiki` skill: `init` when `openwiki/quickstart.md` is absent, `update`
+   otherwise. Reconcile the pages the change touched through claims with source
+   evidence, then call `openwiki_finish` until it returns `complete`; the hook writes
+   `.git/rusty-openwiki-receipt`. Delivery of the completed pair needs that receipt.
+3. Update `docs/architecture.md`, `README.md`, `ROADMAP.md` (tick what landed) and any
    operator docs the change touched.
-3. Write the AAR (outcomes, what went well, what went poorly, surprises, lessons, time).
+4. Write the AAR (outcomes, what went well, what went poorly, surprises, lessons, time).
    Put every new `PR-`, `BF-` and `AD-` ID in the AAR and in
    `docs/planning/knowledge/INDEX.md`.
-4. Capture the durable lesson into the brain (`brain_add_timeline` on the project page,
+5. Capture the durable lesson into the brain (`brain_add_timeline` on the project page,
    or `store_memory` for a rule), so any session recalls it.
-5. If completion edits touched a gated path, rerun `bin/gate.sh --diff`.
-6. Move the ticket from `open/` to `closed/`, mark it done, update the index. Move the
+6. If completion edits or the wiki run touched a gated path (`AGENTS.md` and
+   `CLAUDE.md` carry OpenWiki's managed section), rerun `bin/gate.sh --diff`.
+7. Move the ticket from `open/` to `closed/`, mark it done, update the index. Move the
    spec/notes pair from `active/` to `completed/`.
 
 Set the status to `Phase 5 — Complete PASS`.
 
 ## Delivery
 
-1. `bin/gate.sh --verify` must be green on the final worktree.
+1. `bin/gate.sh --verify` must be green on the final worktree, and report the OpenWiki
+   receipt as matching when a completed pair is being delivered.
 2. Stage the intended files; read the staged diff for secrets, generated state and
    unrelated changes.
 3. Commit with a clear subject, a body that says why, the ticket id, and the trailer.

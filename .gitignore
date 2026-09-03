@@ -1,5 +1,7 @@
 .codegraph/
 .dev/
+openwiki/_plan.md
+openwiki/_skeleton.md
 dist
 .env
 .env.*

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1dc15eb55df824b345b6749fe205fa09a5ea0923a668d2ae6be25a2e1c864d45",
+  "claims": [
+    {
+      "id": "claim_22450b6b90104af6bdb4515cac214f43",
+      "statement": "The renderer turns Obsidian-flavoured markdown into Qt rich text with colours and fonts inlined from a `Style` whose fields all have defaults.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-core/src/brain/render.rs#L196-L230",
+          "version": "repo-lines-v1:sha256:c32099037480c7e56cec203c17ce39cbd17d5f5a66d4185546095b441543564f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyYjkzMTQ2ZDI1YzU4MDE3ZGZhZGE0ZTVlMGU1Y2ZkODAwNWEwMjVjZDQ5NDk4MmY3N2MxNDU3YTBkZjgzOGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyMWYwMjU5NjJmZjhkYzljOGE4YzczODlmNjE1NWVjOGVlZTUxY2MyYmZiM2UzMjJkZjI1NTRjMGUzYWM2M2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI2MWZkYjhiNmE3MGZjOTI0MDIzNGMwY2M0ZGJlNzY1NjgyOTcwOTA1MjUyOTNmMDNjYWE1ZDFkZDM1ZTQzNTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3YzIyM2JhNDk4YWRiOTdkMzBkMDczMmMyYWE0ODc4YTc1MGE4NDIxY2ZmMmJmMDQzNDFkZWIxYzU0YjlhMWYifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/render.rs#L23-L62",
+          "version": "repo-lines-v1:sha256:0ccb9e218df1a78880217bdff26f4b270cc670ec736485279f93d93331cfda8e:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMjlmN2M2N2NmYmI5NWE0OWI4NDZhZjExYzM1MjZiYWYxMWU0Njc3YmIwOTQ1NDVmMDVlODJkMmYxODhhODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE2NDU3MjU4NjhiZWRmOGQ3NTgxZTBkNjE3MmQ1YmE3YTJjYzY5MTYwMmZmNGFjMDk0NzhlNDhmOThjODRjZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhMmI3NjVkNDAyYjQ4Mzg1ZjFlNTkyMmVkODJhMjI4N2VhZTZlMjY2YjZkNGFiODNhNmYyNjVhODUwYWQ4ZDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_470e1e2efc1d414e8b83ff2f896d9ea0",
+      "statement": "Callout heads are rewritten with private-use markers before parsing, because pulldown-cmark splits `[!kind]` into several text events.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-core/src/brain/render.rs#L312-L345",
+          "version": "repo-lines-v1:sha256:7fbcd794512acb0a3d694b868778b4fc64ae76219f0d50c2ad1bd5ba94702488:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxYTUxNmJkMTFjOTM1MWQ4ZTc1NmU3NzllYzUzNmMyN2MyMmE2N2UxNjIyMDQwMDVhYjhmN2QwOTcyZGZkMjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YjUzNmM4NjQ5ZWQxNDYwZDU3MjE3ZTVjYzBiMmVkNjEyNDdmMmUwMDE0MjI2NGZhN2EwMjFiY2Q4MDU5OGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVjZDQxNzg4NTUyYWFjYmVhMGQ3YjhhYTEwYjZhMTVkOTA5YTZjZDg1NmI4MTgwMDJmMjVkYzAxNjYzOTg1YjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkYjBiYjY3OTc5MDIzY2QwNjY2MjE0NDc3MDExMTcxMzM1OWVlNjkzN2I1MWEwNzE3OGNmYWY1MzhlMWE5NjkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ab6c9878dc7243e1abc08b54961896c2",
+      "statement": "Task boxes render as `rusty:task/<n>` links and the app toggles the n-th box in the raw source.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-core/src/brain/render.rs#L645-L660",
+          "version": "repo-lines-v1:sha256:da886d6e09584a0c09b05d3930bd88845f5c191da456a0ff6e2703cad1b17858:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1MjgwM2MwNWRhYmM0YWI2NTk1Zjk0MmEyYzY4Y2NiMWE5ZmU0NWQ4ZTgzMzRlOTdmMzliNjhmNDAxNzJjZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRjMTU1MmY0YWVmODdiMTY5YWVhNjMxMDJkYzVlNGQ5ZTIzZjBlYThjNTUzYjE0YTFmYTBlNDJhYjUwY2I5ZTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L128-L149",
+          "version": "repo-lines-v1:sha256:5725c4ec77a0d1b479c888399f7e342ea56d9d794556ba25cd180636ca615e95:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJhNmJjMjMxMjUyYWIyNDQ5MWU5Y2QwMGQ0YmRiYjZiNDU4OGIzYTcxNjk4YmUxMWI0NWE0MDJhNjYyMDQyZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA1MTM0MzhkM2I4YzhkZjA5NDMyNzZhNmE3M2VhYmFhMTM2N2E0NDVlNDk2ZTg0OTc0NzUxODBlNzZlNDM2YmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkxMTkzYjZjNjk4NDA2MTRlOWI3NGM1MTFlNTI1Y2QxZjZiMmU4Mzc4Y2QzNDExMzYzNjA5NWJmODRlNjkyMmMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1d67fdf40723461f950b9c3a496b10f5",
+      "statement": "The source editor's highlighter maps spans from the Rust tokenizer, in UTF-16 units with a block state, to Qt text formats.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/markdown.rs#L96-L120",
+          "version": "repo-lines-v1:sha256:188f1aaa0b981909e0cc12fbd07edb011a7ad579ce64175dc70b94ca6c149b7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkNTA5NWYwZGY4MGRjODNiN2U3MTc1OWMwMDllOTVkYmNlNDEzMTEzZjNlMDI2NTI4MzBlNjAwY2ZiMDNhOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwODg2ZjIyNjVmNTQ0NGM0Y2NjMDdhMzg2OWE5M2MxNTRhNWVmOTNiNTg3YjY2MjI2YjkzYjJmODc5ZjgwMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRlODFjZTZjZTAxMjQ0ZjQxMjFlMWJmNjRhMmQ2NjdjMGIyODI1NTQ3MDZmYzM2NTVhYzRkOWM3NGRmOWJlMGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM1ZTc5MjExMDJlZTdjOWI5ZWRiMzRhNTIyNDYzZmQyMGFiNTEwMDBkOTQ4NDlmZjU5MzlmMDM4NzU4ZDQ5OWUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/cpp/highlighter.cpp#L83-L92",
+          "version": "repo-lines-v1:sha256:2edc42782f2ee8fd0c95026ab35092259d4309b9d38877d34c03ebad20a94e21:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE4MmMyMGM1OWExZTQzYzFmZjFmN2IzYzAyYTY5NGI3ODI1NzQ3ZjQ1ODRkMTdjZDBjZjcwZjIxMGFkODliNDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzM2M4OTMyMzBlNWE2ZDcxODRlZGRiNjdmMjIyMmI2ZmI5Mjc1MWRmOTI3ZjM0ZGFiNzE3MzQzYzhmOGIwN2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.3.3",
+    "at": "2026-09-03T04:50:24.252Z"
+  }
+}

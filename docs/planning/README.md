@@ -26,5 +26,9 @@ delivers it. Design references live in `docs/design/`; standing architecture in
 - CodeGraph (`scripts/setup-pipeline-tools.sh`, `scripts/codegraph.sh`, MCP server
   `codegraph`) supplies structural evidence at design and inspect.
 - The `rusty` MCP server is the project's memory: lessons are captured into the brain at
-  complete and recalled at the start of the next pipeline. OpenWiki and OpenViking were
-  reviewed for this role and set aside; the brain already does the job locally.
+  complete and recalled at the start of the next pipeline. OpenViking was reviewed for
+  this role and set aside; the brain already does the job locally.
+- OpenWiki (`scripts/setup-pipeline-tools.sh`, `scripts/mcp-openwiki.sh`, the `openwiki`
+  skill, MCP server `openwiki`) keeps the generated engineering wiki under `openwiki/`.
+  Every pipeline reconciles it at Phase 5; `openwiki_finish` returning `complete` leaves
+  `.git/rusty-openwiki-receipt`, which the delivery of a completed pair requires.

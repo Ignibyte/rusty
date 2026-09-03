@@ -8,10 +8,10 @@ Rusty is a local-first AI personal assistant for Omarchy:
 
 - `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index,
   semantic index, skills, secrets, settings, events, watcher).
-- `crates/rusty-mcp`: the back end, an MCP server (59 tools, resources, notifications)
+- `crates/rusty-mcp`: the back end, an MCP server (67 tools, resources, notifications)
   over stdio for agents and Streamable HTTP for the app.
-- `crates/rusty-app`: the desktop app, cxx-qt on Qt 6, QML pages with native agent
-  terminals.
+- `crates/rusty-app`: the desktop app, cxx-qt on Qt 6, the knowledge workspace in QML
+  with native agent terminals.
 - `crates/rusty-cli`: terminal access to the same store.
 - `docs/architecture.md`: the standing shape. `ROADMAP.md`: the product list.
 
@@ -54,18 +54,34 @@ Before designing or implementing:
 1. `docs/planning/bulletins/INDEX.md`, then `docs/planning/knowledge/INDEX.md` for `PR-`,
    `BF-` and `AD-` entries that touch the work.
 2. The nearest notes under `docs/planning/pipeline/completed/`.
-3. `docs/architecture.md` and `docs/architecture/*.md`.
+3. `openwiki/quickstart.md` and the wiki pages the work touches (the generated
+   engineering documentation), then `docs/architecture.md` and `docs/architecture/*.md`.
 4. The brain: `brain_search` and `brain_context` through the `rusty` MCP server, which
    holds this project's pages and lessons.
 5. CodeGraph for the Rust symbols, callers and blast radius; QML and shell by reading.
 
-At complete, record lessons in the AAR, the knowledge register, and the brain.
+At complete, reconcile the wiki through the `openwiki` skill (its `openwiki_finish` must
+return `complete`), then record lessons in the AAR, the knowledge register, and the
+brain.
 
 ## Tools
 
-- `.mcp.json` wires the `rusty` server and CodeGraph for Claude Code; `.codex/config.toml`
-  does the same for Codex. `scripts/setup-pipeline-tools.sh` installs CodeGraph pinned
-  and project-local under `.dev/` (ignored); `scripts/codegraph.sh` is the CLI wrapper.
+- `.mcp.json` wires the `rusty` server, CodeGraph and OpenWiki for Claude Code;
+  `.codex/config.toml` does the same for Codex. `scripts/setup-pipeline-tools.sh`
+  installs CodeGraph and OpenWiki pinned and project-local under `.dev/` (ignored);
+  `scripts/codegraph.sh` is CodeGraph's CLI wrapper, `scripts/mcp-openwiki.sh` OpenWiki's
+  server. OpenWiki is used only through its MCP lifecycle (the host agent writes the
+  pages; nothing is sent to a provider).
 - Hooks in `.claude/settings.json` refuse: edits to gated paths outside an
   implementing pipeline (or a waiver), writes that contain something that looks like a
-  secret, and `git commit` without a matching gate receipt.
+  secret, `git commit` without a matching gate receipt, and delivery of a completed
+  pipeline without a matching OpenWiki completion receipt; a PostToolUse hook writes
+  that receipt when `openwiki_finish` returns `complete`.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+See [AGENTS.md](AGENTS.md) for OpenWiki agent instructions.
+
+<!-- OPENWIKI:END -->

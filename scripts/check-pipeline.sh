@@ -11,13 +11,22 @@ for f in CONSTITUTION.md AGENTS.md CLAUDE.md .claude/skills/rusty-workflow/SKILL
   .claude/skills/rusty-workflow/references/phases.md docs/planning/README.md \
   docs/planning/tickets/INDEX.md docs/planning/knowledge/INDEX.md docs/planning/bulletins/INDEX.md \
   docs/planning/pipeline/_templates/spec.md docs/planning/pipeline/_templates/notes.md \
-  docs/planning/_templates/ticket.md docs/planning/_templates/intake.md bin/gate.sh bin/lib-gate.sh; do
+  docs/planning/_templates/ticket.md docs/planning/_templates/intake.md bin/gate.sh bin/lib-gate.sh \
+  .claude/skills/openwiki/SKILL.md scripts/mcp-openwiki.sh scripts/lib-openwiki.sh openwiki/INSTRUCTIONS.md; do
   [[ -f "$f" ]] || fail "missing $f"
 done
-for h in enforce-phase-gate.sh enforce-secrets.sh enforce-commit-gate.sh; do
+for h in enforce-phase-gate.sh enforce-secrets.sh enforce-commit-gate.sh record-pipeline-tool-use.sh; do
   [[ -x ".claude/hooks/$h" ]] || fail "hook missing or not executable: $h"
   grep -q "$h" .claude/settings.json || fail "hook not wired in .claude/settings.json: $h"
 done
+for server in codegraph openwiki; do
+  grep -q "\"$server\"" .mcp.json || fail "MCP server not wired in .mcp.json: $server"
+  grep -q "\[mcp_servers.$server\]" .codex/config.toml || fail "MCP server not wired in .codex/config.toml: $server"
+done
+# One guide in two names: identical outside OpenWiki's managed block, which the lifecycle
+# writes in full into AGENTS.md and as a pointer into CLAUDE.md.
+strip_managed() { awk '/<!-- OPENWIKI:START -->/{skip=1} !skip{print} /<!-- OPENWIKI:END -->/{skip=0}' "$1"; }
+cmp -s <(strip_managed AGENTS.md) <(strip_managed CLAUDE.md) || fail "AGENTS.md and CLAUDE.md differ outside OpenWiki's managed block; they are one guide in two names"
 
 active=0
 for spec in docs/planning/pipeline/active/*.spec.md; do [[ -f "$spec" ]] && active=$((active + 1)); done

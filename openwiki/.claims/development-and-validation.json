@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:328b50ca9a857d9248d07744769d9b47c325e8277664b858f126f2dbca9a1768",
+  "claims": [
+    {
+      "id": "claim_c0c6eafaea2d400b8beffe873825065f",
+      "statement": "GitHub Actions runs the same gate set on every push as a second witness.",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/ci.yml#L29-L34",
+          "version": "repo-lines-v1:sha256:77b06af4eef051791719ed4fe37152c528289b2c4c0f9d14fa8863ce6bcebfc3:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmRiNTBkNzM4OWYxZjc2OGE1NzRiZGI4ODhmMGRiZDc5YmE5NTk3ODJlZDJjNTIxMmZmODgyMjNkMzE5ODI5YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODE5YjFkYmM2MTYyMDJiMjUyNjk4ZGFhMDk4YmQyMGY3YjZlNTQyYmNhMDg4ZjNlN2I4NmU2NzkyNTkzZDBkZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjRiMGVkNTAwZTgzMzE1NTFiOTYxYmY2Mzc2ZWE1ZGRhYzlkY2RiOTNhODJmOTJmZGRjMDk1Mjc2YjkzYzc2MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_35cdce94d2b14972bd1e066feff77b5d",
+      "statement": "The installer restarts the `rusty-mcp` user service after building the binaries.",
+      "evidence": [
+        {
+          "resource": "repo://omarchy/install.sh#L56-L60",
+          "version": "repo-lines-v1:sha256:81a03719943d6ae8d1682bfd85fd68ddff7789350b1a5ea565ba93b786791b61:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWNlZDNiYTZhYTM3YmQxZWVjMDZlZTg5MzU0ODkwNmQyYjJmYmI5YWI2MmE4NTQ4OTBhZmYwNDlmMjMzNzZmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzNlYzMwZDQ5ZWMwNGViOWM2M2MzMDBiNTYwZWY4ZDE4ODU2ZjU3MTdkYmRhODRmYjU2ZjU2ZjNlZmYzZjYzMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2Q5MjNjNmNlZGMwN2JjYTlkZmQ3NTU4NmJkZjU3ODhjZmFkYjk3NzY5ZmE3MmIwYzMxYWJhMDg4YTkxYzU2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzhjMjJjODBkZjNmNzRkZTQ5MzNiMWY3MzQxODlhN2NkZThhMWEzOTFlZjNjY2EyMDNlY2Q1MDA3ZTM0OGQ5MiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1eca8d7190f4690b3188df8aa48e716",
+      "statement": "The screenshot script runs the app offscreen against a scratch vault with its own tabs, state and theme directory.",
+      "evidence": [
+        {
+          "resource": "repo://scripts/screenshot.sh#L155-L165",
+          "version": "repo-lines-v1:sha256:3ec64fa0ed5eb7aa88186ab1b3d5425fe0731da7abc3a00310ea7365dcf87963:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc2MDVhYzQzYzUzNWY3YmQ5OGZmYjM0ZjA2ZGIzOTdkYWEyMjUwNWFkNzE5YTY4OWFhN2IyM2JiMTE3YmQwZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0N2RmODQ0NWQyMTVkZDUwNDFlNWRkNTI5MzgzYjM4NjAyNzIxOTdiODViOTNjMDYxYjlmMjNmZGNlYmQ1NzciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.3.3",
+    "at": "2026-09-03T04:50:24.252Z"
+  }
+}

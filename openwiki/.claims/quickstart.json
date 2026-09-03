@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6fb36f251798b87b83f52c4e05bf319095492695d9bd2eb9ad109001834d3169",
+  "claims": [
+    {
+      "id": "claim_9e9c10ea2bb241a7a0f7b9b28a1928f6",
+      "statement": "The app reaches the back end at `http://127.0.0.1:4174/mcp` unless `RUSTY_MCP_URL` says otherwise.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/backend.rs#L19-L22",
+          "version": "repo-lines-v1:sha256:d0b68fed8d0fc9db7d5dc275607b4694896252810bf08ea1ea8acb43c3e6e124:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTFkMWFmZjc1YzAxMWVlNTdmNzcxNDVlZmNlYWFhZmY1Y2U2OTE5YTg4MjdkMTgzMDU1OTc2YTVmZGM4N2FlMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTUzNjAwZmM0NThiYmE0MzRhNTI2NGJjMTc5NTZkZjIzMTUwNDUzNTE1YzdiYWZjZTU0YTNiOTU5M2I4ODVkZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzc2YWYzM2RkZWJhZmEzMTViNzUyYzY4Y2UxYjk2ZDQ3ZWYzZjMwNjhhOTlhNTM5YTZkNTNkMjk4YTIyYWI3NCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_aa1bc5f884ad45678f5f58ac3f98d97b",
+      "statement": "The app reaches the back end at `http://127.0.0.1:4174/mcp` unless `RUSTY_MCP_URL` says otherwise.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/backend.rs#L19-L22",
+          "version": "repo-lines-v1:sha256:d0b68fed8d0fc9db7d5dc275607b4694896252810bf08ea1ea8acb43c3e6e124:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTFkMWFmZjc1YzAxMWVlNTdmNzcxNDVlZmNlYWFhZmY1Y2U2OTE5YTg4MjdkMTgzMDU1OTc2YTVmZGM4N2FlMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTUzNjAwZmM0NThiYmE0MzRhNTI2NGJjMTc5NTZkZjIzMTUwNDUzNTE1YzdiYWZjZTU0YTNiOTU5M2I4ODVkZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzc2YWYzM2RkZWJhZmEzMTViNzUyYzY4Y2UxYjk2ZDQ3ZWYzZjMwNjhhOTlhNTM5YTZkNTNkMjk4YTIyYWI3NCJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.3.3",
+    "at": "2026-09-03T04:50:24.252Z"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:fe6be7feaa53588a7add966e2801a81a21f134786cd110fb906f778700012f4a",
+  "claims": [
+    {
+      "id": "claim_7741605b75254aa6a8c8a6c539a41310",
+      "statement": "Writes go through `mutate()`, which emits `DataChanged` on success; the change notifier forwards it to every connected client as `resources/list_changed`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L561-L572",
+          "version": "repo-lines-v1:sha256:7c8186f6c6f6a15f637f4db84cfea5cab52f96709e1bdc40c254650ee99ce85b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1YjliNTNkZDYxN2Q0MDhkZWQ2MTU3NTQ3MzdmMTg2NTY1OTc0ZmMwODNkYjYxMjkwNzkyZTBjYWFiNDZmZDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE4MmYxOTQ3MDUxZmNkNDVlOTNjM2Q0OTBiYWQ1MmFjMWJjMWQ5YmRmNDJkNjM0ZDIzMDc2NmFiYmVlMGJlOWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyZmM4YTBkODQyOWM3MGNmY2M0ZTg4ZGE4NjJjMzJiOGE5NDMxMWMxYjE3MWFiMTIyNzk5NDRjNzE2NDAyZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5NGZlNWYyMDAyNDAwM2UxM2Q5NDU0YWM4MjJhZjdhNTVhMWY1YWY3YzgxZWJmNWE3NTQyYzEyNWFhN2NlYTUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1556-L1580",
+          "version": "repo-lines-v1:sha256:a4465d23ed33a3cbcc419d3e8e1106ba2e5e13293304e6c7ff1bd0010c67c969:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxYjFiYjIxZjE5N2NmN2RhYTMzNjI2MDY0ZGM5ZWFjMjdkNTU5N2UwMmQwMmVjOGMzMDZkZWMzMTNhZDRlOWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1MTc5NTJiMTYyNGQ0Y2VmOTQ4NWNiYjhkMjI0Mjk2ODQ1MjY3MDhiODdlZmNkZmFjMmZiNDU1OTU2ZGM2ZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjZTJiZWE2MjU5ZTRhY2I0NjJlYmRiZGJhMTM0YzBlMTk3ZDQzZWE5Y2YyYjZhNzFiNTlkYTAyMTIwNzY5OTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d869d33cf9e54b2fba295f1e96728ce7",
+      "statement": "The indexer loop runs `sync_all` after every burst of file changes, then embeds stale pages when an embedder is configured.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1502-L1550",
+          "version": "repo-lines-v1:sha256:7307712226fd07d114f3fe3e983247191d3a4589f2e18520f1975b8778b97b25:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwMzI5YzAyOGE1OGUyNTZjOGJmYjcyZjdjNGNkMTlkOWUzZGZhOWVmZDAyZDJjYjY3Y2Q5ZjIyMmJhOGVhZGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIwNmZkZGQ1OGRjYzc3MmZlYzZiNmVkMmEzNzZlZTNiMDJlM2RhZWNmZDZhOGY5ZjMzMzc5NWFiMGQ4MWZiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_96e45d261d5046f28bd0419d51232e97",
+      "statement": "The server serves stdio by default and Streamable HTTP under `/mcp` with `--http`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1582-L1620",
+          "version": "repo-lines-v1:sha256:52b983ae9b79788ef1622aa9c376cb65086d1a76909cdbafff7381001a93436e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxYWIwMjJlYTY3ZTk4YzVkMzc5YzdkZjdlMDg3ZDM5MTJiMTBmZmM4YThkYmZmMjRhNTUyY2FjNWJhNDBiYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_77815dbc961049e1a2bd4c2f6ced98a1",
+      "statement": "The router test lists every tool by name, and the smoke test drives the built binary over stdio in a scratch HOME.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1627-L1640",
+          "version": "repo-lines-v1:sha256:2a475b2e88d7d4e6de901299dd9a16785d820898659adddcc46212f541a29a0a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NWQ5YTVmYmE1ZDlhYzQ0YWY4M2M3ZjEwMDc3MzA3OTAzNzEzY2VhOGI2MDAwMTc0YzRjNzhlOTZiNGU3YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyOTUyMTQ1NWViMDM5YjVkNWU2M2UyZTczNWM1NDAxNTMwNDNlNWJkZWI0OWZkMWQ5MGUyM2Y4Y2MzYmU3ZGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwZjI2NTEzZWYzZjNlMzMxZmM2NTUyM2FlYTM4MjJmYmVmMmY1YTQ4MGYyYzhiNzZmODVjYzcwNjM5YjVlZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3MmYwZTFhYjMwODhkODRjZGZiZWEyMDEwOThiMzk4YzRkYWM4YjM5Y2VkOTIzZjg3ZWVkNmZkY2I4NDg3ZmEifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/tests/smoke.rs#L32-L60",
+          "version": "repo-lines-v1:sha256:ea7f17cac713718039929d8adaee95bc40d53a10a1e06f51a8f0f65e4238f30e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmY2RiNWViZjBiYjI3ODVjOTIzY2YwNTBjMjhkNjgxYTJkZGFlMDFiZTBjNzg2YzAyZDE1N2FjNzkzY2JkYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzYzk1MDEwZDE1ZDMyMTljODllZTU5MDc5YjczYzg3ODg5NGE0MjlhYmZhOWEwNjU3OTg0NjBiOGY1MTI4YWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4ZDQ2ZDc4OTA3ZjU1NWY2OGIwMzNkZjljOWUxYTQ5NWU2N2QwNWQyZTBlYjBjNjFlMzEyNGRlMDllNjczNjIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f2c28e3e17274755b98d20f96904e98d",
+      "statement": "Writes go through `mutate()`, which emits `DataChanged` on success; the change notifier forwards it to every connected client as `resources/list_changed`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L561-L572",
+          "version": "repo-lines-v1:sha256:7c8186f6c6f6a15f637f4db84cfea5cab52f96709e1bdc40c254650ee99ce85b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1YjliNTNkZDYxN2Q0MDhkZWQ2MTU3NTQ3MzdmMTg2NTY1OTc0ZmMwODNkYjYxMjkwNzkyZTBjYWFiNDZmZDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE4MmYxOTQ3MDUxZmNkNDVlOTNjM2Q0OTBiYWQ1MmFjMWJjMWQ5YmRmNDJkNjM0ZDIzMDc2NmFiYmVlMGJlOWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyZmM4YTBkODQyOWM3MGNmY2M0ZTg4ZGE4NjJjMzJiOGE5NDMxMWMxYjE3MWFiMTIyNzk5NDRjNzE2NDAyZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5NGZlNWYyMDAyNDAwM2UxM2Q5NDU0YWM4MjJhZjdhNTVhMWY1YWY3YzgxZWJmNWE3NTQyYzEyNWFhN2NlYTUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1556-L1580",
+          "version": "repo-lines-v1:sha256:a4465d23ed33a3cbcc419d3e8e1106ba2e5e13293304e6c7ff1bd0010c67c969:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUxYjFiYjIxZjE5N2NmN2RhYTMzNjI2MDY0ZGM5ZWFjMjdkNTU5N2UwMmQwMmVjOGMzMDZkZWMzMTNhZDRlOWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE1MTc5NTJiMTYyNGQ0Y2VmOTQ4NWNiYjhkMjI0Mjk2ODQ1MjY3MDhiODdlZmNkZmFjMmZiNDU1OTU2ZGM2ZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVjZTJiZWE2MjU5ZTRhY2I0NjJlYmRiZGJhMTM0YzBlMTk3ZDQzZWE5Y2YyYjZhNzFiNTlkYTAyMTIwNzY5OTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3824a9f5472942fb8a4911efcd4cb3f6",
+      "statement": "The indexer loop runs `sync_all` after every burst of file changes, then embeds stale pages when an embedder is configured.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1502-L1550",
+          "version": "repo-lines-v1:sha256:7307712226fd07d114f3fe3e983247191d3a4589f2e18520f1975b8778b97b25:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwMzI5YzAyOGE1OGUyNTZjOGJmYjcyZjdjNGNkMTlkOWUzZGZhOWVmZDAyZDJjYjY3Y2Q5ZjIyMmJhOGVhZGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIwNmZkZGQ1OGRjYzc3MmZlYzZiNmVkMmEzNzZlZTNiMDJlM2RhZWNmZDZhOGY5ZjMzMzc5NWFiMGQ4MWZiZmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmYWI3MTBkZGY3ODU5ZTU3NTc2NGE5MTNhMDAyYzc0NTg1ZmZhNzAwMTUxMGNiODgxMWRhODNkMmNmNzRiMzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_78019ca24acb4da88dc6db2110f0c9a8",
+      "statement": "The server serves stdio by default and Streamable HTTP under `/mcp` with `--http`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1582-L1620",
+          "version": "repo-lines-v1:sha256:52b983ae9b79788ef1622aa9c376cb65086d1a76909cdbafff7381001a93436e:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRkMWE3M2FkMWQ0NmRjYmFlYzAwZDA2ODMxMDc4N2UyODg4NmRjOWM2MTdjODAwMWM3NzNlZTgwNDJiMGIyOWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxYWIwMjJlYTY3ZTk4YzVkMzc5YzdkZjdlMDg3ZDM5MTJiMTBmZmM4YThkYmZmMjRhNTUyY2FjNWJhNDBiYmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiYzk4ZDZiMGRjNDkyYzUwMTZkZjEwODA1YTNhNTRlYjljMTg0YTVhNjEzN2U3ZjRiZWNmYTBjMjIwNTUwZDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_40727d35279745638efe3e25d2b69222",
+      "statement": "The router test lists every tool by name, and the smoke test drives the built binary over stdio in a scratch HOME.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1627-L1640",
+          "version": "repo-lines-v1:sha256:2a475b2e88d7d4e6de901299dd9a16785d820898659adddcc46212f541a29a0a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NWQ5YTVmYmE1ZDlhYzQ0YWY4M2M3ZjEwMDc3MzA3OTAzNzEzY2VhOGI2MDAwMTc0YzRjNzhlOTZiNGU3YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyOTUyMTQ1NWViMDM5YjVkNWU2M2UyZTczNWM1NDAxNTMwNDNlNWJkZWI0OWZkMWQ5MGUyM2Y4Y2MzYmU3ZGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwZjI2NTEzZWYzZjNlMzMxZmM2NTUyM2FlYTM4MjJmYmVmMmY1YTQ4MGYyYzhiNzZmODVjYzcwNjM5YjVlZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3MmYwZTFhYjMwODhkODRjZGZiZWEyMDEwOThiMzk4YzRkYWM4YjM5Y2VkOTIzZjg3ZWVkNmZkY2I4NDg3ZmEifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/tests/smoke.rs#L32-L60",
+          "version": "repo-lines-v1:sha256:ea7f17cac713718039929d8adaee95bc40d53a10a1e06f51a8f0f65e4238f30e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmY2RiNWViZjBiYjI3ODVjOTIzY2YwNTBjMjhkNjgxYTJkZGFlMDFiZTBjNzg2YzAyZDE1N2FjNzkzY2JkYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzYzk1MDEwZDE1ZDMyMTljODllZTU5MDc5YjczYzg3ODg5NGE0MjlhYmZhOWEwNjU3OTg0NjBiOGY1MTI4YWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc3NzJlOTI3NWNiNmEyNGZmYTg5NTJjY2E3N2U2YTRhNWEyYWRlNjNjZWQ0MzUxYzZiYzU4NjBhYWZlNTIyZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4ZDQ2ZDc4OTA3ZjU1NWY2OGIwMzNkZjljOWUxYTQ5NWU2N2QwNWQyZTBlYjBjNjFlMzEyNGRlMDllNjczNjIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.3.3",
+    "at": "2026-09-03T04:50:24.252Z"
+  }
+}

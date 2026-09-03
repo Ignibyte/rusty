@@ -20,6 +20,14 @@ rusty_receipt_path() {
   printf '%s/rusty-gate-receipt\n' "$git_dir"
 }
 
+# The OpenWiki completion receipt: written by the PostToolUse hook when a lifecycle run
+# finishes `complete`, bound to the same fingerprint as the gate receipt.
+rusty_openwiki_receipt_path() {
+  local git_dir
+  git_dir=$(git rev-parse --git-dir 2>/dev/null) || return 1
+  printf '%s/rusty-openwiki-receipt\n' "$git_dir"
+}
+
 # Every gated file: tracked, plus untracked files that are not ignored.
 rusty_gated_files() {
   local root
@@ -73,4 +81,20 @@ rusty_verify_receipt() {
     return 1
   fi
   echo "receipt matches the worktree ($mode, $at)"
+}
+
+# Does the OpenWiki completion receipt exist and match this worktree? Prints why not.
+rusty_verify_openwiki_receipt() {
+  local receipt fp at pipeline
+  receipt=$(rusty_openwiki_receipt_path) || { echo "not inside a git worktree"; return 1; }
+  [[ -f "$receipt" ]] || { echo "no OpenWiki completion receipt at $receipt; run the openwiki skill (Phase 5)"; return 1; }
+  fp=$(sed -n 's/^fingerprint=//p' "$receipt")
+  at=$(sed -n 's/^at=//p' "$receipt")
+  pipeline=$(sed -n 's/^pipeline=//p' "$receipt")
+  [[ "$(sed -n 's/^version=//p' "$receipt")" == "1" && -n "$fp" ]] || { echo "OpenWiki receipt does not parse; run the openwiki skill again"; return 1; }
+  if [[ "$fp" != "$(rusty_fingerprint)" ]]; then
+    echo "worktree changed since the OpenWiki run finished at $at; run the openwiki skill again"
+    return 1
+  fi
+  echo "OpenWiki receipt matches the worktree (pipeline $pipeline, $at)"
 }

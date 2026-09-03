@@ -227,8 +227,11 @@ workflow in `CONSTITUTION.md`.
 
 - [x] TICKET-001 Spec-driven, phase-gated workflow with a local record, gate receipt,
       hooks and CodeGraph (2026-09-02; `CONSTITUTION.md`, `docs/planning/`)
+- [x] TICKET-007 OpenWiki, pinned and project-local, driven through its MCP lifecycle
+      by the host agent; required at Phase 5 with a completion receipt the delivery
+      checks; the first wiki generated (2026-09-03)
 - [ ] Enroll in `rw` (rustal-workflow) when rustal-brain runs on the box
-- [ ] Stop-hook claim checking and tool receipts (OmarchyGS has both)
+- [ ] Stop-hook claim checking (OmarchyGS has it; the OpenWiki tool receipt is in)
 
 ## Later
 

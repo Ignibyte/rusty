@@ -20,9 +20,10 @@ completely before changing files.
 4. Otherwise run `scripts/check-pipeline.sh`, start Phase 1, and continue through the
    phases the requested outcome needs.
 
-Before Phase 2, run `scripts/check-pipeline-tools.sh`; if CodeGraph is not prepared, run
-`scripts/setup-pipeline-tools.sh`. A newly wired MCP server needs a session restart;
-until then `scripts/codegraph.sh explore …` is the permitted fallback.
+Before Phase 2, run `scripts/check-pipeline-tools.sh`; if CodeGraph or OpenWiki is not
+prepared, run `scripts/setup-pipeline-tools.sh`. A newly wired MCP server needs a
+session restart; until then `scripts/codegraph.sh explore …` is the permitted fallback
+for CodeGraph. Phase 5 runs the `openwiki` skill (`.claude/skills/openwiki/SKILL.md`).
 
 ## Rules of the road
 
@@ -30,7 +31,8 @@ until then `scripts/codegraph.sh explore …` is the permitted fallback.
   not infer a phase from chat history.
 - Never claim a gate, test or tool ran unless it did, and paste what it printed.
 - Never commit without a matching receipt (`bin/gate.sh --verify`), never `--no-verify`,
-  never touch `.git/rusty-gate-receipt` by hand.
+  never touch `.git/rusty-gate-receipt` or `.git/rusty-openwiki-receipt` by hand. A
+  completed pipeline is delivered only with a matching OpenWiki completion receipt.
 - Tests and probes never touch Chad's real data: the smoke test uses a scratch `HOME`;
   UI probes use throwaway rows they create and delete by id.
 - Pause only for a missing decision that would change scope, or when the user asked for

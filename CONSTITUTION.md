@@ -64,6 +64,12 @@ recall → plan → design → implement → inspect → validate → complete �
   never claim a command ran that did not.
 - Hooks are guardrails; the gate and its receipt are the proof. A hook that is missing
   does not lower the bar.
+- A pipeline completes only after the generated wiki (`openwiki/`) has been reconciled
+  through the project-local OpenWiki lifecycle and `openwiki_finish` returned
+  `complete`; the PostToolUse hook writes `.git/rusty-openwiki-receipt`, bound to the
+  worktree like the gate receipt. A commit that delivers a completed pipeline needs
+  that receipt to match, unless a waiver is in force. The receipt is never written by
+  hand.
 - Commits name their ticket (`TICKET-001`) and carry the trailer
   `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
 
@@ -71,8 +77,9 @@ recall → plan → design → implement → inspect → validate → complete �
 
 - Before planning or implementing: read `docs/planning/bulletins/INDEX.md` (a critical
   bulletin blocks work), search `docs/planning/knowledge/INDEX.md`, read the nearest
-  completed pipeline notes, and the relevant `docs/architecture/` documents. Search the
-  brain (`brain_search`, `brain_context`) for the project's own memory.
+  completed pipeline notes, `openwiki/quickstart.md` and the wiki pages the work
+  touches, and the relevant `docs/architecture/` documents. Search the brain
+  (`brain_search`, `brain_context`) for the project's own memory.
 - CodeGraph is used at design and after implementation to see structural flows and blast
   radius (`codegraph_explore`, or `scripts/codegraph.sh explore` when the MCP server is
   not up yet). It reads Rust; QML and shell are inspected directly.
@@ -95,3 +102,7 @@ recall → plan → design → implement → inspect → validate → complete �
   receipt, CodeGraph at design and inspect), rustal-workflow (sealed specs, EARS, evidence
   policy) and aic (AAR shape, one active pipeline). OpenWiki and OpenViking were reviewed
   and not adopted as dependencies: Rusty's brain fills their role for this project.
+- 2026-09-03 (TICKET-007): OpenWiki adopted for documentation at Chad's request, pinned
+  and project-local, driven only through its MCP lifecycle by the host agent, required at
+  Phase 5 with a completion receipt the delivery checks (§15, §18). The brain keeps the
+  memory role.

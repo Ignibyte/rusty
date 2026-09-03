@@ -1,0 +1,8 @@
+# What OpenWiki's lifecycle never reads as source: build output, the project-local
+# tools, indexes, screenshots and the planning record's images.
+target/
+.dev/
+.codegraph/
+docs/screenshots/
+docs/design/
+*.png

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse on Bash: a `git commit` that includes gated files needs a receipt that matches
-# the worktree (bin/gate.sh --diff). Docs-only commits pass. `--no-verify` is refused.
+# the worktree (bin/gate.sh --diff); one that delivers a completed pipeline (a spec under
+# docs/planning/pipeline/completed/) needs a matching OpenWiki completion receipt too,
+# unless a waiver is in force. Docs-only commits pass. `--no-verify` is refused.
 set -Eeuo pipefail
 HOOK_INPUT=$(cat)
 command -v jq >/dev/null 2>&1 || exit 0
@@ -18,13 +20,17 @@ root=$(hook_root) || exit 0
 # Which files would this commit carry: staged now, or (with -a) modified tracked files.
 staged=$(git -C "$root" diff --cached --name-only 2>/dev/null; if grep -qE '(^|[[:space:]])-(a|am|-all)([[:space:]]|$)' <<<"$cmd"; then git -C "$root" diff --name-only 2>/dev/null; fi)
 gated=""
+completed=""
 while IFS= read -r f; do
   [[ -n "$f" ]] || continue
   if rusty_is_gated "$f"; then gated+="$f"$'\n'; fi
+  if [[ "$f" == docs/planning/pipeline/completed/*.spec.md ]]; then completed+="$f"$'\n'; fi
 done <<<"$staged"
-[[ -n "$gated" ]] || exit 0
 
-if msg=$(rusty_verify_receipt); then
-  exit 0
+if [[ -n "$gated" ]] && ! msg=$(rusty_verify_receipt); then
+  hook_block "COMMIT GATE: this commit carries gated files ($(printf '%s' "$gated" | head -3 | tr '\n' ' ')…) and $msg"
 fi
-hook_block "COMMIT GATE: this commit carries gated files ($(printf '%s' "$gated" | head -3 | tr '\n' ' ')…) and $msg"
+if [[ -n "$completed" && ! -f "$root/docs/planning/pipeline/WAIVER.md" ]] && ! msg=$(rusty_verify_openwiki_receipt); then
+  hook_block "COMPLETION GATE: this commit delivers a completed pipeline ($(printf '%s' "$completed" | head -1)) and $msg (CONSTITUTION §15)"
+fi
+exit 0
