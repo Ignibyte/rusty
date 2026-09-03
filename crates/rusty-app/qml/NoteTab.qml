@@ -47,6 +47,7 @@ Item {
     signal openTag(string tag)
     signal requestMove(string slug)
     signal requestDelete(string slug)
+    signal requestLocalGraph(string slug)
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -281,6 +282,7 @@ Item {
                 MenuItem { text: note.editing ? "Reading view" : "Edit source"; onTriggered: note.toggleEditing() }
                 MenuItem { text: "Rename…"; onTriggered: note.editTitle() }
                 MenuItem { text: "Move file to…"; onTriggered: note.requestMove(note.slug) }
+                MenuItem { text: "Open local graph"; onTriggered: note.requestLocalGraph(note.slug) }
                 MenuSeparator {}
                 MenuItem { text: "Delete file"; onTriggered: note.requestDelete(note.slug) }
             }

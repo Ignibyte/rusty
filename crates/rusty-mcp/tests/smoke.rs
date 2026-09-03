@@ -50,7 +50,7 @@ async fn a_real_client_can_list_call_and_read() {
     assert!(server_name.contains("rusty"), "{server_name}");
 
     let tools = client.list_all_tools().await.unwrap();
-    assert!(tools.len() >= 70, "{} tools", tools.len());
+    assert!(tools.len() >= 71, "{} tools", tools.len());
     for name in [
         "list_task_groups",
         "brain_capture",
@@ -247,6 +247,23 @@ async fn a_real_client_can_list_call_and_read() {
         text_of(&after).contains("A plan with #smoke/test inside."),
         "{}",
         text_of(&after)
+    );
+    let graph = client
+        .call_tool(
+            CallToolRequestParams::new("brain_graph").with_arguments(args(
+                serde_json::json!({"tags": true, "around": "ideas/Linker", "depth": 1}),
+            )),
+        )
+        .await
+        .unwrap();
+    let graph_text = text_of(&graph);
+    assert!(
+        graph_text.contains("\"id\": \"concepts/Moved plan\""),
+        "{graph_text}"
+    );
+    assert!(
+        graph_text.contains("\"from\": \"ideas/Linker\""),
+        "{graph_text}"
     );
     let removed = client
         .call_tool(

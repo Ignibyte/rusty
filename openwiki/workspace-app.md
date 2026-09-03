@@ -5,6 +5,8 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-a2d65a21b1f78042c4d974ff
     resource: repo://crates/rusty-app/qml/AgentTerminal.qml
+  - id: openwiki-source-3b43dd803d4036a4a5fbc4bc
+    resource: repo://crates/rusty-app/qml/GraphView.qml
   - id: openwiki-source-01a38728b296862b2b3bc449
     resource: repo://crates/rusty-app/qml/Main.qml
   - id: openwiki-source-d678395ec2ca71c73018a3fd
@@ -20,7 +22,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:10:15.800Z
+    at: 2026-09-03T05:22:20.038Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -82,9 +84,18 @@ every view backed by the MCP server that agents share.
   titles reach the tab; output in a hidden tab marks it unread, a title that asks for
   attention raises a desktop notification once per title and at most once a minute. A
   terminal starts its session when first shown.
+- The graph (`GraphView`, tab kind `graph`, Ctrl+G, the ribbon, "Open local graph" on a
+  page): `brain_graph` supplies nodes and edges; a force simulation on a timer
+  (repulsion between every pair, springs on the edges toward the link distance, a pull
+  to the centre, damping, cooling until the layout settles) lays them out; a `Canvas`
+  draws links, dots sized by the square root of the degree, and labels that fade in
+  with the zoom or show on hover; the panel folds into Filters, Groups (queries with a
+  colour from the theme's palette, first match wins), Display and Forces, remembered in
+  the workspace state under `graph`. A local graph is the same view with `around` set
+  and follows the last page that was current.
 - Keys are Obsidian's (Ctrl+O, Ctrl+P, Ctrl+N, Ctrl+E, Ctrl+W, Ctrl+Tab, Ctrl+Shift+F,
-  Ctrl+,, Alt+Left/Right, F2) and are disabled while a terminal has focus; the four
-  terminal keys (Ctrl+Shift+T, Ctrl+Shift+W, Ctrl+PgUp/PgDn) stay global.
+  Ctrl+,, Ctrl+G, Alt+Left/Right, F2) and are disabled while a terminal has focus; the
+  four terminal keys (Ctrl+Shift+T, Ctrl+Shift+W, Ctrl+PgUp/PgDn) stay global.
 - Screenshots: `RUSTY_SHOT=<png>` grabs the window through `Tools.grabWindow` after a
   delay and quits; `RUSTY_SHOT_SCENE` opens the switcher, the palette, the editor, a pane
   or a search first. `scripts/screenshot.sh` runs this against a scratch vault.

@@ -9,10 +9,11 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-(empty; next up TICKET-004, graph views)
+(empty; next up TICKET-005, search operators, bookmarks and hotkeys)
 
 ## Closed
 
+- [`TICKET-004` — Graph views](closed/TICKET-004-graph-views.md) (done 2026-09-03)
 - [`TICKET-003` — Tags and properties](closed/TICKET-003-tags-and-properties.md) (done 2026-09-03)
 - [`TICKET-007` — OpenWiki in the workflow](closed/TICKET-007-openwiki-in-the-workflow.md) (done 2026-09-03)
 - [`TICKET-002` — Knowledge workspace shell](closed/TICKET-002-knowledge-workspace-shell.md) (done 2026-09-02)

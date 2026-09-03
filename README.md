@@ -58,6 +58,17 @@ property edit changes only the frontmatter; the body stays byte for byte.
 
 ![Tags and properties](docs/screenshots/tags-and-properties.png)
 
+The graph view (Ctrl+G, the ribbon, or "Open local graph" on a page) draws the vault as
+Obsidian does: pages as dots sized by their links, links as lines, laid out by forces on
+a canvas, with a panel of Filters (search, tags, existing files only, orphans), Groups
+(a `tag:`, `path:`, `type:` or text query with a colour from the theme's palette),
+Display (arrows, text fade, node size, link thickness) and Forces (centre, repel, link,
+link distance). Drag the background to pan, wheel to zoom, hover a node to see its title
+and its neighbours, click it to open the page. A local graph shows one page's
+neighbourhood to a chosen depth and follows the page you open.
+
+![The graph view](docs/screenshots/graph-view.png)
+
 Keys follow Obsidian: Ctrl+O quick switcher (type a name that does not exist and Enter
 creates it), Ctrl+P command palette (every command with its key), Ctrl+N new note, Ctrl+E
 reading or source, Ctrl+W close tab, Ctrl+Tab and Ctrl+Shift+Tab (or Ctrl+PgUp/PgDn) switch
@@ -96,7 +107,7 @@ completed pipeline is delivered only with the completion receipt that run leaves
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 70 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 71 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -151,8 +162,9 @@ The workspace's own tools, which agents share: `brain_tree` (the folders and fil
 properties and raw file), `brain_write_page` (the whole file, as an editor saves),
 `brain_new_page`, `brain_new_folder`, `brain_delete_folder` (soft, into `archive/`),
 `brain_rename` (page or folder, every link rewritten, index rows moved),
-`brain_unresolved`, `brain_tags` (every tag with its count) and `brain_set_property` and
-`brain_remove_property` (one frontmatter key, typed). A vault file without frontmatter is a page too: its title is the file
+`brain_unresolved`, `brain_tags` (every tag with its count), `brain_set_property` and
+`brain_remove_property` (one frontmatter key, typed), and `brain_graph` (pages and links
+as nodes and edges, tags and unresolved targets on request, or one page's neighbourhood). A vault file without frontmatter is a page too: its title is the file
 name and its type comes from its top folder (`people/` is `person`), or `note`. The server
 also indexes files changed by another program (Obsidian, an editor, git) a few seconds after
 they change.

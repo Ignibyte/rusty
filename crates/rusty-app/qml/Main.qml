@@ -63,6 +63,7 @@ ApplicationWindow {
         property string rightPane: "backlinks"
         property string expanded: "{}"
         property string paneProgram: ""
+        property string graph: "{}"
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
@@ -73,6 +74,7 @@ ApplicationWindow {
         onRightPaneChanged: save()
         onExpandedChanged: save()
         onPaneProgramChanged: save()
+        onGraphChanged: save()
         // Written with the `ui.` prefix throughout: an unqualified `rightPane` here would
         // find the sidebar item of that id before this object's property.
         function load() {
@@ -86,13 +88,14 @@ ApplicationWindow {
                 if (typeof s.rightPane === "string") ui.rightPane = s.rightPane
                 if (typeof s.expanded === "string") ui.expanded = s.expanded
                 if (typeof s.paneProgram === "string") ui.paneProgram = s.paneProgram
+                if (typeof s.graph === "string") ui.graph = s.graph
             } catch (e) {}
             ui.loaded = true
         }
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -112,7 +115,11 @@ ApplicationWindow {
     readonly property bool terminalFocused: activeFocusItem !== null && activeFocusItem !== undefined && activeFocusItem.objectName === "term"
     readonly property var agentNames: ({ claude: "Claude Code", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", shell: "Shell" })
     readonly property var agentGlyphs: ({ claude: "✳", codex: "◇", gemini: "✦", aider: "⌁", opencode: "◈", shell: "$" })
-    readonly property var viewTitles: ({ tasks: "Tasks", memory: "Memory", skills: "Skills", secrets: "Secrets", settings: "Settings" })
+    readonly property var viewTitles: ({ tasks: "Tasks", memory: "Memory", skills: "Skills", secrets: "Secrets", settings: "Settings", graph: "Graph view" })
+    // The page a local graph follows: the last page tab that was current.
+    property string lastPageSlug: ""
+    readonly property var graphSettings: { try { return JSON.parse(ui.graph || "{}") } catch (e) { return ({}) } }
+    function saveGraphSettings(s) { ui.graph = JSON.stringify(s) }
     readonly property var tokens: JSON.parse(theme.tokens || "{}")
     function agentLabel(p) { return agentNames[p] || p }
     function agentGlyph(p) { return agentGlyphs[p] || "▸" }
@@ -148,6 +155,23 @@ ApplicationWindow {
         const existing = findTab(function (t) { return t.kind === kind })
         if (existing >= 0) { stack.currentIndex = existing; return }
         tabs.append({ kind: kind, title: viewTitles[kind] || kind, slug: "", session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        stack.currentIndex = tabs.count - 1
+        saveTabs()
+    }
+    // The global graph is one tab; a local graph is a tab of its own that follows the
+    // page that was open when it was made and every page opened after.
+    function openGraph(local) {
+        if (!local) {
+            const existing = findTab(function (t) { return t.kind === "graph" && t.slug === "" })
+            if (existing >= 0) { stack.currentIndex = existing; return }
+            tabs.append({ kind: "graph", title: "Graph view", slug: "", session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        } else {
+            const slug = currentNote ? currentNote.slug : lastPageSlug
+            if (slug.length === 0) { win.notice = "open a page first"; return }
+            const existing = findTab(function (t) { return t.kind === "graph" && t.slug !== "" })
+            if (existing >= 0) { stack.currentIndex = existing; return }
+            tabs.append({ kind: "graph", title: "Local graph", slug: slug, session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        }
         stack.currentIndex = tabs.count - 1
         saveTabs()
     }
@@ -212,7 +236,7 @@ ApplicationWindow {
         if (i < 0 || i >= tabs.count) return
         if (tabs.get(i).slug !== slug) { tabs.setProperty(i, "slug", slug); saveTabs() }
         tabs.setProperty(i, "title", baseName(slug))
-        if (i === stack.currentIndex) explorer.currentSlug = slug
+        if (i === stack.currentIndex) { explorer.currentSlug = slug; lastPageSlug = slug }
     }
     function markUnread(i) {
         if (i === stack.currentIndex || i < 0 || i >= tabs.count) return
@@ -229,6 +253,7 @@ ApplicationWindow {
         const h = hosts.itemAt(stack.currentIndex)
         currentNote = (h && h.kind === "page") ? h.item : null
         explorer.currentSlug = currentNote ? currentNote.slug : ""
+        if (currentNote && currentNote.slug.length > 0) lastPageSlug = currentNote.slug
         const t = currentTab()
         if (t && t.kind === "terminal") tabs.setProperty(stack.currentIndex, "unread", false)
     }
@@ -316,6 +341,8 @@ ApplicationWindow {
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
                 else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
+                else if (p === "graph") win.openGraph(false)
+                else if (p === "localgraph") win.openGraph(true)
                 else if (p.startsWith("tab:")) stack.currentIndex = parseInt(p.slice(4))
             }
         }
@@ -345,6 +372,7 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: win.prevTab() }
     Shortcut { sequences: ["Ctrl+Shift+F"]; enabled: !win.terminalFocused; onActivated: win.showLeft("search") }
     Shortcut { sequences: ["Ctrl+,"]; enabled: !win.terminalFocused; onActivated: win.openView("settings") }
+    Shortcut { sequences: ["Ctrl+G"]; enabled: !win.terminalFocused; onActivated: win.openGraph(false) }
     Shortcut { sequences: ["Alt+Left"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goBack() }
     Shortcut { sequences: ["Alt+Right"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goForward() }
     Shortcut { sequences: ["F2"]; enabled: !win.terminalFocused; onActivated: { if (win.currentNote) win.currentNote.editTitle(); else if (win.currentTab() && win.currentTab().kind === "terminal") renameDialog.openFor(stack.currentIndex) } }
@@ -379,7 +407,8 @@ ApplicationWindow {
             { name: "Tags: Show tags", keys: "", run: function () { win.showRight("tags") } },
             { name: "Properties: Add a property to this page", keys: "", enabled: win.currentNote !== null, run: function () { win.currentNote.startAddProperty() } },
             { name: "Agent: Show the agent pane", keys: "", run: function () { win.showRight("agent") } },
-            { name: "Graph view: Open graph view (coming with TICKET-004)", keys: "Ctrl+G", enabled: false, run: function () {} },
+            { name: "Graph view: Open graph view", keys: "Ctrl+G", run: function () { win.openGraph(false) } },
+            { name: "Graph view: Open local graph", keys: "", enabled: win.currentNote !== null || win.lastPageSlug.length > 0, run: function () { win.openGraph(true) } },
             { name: "Tasks: Open tasks", keys: "", run: function () { win.openView("tasks") } },
             { name: "Memory: Open memories", keys: "", run: function () { win.openView("memory") } },
             { name: "Skills: Open skills", keys: "", run: function () { win.openView("skills") } },
@@ -509,7 +538,8 @@ ApplicationWindow {
                            : host.kind === "memory" ? memoryComp
                            : host.kind === "skills" ? skillsComp
                            : host.kind === "secrets" ? secretsComp
-                           : host.kind === "settings" ? settingsComp : null
+                           : host.kind === "settings" ? settingsComp
+                           : host.kind === "graph" ? graphComp : null
             onLoaded: if (host.isCurrent) win.updateCurrent()
         }
         Component {
@@ -523,6 +553,7 @@ ApplicationWindow {
                 onOpenTag: (tag) => win.searchFor("tag:" + tag)
                 onRequestMove: (s) => explorer.moveDialogFor(s)
                 onRequestDelete: (s) => explorer.deleteDialogFor(s)
+                onRequestLocalGraph: (s) => win.openGraph(true)
             }
         }
         Component {
@@ -538,6 +569,18 @@ ApplicationWindow {
                 onUnread: win.markUnread(host.index)
                 onAttention: (m) => win.attention(host.index, m)
                 onTitleChanged: win.setTermTitle(host.index, title)
+            }
+        }
+        Component {
+            id: graphComp
+            GraphView {
+                backend: win.backend
+                theme: win.theme
+                around: host.slug.length > 0 ? (win.lastPageSlug.length > 0 ? win.lastPageSlug : host.slug) : ""
+                settings: win.graphSettings
+                onOpenPage: (slug) => win.openPage(slug, false)
+                onSearchTag: (tag) => win.searchFor("tag:" + tag)
+                onSettingsEdited: (s) => win.saveGraphSettings(s)
             }
         }
         Component { id: tasksComp; TasksPage { backend: win.backend; theme: win.theme } }
@@ -629,7 +672,7 @@ ApplicationWindow {
                     spacing: 4
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; tip: "Graph view (TICKET-004)"; enabled: false }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; tip: "Graph view (Ctrl+G)"; active: win.currentTab() !== null && win.currentTab().kind === "graph"; onClicked: win.openGraph(false) }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "command"; tip: "Command palette (Ctrl+P)"; onClicked: palette.show() }
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
@@ -774,6 +817,7 @@ ApplicationWindow {
                                             spacing: 5
                                             Icon { visible: tabItem.pinned; name: "pin"; color: theme.muted; size: 12 }
                                             Text { visible: tabItem.kind === "terminal"; text: win.agentGlyph(tabItem.program); color: tabItem.active ? theme.foreground : theme.muted; font.pixelSize: 12 }
+                                            Icon { visible: tabItem.kind === "graph"; name: "graph"; color: tabItem.active ? theme.foreground : theme.muted; size: 13 }
                                             Text {
                                                 id: tabLabel
                                                 Layout.fillWidth: true

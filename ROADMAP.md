@@ -218,7 +218,8 @@ workflow in `CONSTITUTION.md`.
       Notes tabs are gone. Screenshots come from `scripts/screenshot.sh` against a scratch vault
 - [x] TICKET-003 Tags (inline and frontmatter, one index, a Tags pane with counts, `tag:` in
       search) and a properties editor typed as Obsidian types them (2026-09-03)
-- [ ] TICKET-004 Global and local graph views with filters, groups and forces
+- [x] TICKET-004 Global and local graph views on a canvas: forces, filters, colour groups,
+      display settings, hover and click, a depth for the local graph (2026-09-03)
 - [ ] TICKET-005 Search operators, bookmarks, hotkeys table
 - [ ] TICKET-006 Retire the Obsidian bridge once the tiers above are in daily use
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and

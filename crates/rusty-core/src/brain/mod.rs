@@ -161,6 +161,58 @@ pub struct TagCount {
     pub count: usize,
 }
 
+/// What the graph should include.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct GraphOptions {
+    /// Tags as nodes, with an edge from every page carrying them.
+    #[serde(default)]
+    pub tags: bool,
+    /// Unresolved link targets as nodes.
+    #[serde(default)]
+    pub unresolved: bool,
+    /// Keep only the neighbourhood of this page (a local graph).
+    #[serde(default)]
+    pub around: Option<String>,
+    /// How many links away the neighbourhood reaches (default 1).
+    #[serde(default)]
+    pub depth: Option<usize>,
+}
+
+/// One node of the graph: a page, a tag or an unresolved target.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct GraphNode {
+    /// The slug for a page, `tag:<name>` for a tag, `new:<target>` for a missing page.
+    pub id: String,
+    /// `page`, `tag` or `unresolved`.
+    pub kind: String,
+    /// What to show: the page title, `#tag`, or the target as written.
+    pub title: String,
+    /// The page type, empty for the other kinds.
+    pub page_type: String,
+    /// The page's folder, empty at the root and for the other kinds.
+    pub folder: String,
+    /// The page's tags, for group queries.
+    pub tags: Vec<String>,
+}
+
+/// One edge, from a page to a page, a tag or an unresolved target.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct GraphEdge {
+    /// The linking page's slug.
+    pub from: String,
+    /// The target node id.
+    pub to: String,
+}
+
+/// The vault as a graph.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct Graph {
+    /// Every node.
+    pub nodes: Vec<GraphNode>,
+    /// Every edge, deduplicated.
+    pub edges: Vec<GraphEdge>,
+}
+
 /// A wikilink whose target is no page.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnresolvedLink {
@@ -588,6 +640,162 @@ impl BrainManager {
                 rank: 0.0,
             })
             .collect())
+    }
+
+    /// The vault as a graph: pages and their resolved links, plus tags and unresolved
+    /// targets when asked, or only the neighbourhood of one page to a depth.
+    pub fn graph(&self, options: &GraphOptions) -> Result<Graph, String> {
+        use std::collections::{HashMap, HashSet, VecDeque};
+        type PageRow = (String, String, String);
+        type LinkRow = (String, String, bool);
+        type TagRow = (String, String);
+        let (pages, links, tags): (Vec<PageRow>, Vec<LinkRow>, Vec<TagRow>) = {
+            let conn = self.db.conn()?;
+            let mut stmt = conn
+                .prepare("SELECT slug, title, page_type FROM brain_pages ORDER BY slug")
+                .map_err(|e| format!("Query error: {e}"))?;
+            let pages = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            let mut stmt = conn
+                .prepare(
+                    "SELECT l.from_slug, l.to_slug, p.slug IS NOT NULL FROM brain_links l \
+                     LEFT JOIN brain_pages p ON p.slug = l.to_slug ORDER BY l.from_slug, l.to_slug",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let links = stmt
+                .query_map([], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? != 0))
+                })
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            let mut stmt = conn
+                .prepare("SELECT slug, tag FROM brain_tags ORDER BY slug, tag")
+                .map_err(|e| format!("Query error: {e}"))?;
+            let tags = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            (pages, links, tags)
+        };
+        let mut tags_of: HashMap<String, Vec<String>> = HashMap::new();
+        for (slug, tag) in &tags {
+            tags_of.entry(slug.clone()).or_default().push(tag.clone());
+        }
+        let mut nodes: Vec<GraphNode> = Vec::new();
+        let mut known: HashSet<String> = HashSet::new();
+        for (slug, title, page_type) in &pages {
+            known.insert(slug.clone());
+            nodes.push(GraphNode {
+                id: slug.clone(),
+                kind: "page".to_string(),
+                title: title.clone(),
+                page_type: page_type.clone(),
+                folder: slug
+                    .rfind('/')
+                    .map(|i| slug[..i].to_string())
+                    .unwrap_or_default(),
+                tags: tags_of.get(slug).cloned().unwrap_or_default(),
+            });
+        }
+        let mut edges: Vec<GraphEdge> = Vec::new();
+        let mut seen_edges: HashSet<(String, String)> = HashSet::new();
+        let mut push_edge = |from: &str, to: &str, edges: &mut Vec<GraphEdge>| {
+            if seen_edges.insert((from.to_string(), to.to_string())) {
+                edges.push(GraphEdge {
+                    from: from.to_string(),
+                    to: to.to_string(),
+                });
+            }
+        };
+        for (from, to, resolved) in &links {
+            if !known.contains(from) {
+                continue;
+            }
+            if *resolved {
+                push_edge(from, to, &mut edges);
+            } else if options.unresolved {
+                let id = format!("new:{to}");
+                if known.insert(id.clone()) {
+                    nodes.push(GraphNode {
+                        id: id.clone(),
+                        kind: "unresolved".to_string(),
+                        title: to.clone(),
+                        page_type: String::new(),
+                        folder: String::new(),
+                        tags: Vec::new(),
+                    });
+                }
+                push_edge(from, &id, &mut edges);
+            }
+        }
+        if options.tags {
+            for (slug, tag) in &tags {
+                if !known.contains(slug) {
+                    continue;
+                }
+                let id = format!("tag:{}", tag.to_lowercase());
+                if known.insert(id.clone()) {
+                    nodes.push(GraphNode {
+                        id: id.clone(),
+                        kind: "tag".to_string(),
+                        title: format!("#{tag}"),
+                        page_type: String::new(),
+                        folder: String::new(),
+                        tags: Vec::new(),
+                    });
+                }
+                push_edge(slug, &id, &mut edges);
+            }
+        }
+        let Some(around) = options
+            .around
+            .as_deref()
+            .map(str::trim)
+            .filter(|a| !a.is_empty())
+        else {
+            return Ok(Graph { nodes, edges });
+        };
+        // The neighbourhood: breadth first over the undirected edges.
+        let depth = options.depth.unwrap_or(1).max(1);
+        let mut adjacent: HashMap<&str, Vec<&str>> = HashMap::new();
+        for e in &edges {
+            adjacent
+                .entry(e.from.as_str())
+                .or_default()
+                .push(e.to.as_str());
+            adjacent
+                .entry(e.to.as_str())
+                .or_default()
+                .push(e.from.as_str());
+        }
+        let mut keep: HashSet<String> = HashSet::new();
+        if known.contains(around) {
+            let mut queue: VecDeque<(&str, usize)> = VecDeque::new();
+            queue.push_back((around, 0));
+            keep.insert(around.to_string());
+            while let Some((id, d)) = queue.pop_front() {
+                if d >= depth {
+                    continue;
+                }
+                for next in adjacent.get(id).into_iter().flatten() {
+                    if keep.insert((*next).to_string()) {
+                        queue.push_back((next, d + 1));
+                    }
+                }
+            }
+        }
+        Ok(Graph {
+            nodes: nodes.into_iter().filter(|n| keep.contains(&n.id)).collect(),
+            edges: edges
+                .into_iter()
+                .filter(|e| keep.contains(&e.from) && keep.contains(&e.to))
+                .collect(),
+        })
     }
 
     /// Every tag with its page count, nested tags counted under each parent, sorted.
@@ -2604,6 +2812,96 @@ mod tests {
         assert!(bm
             .set_property("nope/page", "k", serde_json::json!(1))
             .is_err());
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn graph_nodes_edges_and_neighbourhoods() {
+        let (dir, bm) = test_brain("graph");
+        bm.create_page(
+            "project",
+            "Orbit",
+            "Links [[people/ann]] and [[nobody]] #core.",
+        )
+        .unwrap();
+        bm.create_page(
+            "person",
+            "Ann",
+            "Works on [[projects/orbit]] and [[concepts/far]].",
+        )
+        .unwrap();
+        bm.create_page("concept", "Far", "Alone but linked.")
+            .unwrap();
+        bm.create_page("idea", "Island", "No links.").unwrap();
+        bm.sync_all().unwrap();
+
+        let g = bm.graph(&GraphOptions::default()).unwrap();
+        assert_eq!(g.nodes.len(), 4);
+        assert!(g.nodes.iter().all(|n| n.kind == "page"));
+        let pairs: Vec<(&str, &str)> = g
+            .edges
+            .iter()
+            .map(|e| (e.from.as_str(), e.to.as_str()))
+            .collect();
+        assert!(pairs.contains(&("projects/orbit", "people/ann")));
+        assert!(pairs.contains(&("people/ann", "projects/orbit")));
+        assert!(pairs.contains(&("people/ann", "concepts/far")));
+        assert_eq!(pairs.len(), 3);
+        let orbit = g.nodes.iter().find(|n| n.id == "projects/orbit").unwrap();
+        assert_eq!(orbit.folder, "projects");
+        assert_eq!(orbit.tags, vec!["core"]);
+
+        let g = bm
+            .graph(&GraphOptions {
+                tags: true,
+                unresolved: true,
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(g
+            .nodes
+            .iter()
+            .any(|n| n.id == "tag:core" && n.kind == "tag" && n.title == "#core"));
+        assert!(g
+            .nodes
+            .iter()
+            .any(|n| n.id == "new:nobody" && n.kind == "unresolved"));
+        assert!(g
+            .edges
+            .iter()
+            .any(|e| e.from == "projects/orbit" && e.to == "tag:core"));
+        assert!(g
+            .edges
+            .iter()
+            .any(|e| e.from == "projects/orbit" && e.to == "new:nobody"));
+
+        let local = bm
+            .graph(&GraphOptions {
+                around: Some("projects/orbit".into()),
+                depth: Some(1),
+                ..Default::default()
+            })
+            .unwrap();
+        let ids: Vec<&str> = local.nodes.iter().map(|n| n.id.as_str()).collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"projects/orbit") && ids.contains(&"people/ann"));
+        let wider = bm
+            .graph(&GraphOptions {
+                around: Some("projects/orbit".into()),
+                depth: Some(2),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(wider.nodes.len(), 3);
+        assert!(wider.nodes.iter().any(|n| n.id == "concepts/far"));
+        let none = bm
+            .graph(&GraphOptions {
+                around: Some("missing/page".into()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(none.nodes.is_empty() && none.edges.is_empty());
 
         cleanup(&dir);
     }

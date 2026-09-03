@@ -17,6 +17,7 @@ fn main() {
                 "qml/SearchPane.qml",
                 "qml/NoteTab.qml",
                 "qml/RightPane.qml",
+                "qml/GraphView.qml",
                 "qml/AgentTerminal.qml",
                 "qml/QuickSwitcher.qml",
                 "qml/CommandPalette.qml",

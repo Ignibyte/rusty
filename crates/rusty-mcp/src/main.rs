@@ -500,6 +500,21 @@ pub struct RenameParams {
     pub to: String,
 }
 
+/// Parameters for `brain_graph`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct GraphParams {
+    /// Tags as nodes, with an edge from every page carrying them.
+    #[serde(default)]
+    pub tags: bool,
+    /// Unresolved link targets as nodes.
+    #[serde(default)]
+    pub unresolved: bool,
+    /// Only the neighbourhood of this page slug (a local graph).
+    pub around: Option<String>,
+    /// How many links away the neighbourhood reaches (default 1).
+    pub depth: Option<usize>,
+}
+
 /// Parameters for `brain_set_property`.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct SetPropertyParams {
@@ -1040,6 +1055,22 @@ impl Rusty {
     #[tool(description = "Every wikilink in the vault whose target is no page, with its line")]
     fn brain_unresolved(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.unresolved())
+    }
+
+    #[tool(
+        description = "The vault as a graph: page nodes (title, type, folder, tags) and edges from resolved links; tags and unresolved targets as nodes on request; `around` with `depth` keeps one page's neighbourhood"
+    )]
+    fn brain_graph(
+        &self,
+        Parameters(p): Parameters<GraphParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let options = rusty_core::brain::GraphOptions {
+            tags: p.tags,
+            unresolved: p.unresolved,
+            around: p.around,
+            depth: p.depth,
+        };
+        json_result(self.core.brain_manager.graph(&options))
     }
 
     #[tool(
@@ -1747,6 +1778,7 @@ mod tests {
         "brain_tags",
         "brain_set_property",
         "brain_remove_property",
+        "brain_graph",
     ];
 
     #[test]

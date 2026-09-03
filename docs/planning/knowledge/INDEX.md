@@ -25,6 +25,8 @@ IDs: `PR-rusty-<slug>-NNN` prevention rules, `BF-rusty-<slug>-NNN` bug families,
 | `PR-rusty-openwiki-managed-block-001` | `AGENTS.md` and `CLAUDE.md` are identical outside OpenWiki's managed block (a full section in one, a pointer in the other); never hand-edit the block, compare with it stripped. | `aar/AAR-007-openwiki-in-the-workflow.md` |
 | `PR-rusty-openwiki-evidence-ranges-001` | `openwiki_resolve_claims` rejects a whole batch when one `repo://path#Lx-Ly` range does not exist; read the file's length before citing. | `aar/AAR-007-openwiki-in-the-workflow.md` |
 | `PR-rusty-yaml-mapping-shift-remove-001` | Removing a key from a `serde_yaml::Mapping` is `shift_remove`; `remove` swaps the last key into the hole and reorders the frontmatter. | `aar/AAR-003-tags-and-properties.md` |
+| `PR-rusty-qml-signal-names-001` | Never declare a signal `<name>Changed` beside `property <name>`; the property owns that signal and the component fails to load with "Duplicate signal name". | `aar/AAR-004-graph-views.md` |
+| `PR-rusty-never-kill-zero-001` | A cleanup trap kills a pid only when it holds one; `kill "${var:-0}"` is `kill 0` and takes the calling shell and its pipeline with it. | `aar/AAR-004-graph-views.md` |
 
 ## Bug families
 
@@ -47,3 +49,4 @@ IDs: `PR-rusty-<slug>-NNN` prevention rules, `BF-rusty-<slug>-NNN` bug families,
 | `AD-rusty-lenient-pages-001` | A vault file without frontmatter is a page: title from the file name, type from its top folder or `note`; pages may live in any folder; renames rewrite links vault-wide outside fenced code and move the index rows; deletes are soft. | `pipeline/completed/knowledge-workspace-shell.spec.md` |
 | `AD-rusty-openwiki-for-documentation-001` | OpenWiki 0.3.3, pinned and project-local, is the generated engineering wiki (`openwiki/`); the host agent authors it through the MCP lifecycle at Phase 5 and the completion receipt gates delivery of a completed pipeline. The brain stays the project's memory. | `pipeline/completed/openwiki-in-the-workflow.spec.md` |
 | `AD-rusty-tags-one-index-001` | Frontmatter and inline `#tags` share `brain_tags`, stored as first written and compared without case, nested tags counting under their parents; `tag:<name>` terms are part of `brain_search`, not a separate tool; a property edit touches only the frontmatter mapping. | `pipeline/completed/tags-and-properties.spec.md` |
+| `AD-rusty-graph-in-the-app-001` | The graph's data is one tool (`brain_graph`: nodes, edges, tags and unresolved on request, a neighbourhood by depth); the force layout, interaction and settings live in the app on a canvas, settings in the workspace state. | `pipeline/completed/graph-views.spec.md` |

@@ -15,14 +15,14 @@ shift
 theme=${SHOT_THEME:-$HOME/.config/omarchy/current/theme}
 size=${SHOT_SIZE:-1500x950}
 scenes=("$@")
-[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags")
+[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags" "graph" "localgraph")
 root=$(git rev-parse --show-toplevel)
 target=${CARGO_TARGET_DIR:-$root/target}
 [[ -x "$target/debug/rusty" && -x "$target/debug/rusty-mcp" ]] || { echo "build rusty and rusty-mcp first" >&2; exit 1; }
 mkdir -p "$out"
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/rusty-shot.XXXXXX")
 cleanup() {
-  kill "${server:-0}" 2>/dev/null || true
+  [[ -n "${server:-}" ]] && kill "$server" 2>/dev/null || true
   for s in $(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -E '^rusty-(shot|pane)-' || true); do tmux kill-session -t "$s" 2>/dev/null || true; done
   if [[ -n ${SHOT_KEEP:-} ]]; then echo "scratch kept at $scratch"; else rm -rf "$scratch"; fi
 }
@@ -30,7 +30,7 @@ trap cleanup EXIT
 port=$(( 4300 + RANDOM % 500 ))
 
 vault="$scratch/.rusty/brain"
-mkdir -p "$vault/projects" "$vault/people" "$vault/concepts" "$vault/daily" "$vault/ideas/archive" "$scratch/run" "$scratch/.config/Ignibyte"
+mkdir -p "$vault/projects" "$vault/people" "$vault/concepts" "$vault/daily" "$vault/meetings" "$vault/ideas/archive" "$scratch/run" "$scratch/.config/Ignibyte"
 cat > "$vault/projects/orbit.md" <<'MD'
 ---
 title: Orbit
@@ -127,7 +127,27 @@ title: Old idea
 type: idea
 ---
 
-Kept for the record.
+Kept for the record, next to [[projects/orbit]].
+MD
+for n in 1 2 3 4; do
+cat > "$vault/concepts/theme-$n.md" <<MD
+---
+title: Theme $n
+type: concept
+tags:
+  - theme
+---
+
+One of the themes behind [[projects/orbit]]; see [[concepts/compiled-truth]] and [[concepts/theme-$(( n % 4 + 1 ))]].
+MD
+done
+cat > "$vault/meetings/kickoff.md" <<'MD'
+---
+title: Kickoff
+type: meeting
+---
+
+With [[people/sarah-chen]] about [[projects/orbit]]; decided on [[concepts/theme-1]].
 MD
 printf 'Loose note without frontmatter, as Obsidian writes them.\n\n- #inbox item\n' > "$vault/Loose note.md"
 printf '{}' > "$vault/projects/data.json"
