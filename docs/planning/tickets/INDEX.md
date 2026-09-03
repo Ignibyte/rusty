@@ -4,11 +4,11 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - Open tickets: [`open/`](open/)
 - Closed tickets: [`closed/`](closed/)
-- **Next ticket number: `010`**
+- **Next ticket number: `011`**
 
 ## Open queue
 
-(empty; the next ticket takes number 010)
+- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (Phase 1, awaiting Chad's seal, 2026-09-03)
 
 ## Closed
 
