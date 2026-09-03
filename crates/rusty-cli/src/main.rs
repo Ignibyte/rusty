@@ -36,6 +36,8 @@ USAGE:\n\
   rusty-cli brain embed [--all]               (vectors for stale pages, or every page)\n\
   rusty-cli brain semantic                    (embedding provider and index state)\n\
   rusty-cli brain stats\n\
+  rusty-cli notes path                        (the notes folder the tools use)\n\
+  rusty-cli notes adopt [--dry-run]           (move an older notes folder into the vault, once)\n\
   rusty-cli skills list [--all]\n\
   rusty-cli skills view <name>\n\
   rusty-cli skills new <name> [--desc <text>] [--body <text>] [--force]\n\
@@ -56,6 +58,7 @@ fn main() {
         args.get(2).map(String::as_str),
     ) {
         (Some("brain"), Some(sub)) => run_brain(sub, &args[3..]),
+        (Some("notes"), Some(sub)) => run_notes(sub, &args[3..]),
         (Some("skills"), _) => {
             let sub = args.get(2).map(String::as_str).unwrap_or("list");
             run_skills(sub, args.get(3..).unwrap_or_default());
@@ -93,6 +96,81 @@ fn configured_brain_path(db: &Arc<Database>) -> PathBuf {
             .get_or_default("brain_vault_path", &default_brain)
             .unwrap_or(default_brain),
     )
+}
+
+/// The notes folder the tools use: the `notes_path` setting, else `<vault>/notes`.
+fn configured_notes_path(db: &Arc<Database>) -> PathBuf {
+    let settings = SettingsManager::new(Arc::clone(db));
+    let default_notes = configured_brain_path(db)
+        .join("notes")
+        .to_string_lossy()
+        .to_string();
+    PathBuf::from(
+        settings
+            .get_or_default("notes_path", &default_notes)
+            .unwrap_or(default_notes),
+    )
+}
+
+/// Where notes lived before they joined the vault: the `notes_path` setting when set,
+/// else `~/.rusty/notes`.
+fn legacy_notes_path(db: &Arc<Database>) -> PathBuf {
+    let settings = SettingsManager::new(Arc::clone(db));
+    match settings.get("notes_path") {
+        Ok(Some(p)) if !p.trim().is_empty() => PathBuf::from(p),
+        _ => dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".rusty")
+            .join("notes"),
+    }
+}
+
+/// Dispatch a `notes` subcommand.
+fn run_notes(sub: &str, rest: &[String]) {
+    let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
+    match sub {
+        "path" => println!("{}", configured_notes_path(&db).display()),
+        "adopt" => {
+            let dry_run = rest.iter().any(|a| a == "--dry-run");
+            let into = configured_brain_path(&db).join("notes");
+            let from = legacy_notes_path(&db);
+            if from.canonicalize().ok() == into.canonicalize().ok() && into.exists() {
+                println!("notes already live in the vault at {}", into.display());
+                return;
+            }
+            match rusty_core::notes::adopt(&from, &into, dry_run) {
+                Ok(report) if report.nothing_to_do => {
+                    println!("nothing to adopt under {}", from.display());
+                }
+                Ok(report) => {
+                    let verb = if dry_run { "would move" } else { "moved" };
+                    println!(
+                        "{verb} {} file(s) from {} into {}",
+                        report.moved.len(),
+                        report.from,
+                        report.into
+                    );
+                    for rel in &report.moved {
+                        println!("  {rel}");
+                    }
+                    if !dry_run {
+                        let settings = SettingsManager::new(Arc::clone(&db));
+                        let value = into.to_string_lossy().to_string();
+                        settings
+                            .set("notes_path", &value)
+                            .unwrap_or_else(|e| fail(&format!("set notes_path: {e}")));
+                        println!("notes_path is now {value}; the old folder keeps a README");
+                        refresh_signal();
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        other => {
+            eprintln!("unknown notes subcommand: '{other}'\n\n{USAGE}");
+            std::process::exit(2);
+        }
+    }
 }
 
 /// The embedding provider the settings and the secrets vault point at, if any.

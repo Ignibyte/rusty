@@ -43,13 +43,22 @@ pub fn start_data_watcher(events: EventBus, notes: PathBuf, brain: PathBuf, skil
             }
         };
 
-        for path in [&notes, &brain, &skills] {
+        // A notes folder inside the vault is covered by the vault's watch already.
+        let notes_apart = !notes.starts_with(&brain);
+        let mut roots = vec![&brain, &skills];
+        if notes_apart {
+            roots.insert(0, &notes);
+        }
+        for path in roots {
             if let Err(e) = watcher.watch(path, RecursiveMode::Recursive) {
                 eprintln!("[watch] cannot watch {}: {e}", path.display());
             }
         }
         let _ = watcher.watch(&sentinel, RecursiveMode::NonRecursive);
-        eprintln!("[watch] watching notes + brain + skills + sentinel for live refresh");
+        eprintln!(
+            "[watch] watching {}brain + skills + sentinel for live refresh",
+            if notes_apart { "notes + " } else { "" }
+        );
 
         // Loop until the watcher is dropped (the channel closes).
         while let Ok(first) = rx.recv() {

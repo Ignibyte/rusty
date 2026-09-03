@@ -191,6 +191,17 @@ seconds after they change; `rusty-cli brain embed --all` or the `brain_reembed` 
 and `rusty-cli brain semantic` shows the state. Changing the provider or model rebuilds the
 index, because vectors from different models do not compare.
 
+## Notes
+
+Notes are markdown files in the vault under `notes/`, so the explorer, search, links, the
+graph and the semantic index cover them like any page (a file there is a page of type
+`note`). The notes tools (`list_notes`, `read_note`, `write_note`, `create_note`,
+`rename_note`, `delete_note`) and the `/note` skill work on that folder, or on the folder
+the `notes_path` setting names. An older install kept notes in `~/.rusty/notes`; run
+`rusty-cli notes adopt` once (`--dry-run` first, if you like) to move them in. It refuses
+when a name already exists in the vault, deletes nothing, leaves a README behind that
+says where the notes went, and points `notes_path` at the new folder.
+
 ## Vault tools
 
 The workspace's own tools, which agents share: `brain_tree` (the folders and files),

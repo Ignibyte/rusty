@@ -3952,6 +3952,31 @@ mod tests {
         cleanup(&dir);
     }
 
+    /// A note saved through the notes manager rooted inside the vault is a page of type
+    /// `note` once the index has synced (TICKET-014).
+    #[test]
+    fn notes_written_into_the_vault_index_as_note_pages() {
+        let (dir, bm) = test_brain("notes_in_vault");
+        bm.ensure_vault().unwrap();
+        let notes = crate::notes::NotesManager::with_root(dir.join("notes")).unwrap();
+        let rel = notes.create_note("", "hello", false).unwrap();
+        notes
+            .save_note(&rel, "A note that lives in the vault.")
+            .unwrap();
+        bm.sync_all().unwrap();
+        let page = bm
+            .read_page("notes/hello")
+            .unwrap()
+            .expect("the note is a page");
+        assert_eq!(page.page_type, "note");
+        assert!(
+            page.compiled_truth.contains("lives in the vault"),
+            "{}",
+            page.compiled_truth
+        );
+        cleanup(&dir);
+    }
+
     #[test]
     fn page_types_cover_the_type_table() {
         let (dir, bm) = test_brain("page_types");

@@ -95,4 +95,6 @@ echo "      earlyoom:         add Hyprland to --avoid in /etc/default/earlyoom (
 echo "==> MCP config"
 echo "    agents (stdio): add to .mcp.json  ->  \"rusty\": {\"type\": \"stdio\", \"command\": \"rusty-mcp\"}"
 echo "    app (http):     $mcp_url   (both forms in $here/mcp-config.json)"
+echo "==> notes"
+echo "    notes live in the vault under notes/; an older ~/.rusty/notes folder moves in once with: rusty-cli notes adopt"
 echo "done"

@@ -1,11 +1,12 @@
 ---
 title: TICKET-014-notes-into-the-vault
-status: open
+status: done
 ticket_number: 014
 type: migration
 created: 2026-09-03
+closed: 2026-09-03
 intake:
-pipeline_spec: docs/planning/pipeline/active/notes-into-the-vault.spec.md
+pipeline_spec: docs/planning/pipeline/completed/notes-into-the-vault.spec.md
 ---
 
 # TICKET-014-notes-into-the-vault
@@ -43,7 +44,7 @@ files can move as they are.
 
 ## Notes
 
-- Pipeline spec: docs/planning/pipeline/active/notes-into-the-vault.spec.md
+- Pipeline spec: docs/planning/pipeline/completed/notes-into-the-vault.spec.md
 - Related docs: `crates/rusty-core/src/notes/mod.rs`, the `notes_path` setting in `SettingsPage.qml`, `docs/architecture.md` (vault rules since the workspace), the `/note` skill in the store.
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:40: "i dont see anywhere my files in ~./rusty/notes are?".
 - Follow-ups opened: none.

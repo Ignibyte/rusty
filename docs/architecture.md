@@ -163,7 +163,8 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   the index rows follow; deletes are soft (`archive/`). Link rows in `brain_links` hold the
   resolved slug (or the raw target when nothing matches) and the line the link sits on.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
-  and `brain semantic`.
+  `brain semantic`, and `notes adopt` (2026-09-03, TICKET-014: the notes folder lives in
+  the vault under `notes/`, and the one-shot moves an older `~/.rusty/notes` in).
 - `omarchy/`: installer, the `rusty-session` script, the two user services (back end and
   app), the compositor drop-in, desktop entry and icon, key binding snippet, MCP config
   snippet.

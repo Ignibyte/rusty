@@ -68,22 +68,23 @@ impl Core {
         let settings_manager = Arc::new(SettingsManager::new(Arc::clone(&db)));
 
         let default_home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        let default_notes = default_home
-            .join(".rusty")
-            .join("notes")
-            .to_string_lossy()
-            .to_string();
         let default_brain = default_home
             .join(".rusty")
             .join("brain")
             .to_string_lossy()
             .to_string();
-        let notes_path = settings_manager
-            .get_or_default("notes_path", &default_notes)
-            .unwrap_or(default_notes);
         let brain_path = settings_manager
             .get_or_default("brain_vault_path", &default_brain)
             .unwrap_or(default_brain);
+        // Notes live inside the vault since TICKET-014, so the explorer, search, links,
+        // graph and the semantic index cover them; an explicit `notes_path` still wins.
+        let default_notes = PathBuf::from(&brain_path)
+            .join("notes")
+            .to_string_lossy()
+            .to_string();
+        let notes_path = settings_manager
+            .get_or_default("notes_path", &default_notes)
+            .unwrap_or(default_notes);
         let secrets_path = default_home.join(".rusty").join(".secret");
 
         crate::skills::bootstrap(&settings_manager);

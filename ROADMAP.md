@@ -246,6 +246,9 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-013 Favorites over the bookmarks (2026-09-03): a star on the note header, Ctrl+D, a
       Favorites section above the explorer's tree, favorites first in the quick switcher; the
       storage unchanged
+- [x] TICKET-014 Notes into the vault (2026-09-03): the notes folder defaults to `<vault>/notes`,
+      `rusty-cli notes adopt` moves an older folder in once (refusing clashes, deleting nothing,
+      leaving a README), the watcher covers it through the vault
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

@@ -3,10 +3,16 @@ type: "Reference"
 title: "MCP back end: one server for the app and the agents"
 openwiki_generated: true
 sources:
+  - id: openwiki-source-1de5221fd140fd89f39f87cd
+    resource: repo://crates/rusty-cli/src/main.rs
   - id: openwiki-source-c7501cab00d475ec77094adb
     resource: repo://crates/rusty-core/src/brain/mod.rs
+  - id: openwiki-source-705d180fc941297b1e844397
+    resource: repo://crates/rusty-core/src/core.rs
   - id: openwiki-source-5097c4ef41727eee45d8c689
     resource: repo://crates/rusty-core/src/lib.rs
+  - id: openwiki-source-2bac0135ef08343388f2c7a1
+    resource: repo://crates/rusty-core/src/notes/mod.rs
   - id: openwiki-source-087a3c8d2ec2da0b0f978302
     resource: repo://crates/rusty-mcp/src/main.rs
   - id: openwiki-source-84acb13abf83511312610cd3
@@ -16,7 +22,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T19:38:17.213Z
+    at: 2026-09-03T21:33:14.198Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -43,7 +49,9 @@ the way an agent would.
 ## Tool families
 
 - Tasks: lists, create, toggle, archive, unarchive, retitle, reorder, delete.
-- Notes: list, read, write, create, rename, delete (the notes folder, not the vault).
+- Notes: list, read, write, create, rename, delete, over the notes folder: the vault's
+  `notes/` since TICKET-014 (an explicit `notes_path` setting still wins), so a note is
+  also a page of type `note`; `rusty-cli notes adopt` moves an older folder in once.
 - Memories: list, store, update, delete; `search_conversations`.
 - Brain: `brain_search` (hybrid when an embedder exists), read, list, create, update,
   delete, timeline read and append, links, resolve a slug, stats, daily note, capture,

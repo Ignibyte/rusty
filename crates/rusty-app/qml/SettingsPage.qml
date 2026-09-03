@@ -33,7 +33,7 @@ Item {
     // Every setting the back end reads, with what it means and what it defaults to.
     readonly property var known: [
         { key: "brain_vault_path", about: "The brain vault folder (an Obsidian vault). Restart the service after changing it.", fallback: "~/.rusty/brain" },
-        { key: "notes_path", about: "The notes folder the notes tools use.", fallback: "~/.rusty/notes" },
+        { key: "notes_path", about: "The notes folder the notes tools use; inside the vault unless you point it elsewhere (rusty-cli notes adopt moves an older folder in).", fallback: "<vault>/notes" },
         { key: "embedding_provider", about: "auto (Ollama when it answers), ollama, openai (needs openai_api_key in Secrets), or off.", fallback: "auto" },
         { key: "embedding_model", about: "Overrides the provider's default model (nomic-embed-text, text-embedding-3-small).", fallback: "provider default" },
         { key: "ollama_url", about: "Where Ollama listens.", fallback: "http://127.0.0.1:11434" },

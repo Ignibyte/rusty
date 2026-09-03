@@ -268,6 +268,121 @@ fn sanitize_name(name: &str) -> Result<String, String> {
     Ok(safe)
 }
 
+/// The file [`adopt`] leaves behind in the old folder, naming the new place.
+pub const ADOPT_README: &str = "README.md";
+
+/// What [`adopt`] moved, or would move under `dry_run`.
+#[derive(Debug, Default, Clone, serde::Serialize)]
+pub struct AdoptReport {
+    /// The folder the files came from.
+    pub from: String,
+    /// The folder they went into.
+    pub into: String,
+    /// The relative paths moved, in walk order.
+    pub moved: Vec<String>,
+    /// True when the old folder was missing or held nothing but the README.
+    pub nothing_to_do: bool,
+}
+
+/// Move every file under `from` into `into`, keeping names and folders. Refuses, moving
+/// nothing, when any destination already exists or when the two folders are the same
+/// or nested; deletes nothing (empty folders stay); skips a README of its own from an
+/// earlier run; and writes that README into `from` naming the new place. `dry_run`
+/// reports without touching a file.
+pub fn adopt(from: &Path, into: &Path, dry_run: bool) -> Result<AdoptReport, String> {
+    let mut report = AdoptReport {
+        from: from.display().to_string(),
+        into: into.display().to_string(),
+        ..AdoptReport::default()
+    };
+    if !from.is_dir() {
+        report.nothing_to_do = true;
+        return Ok(report);
+    }
+    let from_c = from
+        .canonicalize()
+        .map_err(|e| format!("{}: {e}", from.display()))?;
+    if let Ok(into_c) = into.canonicalize() {
+        if into_c == from_c {
+            return Err(format!(
+                "{} is already the notes folder; nothing to adopt",
+                into.display()
+            ));
+        }
+        if into_c.starts_with(&from_c) || from_c.starts_with(&into_c) {
+            return Err(format!(
+                "{} and {} are nested; refusing to move a folder into itself",
+                from.display(),
+                into.display()
+            ));
+        }
+    }
+    let mut files = Vec::new();
+    collect_files(&from_c, &from_c, &mut files)?;
+    files.retain(|rel| !(rel == ADOPT_README && is_adopt_readme(&from_c.join(rel))));
+    if files.is_empty() {
+        report.nothing_to_do = true;
+        return Ok(report);
+    }
+    let clashes: Vec<&String> = files.iter().filter(|rel| into.join(rel).exists()).collect();
+    if !clashes.is_empty() {
+        let list: Vec<&str> = clashes.iter().map(|s| s.as_str()).collect();
+        return Err(format!(
+            "refusing to move anything: {} already exist under {}: {}",
+            clashes.len(),
+            into.display(),
+            list.join(", ")
+        ));
+    }
+    report.moved.clone_from(&files);
+    if dry_run {
+        return Ok(report);
+    }
+    for rel in &files {
+        let src = from_c.join(rel);
+        let dst = into.join(rel);
+        if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("create {}: {e}", parent.display()))?;
+        }
+        if std::fs::rename(&src, &dst).is_err() {
+            std::fs::copy(&src, &dst).map_err(|e| format!("copy {rel}: {e}"))?;
+            std::fs::remove_file(&src).map_err(|e| format!("remove {rel} after copying: {e}"))?;
+        }
+    }
+    let readme = format!(
+        "Notes moved to {} on {} by `rusty-cli notes adopt`. The vault's explorer, search,\nlinks and graph cover them there; the notes tools and the `/note` skill read that folder.\n",
+        into.display(),
+        chrono::Local::now().format("%Y-%m-%d")
+    );
+    std::fs::write(from_c.join(ADOPT_README), readme)
+        .map_err(|e| format!("write {}: {e}", ADOPT_README))?;
+    Ok(report)
+}
+
+/// Every file under `dir`, as paths relative to `root`, folders first by name.
+fn collect_files(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(), String> {
+    let mut entries: Vec<_> = std::fs::read_dir(dir)
+        .map_err(|e| format!("read {}: {e}", dir.display()))?
+        .filter_map(|e| e.ok())
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files(root, &path, out)?;
+        } else if let Ok(rel) = path.strip_prefix(root) {
+            out.push(rel.to_string_lossy().to_string());
+        }
+    }
+    Ok(())
+}
+
+/// True for the README [`adopt`] wrote, so a second run does not carry it along.
+fn is_adopt_readme(path: &Path) -> bool {
+    std::fs::read_to_string(path).is_ok_and(|s| s.starts_with("Notes moved to "))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -399,5 +514,90 @@ mod tests {
         assert_eq!(tree[1].name, "zebra");
         assert_eq!(tree[1].entry_type, "file");
         cleanup(&dir);
+    }
+
+    #[test]
+    fn adopt_moves_files_and_folders_and_leaves_a_readme() {
+        let base = std::env::temp_dir().join(format!("rusty_notes_adopt_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let from = base.join("old");
+        let into = base.join("vault").join("notes");
+        fs::create_dir_all(from.join("sub")).unwrap();
+        fs::create_dir_all(from.join(".deleted")).unwrap();
+        fs::write(from.join("A.md"), "a").unwrap();
+        fs::write(from.join("sub").join("B.md"), "b").unwrap();
+        fs::write(from.join(".deleted").join("C.md_1"), "c").unwrap();
+
+        let report = adopt(&from, &into, false).unwrap();
+        assert_eq!(report.moved, vec![".deleted/C.md_1", "A.md", "sub/B.md"]);
+        assert!(!report.nothing_to_do);
+        assert_eq!(fs::read_to_string(into.join("A.md")).unwrap(), "a");
+        assert_eq!(
+            fs::read_to_string(into.join("sub").join("B.md")).unwrap(),
+            "b"
+        );
+        assert!(into.join(".deleted").join("C.md_1").exists());
+        assert!(!from.join("A.md").exists());
+        assert!(
+            from.join("sub").is_dir(),
+            "empty folders stay; nothing is deleted"
+        );
+        let readme = fs::read_to_string(from.join(ADOPT_README)).unwrap();
+        assert!(readme.starts_with("Notes moved to "), "{readme}");
+
+        // A second run finds only the README and carries nothing along.
+        let again = adopt(&from, &into, false).unwrap();
+        assert!(again.nothing_to_do);
+        assert!(!into.join(ADOPT_README).exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn adopt_refuses_a_clash_and_moves_nothing() {
+        let base = std::env::temp_dir().join(format!("rusty_notes_clash_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let from = base.join("old");
+        let into = base.join("notes");
+        fs::create_dir_all(&from).unwrap();
+        fs::create_dir_all(&into).unwrap();
+        fs::write(from.join("A.md"), "old a").unwrap();
+        fs::write(from.join("B.md"), "b").unwrap();
+        fs::write(into.join("A.md"), "new a").unwrap();
+
+        let err = adopt(&from, &into, false).unwrap_err();
+        assert!(err.contains("A.md"), "{err}");
+        assert_eq!(fs::read_to_string(from.join("B.md")).unwrap(), "b");
+        assert!(!into.join("B.md").exists());
+        assert_eq!(fs::read_to_string(into.join("A.md")).unwrap(), "new a");
+        assert!(!from.join(ADOPT_README).exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn adopt_dry_run_moves_nothing() {
+        let base = std::env::temp_dir().join(format!("rusty_notes_dry_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let from = base.join("old");
+        let into = base.join("notes");
+        fs::create_dir_all(&from).unwrap();
+        fs::write(from.join("A.md"), "a").unwrap();
+        let report = adopt(&from, &into, true).unwrap();
+        assert_eq!(report.moved, vec!["A.md"]);
+        assert!(from.join("A.md").exists());
+        assert!(!into.exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn adopt_refuses_the_same_or_a_nested_folder() {
+        let base = std::env::temp_dir().join(format!("rusty_notes_same_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let from = base.join("old");
+        fs::create_dir_all(from.join("inner")).unwrap();
+        fs::write(from.join("A.md"), "a").unwrap();
+        assert!(adopt(&from, &from, false).is_err());
+        assert!(adopt(&from, &from.join("inner"), false).is_err());
+        assert!(from.join("A.md").exists());
+        let _ = fs::remove_dir_all(&base);
     }
 }
