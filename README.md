@@ -1,20 +1,22 @@
 # Rusty
 
-A local-first AI assistant for [Omarchy](https://omarchy.org): a QML desktop app with a
-pure MCP back end, an Obsidian-compatible markdown brain, to-do lists, notes, memories and
-skills, and terminals that run Claude Code and Codex natively in tabs.
+A local-first AI assistant for [Omarchy](https://omarchy.org): a knowledge workspace laid
+out the way Obsidian lays out a vault, with a pure MCP back end, a markdown brain any
+markdown tool can open, to-do lists, memories and skills, and terminals that run Claude Code
+and Codex natively as tabs and as a pane beside the note.
 
-**Status: v3 rewrite in progress.** The manager layer and the MCP server are being lifted
-from the earlier web version; the QML app is next. See `ROADMAP.md` for the plan and
-`docs/architecture.md` for the shape.
+![The workspace: explorer, a page in reading view, backlinks](docs/screenshots/workspace-reading.png)
+
+**Status: v3, not yet released.** See `ROADMAP.md` for the plan and `docs/architecture.md`
+for the shape.
 
 ## Status
 
-Milestones M0 to M5 of `ROADMAP.md` landed on 2026-09-02: the back end with 59 tools, the
-desktop app with agent terminals and the Tasks, Brain, Notes, Memory, Skills, Secrets and
-Settings tabs, the Obsidian bridge, and semantic search behind a provider setting. What is
-left in M6 is packaging for the Omarchy or AUR channel, retiring the v2 code, screenshots and
-a first release.
+Milestones M0 to M5 and M7 of `ROADMAP.md` landed on 2026-09-02: the back end, the desktop
+app with agent terminals, the Obsidian bridge, and semantic search behind a provider setting.
+M8 (Obsidian inside Rusty) is under way: the workspace shell (TICKET-002) is in; tags and
+properties, graph views, search operators and bookmarks, and the bridge's retirement follow.
+What is left in M6 is the first release.
 
 ## Run it
 
@@ -24,18 +26,49 @@ rusty-mcp                # the back end over stdio (agents); the user service se
 rusty-cli brain search "orbit"
 ```
 
-In the app: the bar across the top has one button per agent CLI found on the machine (Claude
-Code, Codex, Gemini, Aider, OpenCode) plus a shell; a click opens it in a new tab, each a tmux
-session that outlives the window. Ctrl+Shift+T opens a custom tab (name, session, working
-directory), Ctrl+Shift+W closes one, F2
-renames, Ctrl+PgUp/PgDn (or Ctrl+Tab and Ctrl+Shift+Tab) switch tabs, Ctrl+Shift+PgUp/PgDn
-move one, and tabs and tasks can be dragged into a new order. A tab that gets output
-while another is showing gets a mark; a tab whose title asks for attention raises a desktop
-notification. Under Omarchy the app's messages go to the journal: `journalctl --user -t rusty`;
-`RUSTY_DEBUG=1` adds a line per tab event.
-Tasks, Brain, Notes, Memory, Skills, Secrets and Settings talk to the back end over
-`http://127.0.0.1:4174/mcp`, so a Claude session changing a task shows up in the app as it
-happens.
+## The workspace
+
+The window is Obsidian's layout. A ribbon on the left: new note, today's daily note, the
+command palette, then Tasks, Memory, Skills and Secrets, one button per agent CLI found on
+the machine (Claude Code, Codex, Gemini, Aider, OpenCode, a shell), and Settings at the
+bottom. The left sidebar holds the file explorer (the vault's real folders, with new note,
+new folder, rename, move and delete on a right click; a rename rewrites every link to the
+page) and search. The main area holds tabs: pages, agent terminals and the built-in views,
+each closable, pinnable and remembered between runs. The right sidebar holds backlinks with
+their context lines, outgoing links (an unresolved one creates the page), the outline, and an
+agent pane that runs a terminal beside the note. The status bar counts backlinks,
+properties, words and characters.
+
+A page opens in reading view: the inline title (Enter renames the file), the properties from
+its frontmatter, then the body rendered in Obsidian's flavour by the back end (wikilinks with
+aliases and headings, page and image embeds, callouts, task boxes that toggle on click,
+tables, footnotes, `==highlights==`, `#tags`, hidden `%% comments %%`, fenced code). Ctrl+E
+switches to the source, the whole file with markdown highlighting; edits autosave after a
+pause and on Ctrl+S.
+
+![The source editor](docs/screenshots/workspace-source.png)
+
+Keys follow Obsidian: Ctrl+O quick switcher (type a name that does not exist and Enter
+creates it), Ctrl+P command palette (every command with its key), Ctrl+N new note, Ctrl+E
+reading or source, Ctrl+W close tab, Ctrl+Tab and Ctrl+Shift+Tab (or Ctrl+PgUp/PgDn) switch
+tabs, Ctrl+Shift+F search, Ctrl+, settings, Alt+Left/Right back and forward, F2 rename.
+While a terminal has focus the workspace keys stand down, because the shell and Claude Code
+use the same ones; Ctrl+Shift+T (custom terminal), Ctrl+Shift+W and Ctrl+PgUp/PgDn work
+everywhere. Each terminal is a tmux session that outlives the window; a tab that gets output
+while another is showing gets a mark, and a title that asks for attention raises a desktop
+notification.
+
+Colours come from the Omarchy theme: its `obsidian.css` tokens and its Alacritty palette,
+so the workspace and Obsidian look alike, and `omarchy theme set` re-themes the running app.
+
+![A light theme at 1280 px](docs/screenshots/workspace-light.png)
+
+Under Omarchy the app's messages go to the journal when it is not started from a terminal:
+`journalctl --user -t rusty`, or `QT_FORCE_STDERR_LOGGING=1`; `RUSTY_DEBUG=1` adds a line
+per event. `scripts/screenshot.sh <dir>` renders the scenes above offscreen against a
+scratch vault, which is how the screenshots in `docs/screenshots/` are made. Every view talks
+to the back end over `http://127.0.0.1:4174/mcp`, so a Claude session changing a page or a
+task shows up in the app as it happens.
 
 ## How work happens
 
@@ -50,8 +83,8 @@ worktree, and gated files cannot be committed without one. CodeGraph
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 59 tools, stdio and local Streamable HTTP
-crates/rusty-app    the desktop app: a QML shell on cxx-qt with native agent terminals (binary `rusty`)
+crates/rusty-mcp    the back end: an MCP server on rmcp, 67 tools, stdio and local Streamable HTTP
+crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
 omarchy/            the user service unit and MCP config snippets; installer, desktop entry and hooks arrive with M6
@@ -98,9 +131,22 @@ seconds after they change; `rusty-cli brain embed --all` or the `brain_reembed` 
 and `rusty-cli brain semantic` shows the state. Changing the provider or model rebuilds the
 index, because vectors from different models do not compare.
 
+## Vault tools
+
+The workspace's own tools, which agents share: `brain_tree` (the folders and files),
+`brain_render` (a page as rich text, with its outline, links, unresolved targets, counts,
+properties and raw file), `brain_write_page` (the whole file, as an editor saves),
+`brain_new_page`, `brain_new_folder`, `brain_delete_folder` (soft, into `archive/`),
+`brain_rename` (page or folder, every link rewritten, index rows moved) and
+`brain_unresolved`. A vault file without frontmatter is a page too: its title is the file
+name and its type comes from its top folder (`people/` is `person`), or `note`. The server
+also indexes files changed by another program (Obsidian, an editor, git) a few seconds after
+they change.
+
 ## Obsidian
 
-The brain folder is a plain Obsidian vault, and six tools (`obsidian_status`, `obsidian_open`,
+Obsidian still opens the same folder, and its bridge stays until the workspace has replaced
+it in daily use (TICKET-006). The brain folder is a plain Obsidian vault, and six tools (`obsidian_status`, `obsidian_open`,
 `obsidian_backlinks`, `obsidian_links`, `obsidian_unresolved`, `obsidian_rename_page`) reach the
 running app through Obsidian's own command-line interface (Obsidian 1.12.4 or newer). The app has
 to know the vault and have the CLI switched on; `rusty-cli obsidian register` writes both into

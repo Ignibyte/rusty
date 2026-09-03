@@ -14,12 +14,14 @@ use std::collections::HashMap;
 /// Known fields are typed explicitly. Arbitrary extra fields (e.g., `company`, `role`,
 /// `relationship`) are captured in `extra` via `serde(flatten)` — this preserves
 /// Obsidian-compatible frontmatter with user-defined properties.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct BrainFrontmatter {
-    /// Page title.
+    /// Page title; empty when the file did not set one (then the file name stands in).
+    #[serde(default)]
     pub title: String,
-    /// Entity type (person, company, project, concept, meeting, idea, daily, inbox).
-    #[serde(rename = "type")]
+    /// Entity type (person, company, project, concept, meeting, idea, daily, inbox, or
+    /// `note` for a page in any other folder); empty when the file did not set one.
+    #[serde(rename = "type", default)]
     pub page_type: String,
     /// Alternative names for fuzzy resolution.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -39,6 +41,17 @@ pub struct BrainFrontmatter {
 }
 
 impl BrainFrontmatter {
+    /// Fill an empty title from the slug's file name and an empty type from the slug's
+    /// top folder (`people/` is `person`, an unknown folder or the root is `note`).
+    pub fn fill_defaults(&mut self, slug: &str) {
+        if self.title.trim().is_empty() {
+            self.title = slug.rsplit('/').next().unwrap_or(slug).to_string();
+        }
+        if self.page_type.trim().is_empty() {
+            self.page_type = super::vault::type_for_slug(slug).to_string();
+        }
+    }
+
     /// Create new frontmatter with defaults for a given type and title.
     pub fn new(page_type: &str, title: &str) -> Self {
         let today = today_iso();
@@ -102,17 +115,63 @@ fn yaml_of(prefix: &str) -> &str {
     }
 }
 
-/// Parse raw markdown content into frontmatter, compiled truth, and timeline.
+/// Parse raw markdown content into frontmatter, compiled truth, and timeline. A file
+/// without frontmatter fences is a page with empty frontmatter and everything as body;
+/// only YAML that cannot be read is an error.
 pub fn parse_page(raw: &str) -> Result<ParsedPage, String> {
-    let (prefix, body) = split_raw(raw)?;
-    let frontmatter: BrainFrontmatter = serde_yaml::from_str(yaml_of(prefix))
-        .map_err(|e| format!("Failed to parse frontmatter: {e}"))?;
+    let (prefix, body) = match split_raw(raw) {
+        Ok(parts) => parts,
+        Err(_) => ("", raw),
+    };
+    let frontmatter: BrainFrontmatter = if prefix.is_empty() {
+        BrainFrontmatter::default()
+    } else {
+        serde_yaml::from_str(yaml_of(prefix))
+            .map_err(|e| format!("Failed to parse frontmatter: {e}"))?
+    };
     let (compiled_truth, timeline) = split_body(body);
     Ok(ParsedPage {
         frontmatter,
         compiled_truth,
         timeline,
     })
+}
+
+/// Like [`parse_page`], but unreadable YAML becomes empty frontmatter with the whole file
+/// as the body, so a page always opens.
+pub fn parse_lenient(raw: &str) -> ParsedPage {
+    match parse_page(raw) {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            let (compiled_truth, timeline) = split_body(raw);
+            ParsedPage {
+                frontmatter: BrainFrontmatter::default(),
+                compiled_truth,
+                timeline,
+            }
+        }
+    }
+}
+
+/// The frontmatter as ordered `(key, value)` pairs, the way the file lists them, for a
+/// properties view. Empty when there is no frontmatter or it cannot be read.
+pub fn properties_of(raw: &str) -> Vec<(String, serde_json::Value)> {
+    let Ok((prefix, _)) = split_raw(raw) else {
+        return Vec::new();
+    };
+    let Ok(map) = serde_yaml::from_str::<serde_yaml::Mapping>(yaml_of(prefix)) else {
+        return Vec::new();
+    };
+    map.into_iter()
+        .filter_map(|(k, v)| {
+            let key = match k {
+                serde_yaml::Value::String(s) => s,
+                other => serde_yaml::to_string(&other).ok()?.trim().to_string(),
+            };
+            let value = serde_json::to_value(v).ok()?;
+            Some((key, value))
+        })
+        .collect()
 }
 
 /// Byte offset of the `## Timeline` heading line, when the body has one.
@@ -387,8 +446,37 @@ mod tests {
     }
 
     #[test]
-    fn parse_missing_frontmatter() {
+    fn parse_missing_frontmatter_is_a_page_with_defaults() {
         let raw = "No frontmatter here.";
+        let parsed = parse_page(raw).unwrap();
+        assert_eq!(parsed.compiled_truth, "No frontmatter here.");
+        assert!(parsed.frontmatter.title.is_empty());
+        let mut fm = parsed.frontmatter;
+        fm.fill_defaults("2026-09-02");
+        assert_eq!(fm.title, "2026-09-02");
+        assert_eq!(fm.page_type, "note");
+        let mut fm = BrainFrontmatter::default();
+        fm.fill_defaults("people/sarah-chen");
+        assert_eq!(fm.title, "sarah-chen");
+        assert_eq!(fm.page_type, "person");
+    }
+
+    #[test]
+    fn unreadable_yaml_is_lenient_and_strict_errors() {
+        let raw = "---\ntitle: [unclosed\n---\n\nBody.\n";
         assert!(parse_page(raw).is_err());
+        let parsed = parse_lenient(raw);
+        assert!(parsed.frontmatter.title.is_empty());
+        assert!(parsed.compiled_truth.contains("Body."));
+    }
+
+    #[test]
+    fn properties_keep_the_file_order() {
+        let raw = "---\ntitle: T\ntype: note\nrole: CTO\ntags:\n  - a\n---\n\nBody.\n";
+        let props = properties_of(raw);
+        let keys: Vec<&str> = props.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(keys, vec!["title", "type", "role", "tags"]);
+        assert_eq!(props[3].1, serde_json::json!(["a"]));
+        assert!(properties_of("no fences").is_empty());
     }
 }

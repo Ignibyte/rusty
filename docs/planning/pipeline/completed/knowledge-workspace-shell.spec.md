@@ -1,11 +1,11 @@
 ---
 title: Knowledge workspace shell
 pipeline_id: 6b0c5d3e-2c0f-4b7e-9f0a-1d2e3f4a5b6c
-status: Phase 1 — Plan PASS; ready for Phase 2 — Design
+status: Phase 5 — Complete PASS
 ticket: TICKET-002
-ticket_doc: docs/planning/tickets/open/TICKET-002-knowledge-workspace-shell.md
+ticket_doc: docs/planning/tickets/closed/TICKET-002-knowledge-workspace-shell.md
 aar: docs/planning/knowledge/aar/AAR-002-knowledge-workspace-shell.md
-sealed:
+sealed: 2026-09-02, Chad: "lets work ticket 2 through 6 auto approved until finished. make sure we refer to the html file, the screen shots. I want near identical to obsidian except that we have the shell built in and an MCP in which the agent can interact with"
 created: 2026-09-02
 ---
 
@@ -45,6 +45,30 @@ REQ-001 to REQ-009 as in the ticket.
 | 4 | Pages open in document tabs inside the workspace; agent terminals stay top-level tabs in the rail and can also be shown as the right pane of the workspace. | The mock's "AI is a pane in the workspace" with what Rusty already has (tmux-backed terminals). | a chat pane with a model call |
 | 5 | Colours come only from the Omarchy theme tokens; the mock's structure and typography are adopted, its amber palette is not. | Constitution §10. | shipping the mock's palette as a theme |
 | 6 | The Brain and Notes tabs are replaced by the workspace; their actions (capture, daily, search, timeline append) move into it. | One place for the vault. | keeping both |
+
+## Amendments at seal (2026-09-02)
+
+Chad's seal asks for Obsidian, near identical, plus the built-in shell and the MCP. That
+sharpens three of the locked decisions and adds two rules:
+
+- Decision 4 becomes: everything is a tab in the main area, as in Obsidian. Pages, the
+  graph, Tasks, Memory, Skills, Secrets, Settings and agent terminals all open as tabs;
+  the right sidebar holds Backlinks, Outgoing links, Outline and an Agent pane that shows
+  a terminal beside the note (the mock's right pane). The old rail of pages goes.
+- Decision 5 becomes: the layout, spacing and typography are Obsidian's (proportional UI
+  font, mono for code and the source editor, inline title, properties block, status bar
+  counts, ribbon and sidebars); the mock keeps two contributions, the agent as a pane and
+  the command layer. Colours still come only from the Omarchy theme: its `obsidian.css`
+  tokens and its Alacritty palette.
+- Keys follow Obsidian's defaults (Ctrl+P palette, Ctrl+O switcher, Ctrl+E reading
+  toggle, Ctrl+N new note, Ctrl+W close, Ctrl+Shift+F search, Ctrl+, settings) and are
+  suspended while a terminal has focus, because Claude Code and the shell use the same
+  keys.
+- Rule: a vault file without frontmatter is a page too (title from the file name, type
+  from its top folder or `note`), so anything Obsidian wrote shows up and opens.
+- Rule: the source editor edits the whole file, frontmatter and timeline included, and
+  autosaves, as Obsidian does; REQ-004's "byte for byte" means untouched text is written
+  back unchanged.
 
 ## Linked artifacts
 

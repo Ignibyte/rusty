@@ -1,6 +1,7 @@
 //! The `Terminals` QML type: everything the agent tabs need from the system. Tabs are a
-//! QML list; this object persists them, names their tmux sessions, lists the sessions
-//! tmux already has, says which agents are installed, and ends a session on request.
+//! QML list (pages, terminals and the built-in views alike); this object persists them,
+//! names the terminals' tmux sessions, lists the sessions tmux already has, says which
+//! agents are installed, and ends a session on request.
 //!
 //! One tab is one tmux session. Closing a tab detaches; the session keeps running until
 //! the user ends it, which is what makes the terminals survive an app restart.
@@ -28,7 +29,9 @@ mod qobject {
         #[qproperty(QString, tabs_path)]
         type Terminals = super::TerminalsRust;
 
-        /// The saved tabs as JSON (`[{name, session, program, cwd}]`), or the defaults.
+        /// The saved tabs as JSON (`[{kind, title, slug, session, program, cwd, pinned}]`),
+        /// or the defaults. Files from before the workspace carry `name` and no `kind`;
+        /// the QML side reads those as terminals.
         #[qinvokable]
         fn load(self: &Terminals) -> QString;
 
@@ -60,20 +63,36 @@ mod qobject {
         /// Show a desktop notification (through `notify-send`, so mako shows it on Omarchy).
         #[qinvokable]
         fn notify(self: &Terminals, title: &QString, body: &QString);
+
+        /// The workspace state (sidebar widths, open panes, expanded folders, the pane's
+        /// agent) as the JSON object last saved, or `{}`.
+        #[qinvokable]
+        fn load_state(self: &Terminals) -> QString;
+
+        /// Persist the workspace state JSON.
+        #[qinvokable]
+        fn save_state(self: &Terminals, json: &QString);
     }
 }
 
 /// A saved tab.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tab {
-    /// Rail label.
-    pub name: String,
-    /// tmux session name.
+    /// `terminal`, `page`, or a built-in view (`tasks`, `memory`, `skills`, `secrets`,
+    /// `settings`).
+    pub kind: String,
+    /// The tab's label.
+    pub title: String,
+    /// The page slug, for `page` tabs.
+    pub slug: String,
+    /// tmux session name, for terminals.
     pub session: String,
-    /// `claude`, `codex` or `shell`.
+    /// `claude`, `codex` or `shell`, for terminals.
     pub program: String,
     /// Working directory the session starts in; empty means the home directory.
     pub cwd: String,
+    /// A pinned tab stays until unpinned.
+    pub pinned: bool,
 }
 
 /// The Rust side of [`qobject::Terminals`].
@@ -89,11 +108,24 @@ impl Default for TerminalsRust {
     }
 }
 
-/// `~/.config/rusty/tabs.json`.
+/// `~/.config/rusty/tabs.json`, or what `RUSTY_TABS` names.
 pub fn tabs_path() -> PathBuf {
+    if let Some(path) = std::env::var_os("RUSTY_TABS").filter(|p| !p.is_empty()) {
+        return PathBuf::from(path);
+    }
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".config/rusty/tabs.json")
+}
+
+/// `~/.config/rusty/workspace.json`, or what `RUSTY_STATE` names.
+pub fn state_path() -> PathBuf {
+    if let Some(path) = std::env::var_os("RUSTY_STATE").filter(|p| !p.is_empty()) {
+        return PathBuf::from(path);
+    }
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".config/rusty/workspace.json")
 }
 
 /// The agent command-line tools the launch bar looks for, in the order they are shown.
@@ -108,12 +140,15 @@ pub fn default_tabs(installed: &[String]) -> Vec<Tab> {
         .find(|c| installed.iter().any(|i| i == *c))
         .map(|c| c.to_string())
         .unwrap_or_else(|| "shell".to_string());
-    let name = tab_label(&program);
+    let title = tab_label(&program);
     vec![Tab {
-        session: session_for(&name, &[]),
-        name,
+        kind: "terminal".to_string(),
+        session: session_for(&title, &[]),
+        title,
+        slug: String::new(),
         program,
         cwd: String::new(),
+        pinned: false,
     }]
 }
 
@@ -135,18 +170,20 @@ pub fn installed_agents() -> Vec<String> {
         .collect()
 }
 
-/// Tabs as the JSON the QML side reads. Hand-rolled: four string fields, no serde
-/// needed in this crate.
+/// Tabs as the JSON the QML side reads.
 pub fn tabs_to_json(tabs: &[Tab]) -> String {
     let items: Vec<String> = tabs
         .iter()
         .map(|t| {
             format!(
-                "{{\"name\":{},\"session\":{},\"program\":{},\"cwd\":{}}}",
-                json_string(&t.name),
+                "{{\"kind\":{},\"title\":{},\"slug\":{},\"session\":{},\"program\":{},\"cwd\":{},\"pinned\":{}}}",
+                json_string(&t.kind),
+                json_string(&t.title),
+                json_string(&t.slug),
                 json_string(&t.session),
                 json_string(&t.program),
-                json_string(&t.cwd)
+                json_string(&t.cwd),
+                t.pinned
             )
         })
         .collect();
@@ -294,6 +331,23 @@ impl qobject::Terminals {
             .spawn();
     }
 
+    /// The saved workspace state, or an empty object.
+    pub fn load_state(&self) -> QString {
+        match std::fs::read_to_string(state_path()) {
+            Ok(text) if text.trim_start().starts_with('{') => QString::from(&text),
+            _ => QString::from("{}"),
+        }
+    }
+
+    /// Persist the workspace state.
+    pub fn save_state(&self, json: &QString) {
+        let path = state_path();
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(path, json.to_string());
+    }
+
     /// End a tmux session.
     pub fn end_session(&self, session: &QString) -> bool {
         Command::new("tmux")
@@ -313,11 +367,11 @@ mod tests {
         let both = default_tabs(&["codex".to_string(), "claude".to_string()]);
         assert_eq!(
             tabs_to_json(&both),
-            r#"[{"name":"Claude","session":"rusty-claude","program":"claude","cwd":""}]"#
+            r#"[{"kind":"terminal","title":"Claude","slug":"","session":"rusty-claude","program":"claude","cwd":"","pinned":false}]"#
         );
         let codex_only = default_tabs(&["codex".to_string()]);
         assert_eq!(codex_only[0].program, "codex");
-        assert_eq!(codex_only[0].name, "Codex");
+        assert_eq!(codex_only[0].title, "Codex");
         let none = default_tabs(&[]);
         assert_eq!(none[0].program, "shell");
         assert_eq!(none[0].session, "rusty-shell");

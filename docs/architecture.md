@@ -124,9 +124,27 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - `crates/rusty-mcp`: 59 tools, five resources plus templates, `list_changed` notifications,
   a background indexer for embeddings; stdio for agents, Streamable HTTP for the app.
 - `crates/rusty-app`: cxx-qt 0.10 on Qt 6. Rust types exposed to QML: `Theme` (Omarchy
-  colours, font, generated colour scheme, live re-theme), `Terminals` (tmux-backed tabs),
-  `Backend` (the MCP client, one session, reconnecting, `result` and `dataChanged` signals).
-  QML pages parse the tool JSON themselves and match replies to their own request ids.
+  colours and the tokens read from the theme's `obsidian.css` and Alacritty palette, font,
+  generated colour scheme, live re-theme), `Terminals` (tabs and the workspace state as JSON
+  files, tmux), `Backend` (the MCP client, one session, reconnecting, `result` and
+  `dataChanged` signals), and two small C++ classes registered in the same QML module:
+  `MarkdownHighlighter` (a `QSyntaxHighlighter` whose spans come from the Rust tokenizer in
+  `src/markdown.rs`) and `Tools` (`grabWindow`, for offscreen screenshots). QML pages parse
+  the tool JSON themselves and match replies to their own request ids.
+- The workspace (2026-09-02, TICKET-002): `qml/Main.qml` lays the window out as Obsidian
+  does (ribbon, left sidebar with `Explorer` and `SearchPane`, tab strip and a stack of
+  `TabHost`s, right sidebar `RightPane`, status bar) with `QuickSwitcher` and
+  `CommandPalette` overlays. Every tab is one kind: `page` (`NoteTab`: view header, inline
+  title, properties, the reading view as rich-text blocks split at top-level headings, the
+  source editor with autosave), `terminal` (`AgentTerminal`), or a built-in view. Reading
+  view HTML comes from `brain_render`; the renderer lives in `rusty-core::brain::render`
+  and inlines the theme's colours because rich text has no stylesheet. Links carry the
+  `rusty:` scheme (`page/`, `new/`, `task/`, `tag/`), which the note routes.
+- Vault rules since the workspace: a file without frontmatter is a page (title from the
+  file name, type from the top folder or `note`); pages may live in any folder; a rename or
+  move rewrites `[[links]]` and `](links.md)` in every page except inside fenced code, and
+  the index rows follow; deletes are soft (`archive/`). Link rows in `brain_links` hold the
+  resolved slug (or the raw target when nothing matches) and the line the link sits on.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   `brain semantic` and `obsidian register|configure|open`.
 - `omarchy/`: installer, user service, desktop entry and icon, key binding snippet, MCP

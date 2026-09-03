@@ -34,6 +34,21 @@ mod qobject {
         #[qproperty(QString, facts)]
         #[qproperty(i32, start_tab)]
         #[qproperty(bool, debug)]
+        #[qproperty(QString, surface)]
+        #[qproperty(QString, surface_alt)]
+        #[qproperty(QString, line)]
+        #[qproperty(QString, muted)]
+        #[qproperty(QString, faint)]
+        #[qproperty(QString, code)]
+        #[qproperty(QString, code_bg)]
+        #[qproperty(QString, tag)]
+        #[qproperty(QString, link)]
+        #[qproperty(QString, hover)]
+        #[qproperty(QString, active)]
+        #[qproperty(QString, tokens)]
+        #[qproperty(QString, shot_path)]
+        #[qproperty(i32, shot_delay)]
+        #[qproperty(QString, shot_scene)]
         type Theme = super::ThemeRust;
 
         /// Re-read the Omarchy theme, font and scheme.
@@ -61,6 +76,25 @@ pub struct ThemeRust {
     facts: QString,
     start_tab: i32,
     debug: bool,
+    surface: QString,
+    surface_alt: QString,
+    line: QString,
+    muted: QString,
+    faint: QString,
+    code: QString,
+    code_bg: QString,
+    tag: QString,
+    link: QString,
+    hover: QString,
+    active: QString,
+    /// Every colour token as a JSON object, for the highlighter and the renderer style.
+    tokens: QString,
+    /// `RUSTY_SHOT=<png>`: grab the window after `shot_delay` ms and quit.
+    shot_path: QString,
+    shot_delay: i32,
+    /// `RUSTY_SHOT_SCENE`: what to show first (`switcher`, `palette`, `edit`,
+    /// `right:agent`, `left:search`, ...), comma separated.
+    shot_scene: QString,
 }
 
 impl Default for ThemeRust {
@@ -82,6 +116,24 @@ impl Default for ThemeRust {
             facts: QString::default(),
             start_tab: start_tab_from_env(),
             debug: std::env::var_os("RUSTY_DEBUG").is_some_and(|v| !v.is_empty()),
+            surface: QString::default(),
+            surface_alt: QString::default(),
+            line: QString::default(),
+            muted: QString::default(),
+            faint: QString::default(),
+            code: QString::default(),
+            code_bg: QString::default(),
+            tag: QString::default(),
+            link: QString::default(),
+            hover: QString::default(),
+            active: QString::default(),
+            tokens: QString::default(),
+            shot_path: QString::from(&std::env::var("RUSTY_SHOT").unwrap_or_default()),
+            shot_delay: std::env::var("RUSTY_SHOT_DELAY")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2500),
+            shot_scene: QString::from(&std::env::var("RUSTY_SHOT_SCENE").unwrap_or_default()),
         };
         theme.apply(&Look::gather());
         theme
@@ -102,7 +154,26 @@ impl ThemeRust {
             .map(|(k, v)| format!("{k}: {v}"))
             .collect();
         self.facts = QString::from(&facts.join("\n"));
+        let token =
+            |key: &str| QString::from(look.tokens.get(key).map(String::as_str).unwrap_or(""));
+        self.surface = token("surface");
+        self.surface_alt = token("surface-alt");
+        self.line = token("line");
+        self.muted = token("muted");
+        self.faint = token("faint");
+        self.code = token("code");
+        self.code_bg = token("code-bg");
+        self.tag = token("tag");
+        self.link = token("link");
+        self.hover = token("hover");
+        self.active = token("active");
+        self.tokens = QString::from(&tokens_json(&look.tokens));
     }
+}
+
+/// The tokens as a JSON object.
+fn tokens_json(tokens: &std::collections::BTreeMap<String, String>) -> String {
+    serde_json::to_string(tokens).unwrap_or_else(|_| "{}".to_string())
 }
 
 /// This machine's host name, which tmux uses as the default terminal title.
@@ -185,5 +256,20 @@ impl qobject::Theme {
             .map(|(k, v)| format!("{k}: {v}"))
             .collect();
         self.as_mut().set_facts(QString::from(&facts.join("\n")));
+        let token =
+            |key: &str| QString::from(look.tokens.get(key).map(String::as_str).unwrap_or(""));
+        self.as_mut().set_surface(token("surface"));
+        self.as_mut().set_surface_alt(token("surface-alt"));
+        self.as_mut().set_line(token("line"));
+        self.as_mut().set_muted(token("muted"));
+        self.as_mut().set_faint(token("faint"));
+        self.as_mut().set_code(token("code"));
+        self.as_mut().set_code_bg(token("code-bg"));
+        self.as_mut().set_tag(token("tag"));
+        self.as_mut().set_link(token("link"));
+        self.as_mut().set_hover(token("hover"));
+        self.as_mut().set_active(token("active"));
+        self.as_mut()
+            .set_tokens(QString::from(&tokens_json(&look.tokens)));
     }
 }

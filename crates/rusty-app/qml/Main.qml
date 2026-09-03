@@ -3,306 +3,437 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import QMLTermWidget
 import dev.ignibyte.rusty
 
+// The workspace, laid out as Obsidian lays out a vault: a ribbon of actions, the left
+// sidebar (files, search), the main area with document tabs, the right sidebar
+// (backlinks, outgoing links, outline, an agent), and a status bar. Pages, agent
+// terminals and the built-in views (tasks, memory, skills, secrets, settings) are all
+// tabs. Everything shown came through rusty-mcp; the app keeps no store of its own.
 ApplicationWindow {
     id: win
     visible: true
     width: 1500
     height: 950
-    title: "Rusty"
+    title: currentNote ? currentNote.title + " - brain - Rusty" : "Rusty"
     color: theme.background
     palette.window: theme.background
     palette.windowText: theme.foreground
-    palette.base: Qt.darker(theme.background, 1.15)
+    palette.base: theme.surface
     palette.alternateBase: theme.background
     palette.text: theme.foreground
-    palette.button: Qt.lighter(theme.background, 1.35)
+    palette.button: theme.hover
     palette.buttonText: theme.foreground
     palette.highlight: theme.accent
     palette.highlightedText: theme.background
-    palette.placeholderText: Qt.rgba(1, 1, 1, 0.35)
+    palette.placeholderText: theme.faint
+    palette.mid: theme.line
+    font.pixelSize: 14
 
-    Theme { id: theme }
-    Terminals { id: terminals }
-    Backend { id: backend }
+    // The Rust-backed objects. Inline components below reach them as win.theme and so
+    // on, because inside a Component scope an unqualified name finds the component's
+    // own property of that name first.
+    Theme { id: themeObj }
+    Terminals { id: terminalsObj }
+    Backend { id: backendObj }
+    readonly property var theme: themeObj
+    readonly property var terminals: terminalsObj
+    readonly property var backend: backendObj
+    Tools { id: tools }
 
-    // Remembered between runs: window size and the tab that was open.
+    // Remembered between runs: the window through Qt's settings, the workspace state
+    // through a JSON file the Rust side keeps (see Terminals.loadState).
     Settings {
-        id: ui
+        id: win_settings
         category: "window"
         property int width: 1500
         property int height: 950
         property int lastTab: 0
     }
-    onWidthChanged: if (visible) ui.width = width
-    onHeightChanged: if (visible) ui.height = height
+    onWidthChanged: if (visible) win_settings.width = width
+    onHeightChanged: if (visible) win_settings.height = height
+    QtObject {
+        id: ui
+        property int lastTab: win_settings.lastTab
+        property int leftWidth: 300
+        property int rightWidth: 320
+        property bool leftOpen: true
+        property bool rightOpen: true
+        property string leftPane: "files"
+        property string rightPane: "backlinks"
+        property string expanded: "{}"
+        property string paneProgram: ""
+        property bool loaded: false
+        onLastTabChanged: win_settings.lastTab = lastTab
+        onLeftWidthChanged: save()
+        onRightWidthChanged: save()
+        onLeftOpenChanged: save()
+        onRightOpenChanged: save()
+        onLeftPaneChanged: save()
+        onRightPaneChanged: save()
+        onExpandedChanged: save()
+        onPaneProgramChanged: save()
+        // Written with the `ui.` prefix throughout: an unqualified `rightPane` here would
+        // find the sidebar item of that id before this object's property.
+        function load() {
+            try {
+                const s = JSON.parse(terminals.loadState())
+                if (typeof s.leftWidth === "number") ui.leftWidth = s.leftWidth
+                if (typeof s.rightWidth === "number") ui.rightWidth = s.rightWidth
+                if (typeof s.leftOpen === "boolean") ui.leftOpen = s.leftOpen
+                if (typeof s.rightOpen === "boolean") ui.rightOpen = s.rightOpen
+                if (typeof s.leftPane === "string") ui.leftPane = s.leftPane
+                if (typeof s.rightPane === "string") ui.rightPane = s.rightPane
+                if (typeof s.expanded === "string") ui.expanded = s.expanded
+                if (typeof s.paneProgram === "string") ui.paneProgram = s.paneProgram
+            } catch (e) {}
+            ui.loaded = true
+        }
+        function save() { if (ui.loaded) saveTimer.restart() }
+        function write() {
+            terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram }))
+        }
+    }
+    Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
 
-    // Agent tabs come first in the rail and the stack; the pages follow.
-    readonly property var pageNames: ["Tasks", "Brain", "Notes", "Memory", "Skills", "Secrets", "Settings"]
-    readonly property int tabCount: tabs.count + pageNames.length
-    function pageIndex(i) { return tabs.count + i }
-    function currentIsAgent() { return stack.currentIndex < tabs.count }
-
-    // name, session, program, cwd are saved; unread and title live only while running.
+    // kind, title, slug, session, program, cwd, pinned are saved; unread and termTitle
+    // live only while running.
     ListModel { id: tabs }
 
-    // The agent CLIs found on this machine, plus a shell; the launch bar shows one button each.
+    property var tree: null
+    property var pageList: []
+    property var titles: ({})
     property var agents: []
+    property var currentNote: null
+    property string notice: ""
+    property var pending: ({})
+    readonly property bool terminalFocused: activeFocusItem !== null && activeFocusItem !== undefined && activeFocusItem.objectName === "term"
     readonly property var agentNames: ({ claude: "Claude Code", codex: "Codex", gemini: "Gemini", aider: "Aider", opencode: "OpenCode", shell: "Shell" })
     readonly property var agentGlyphs: ({ claude: "✳", codex: "◇", gemini: "✦", aider: "⌁", opencode: "◈", shell: "$" })
+    readonly property var viewTitles: ({ tasks: "Tasks", memory: "Memory", skills: "Skills", secrets: "Secrets", settings: "Settings" })
+    readonly property var tokens: JSON.parse(theme.tokens || "{}")
     function agentLabel(p) { return agentNames[p] || p }
     function agentGlyph(p) { return agentGlyphs[p] || "▸" }
     function tabLabelFor(p) { return p === "claude" ? "Claude" : (p.charAt(0).toUpperCase() + p.slice(1)) }
 
-    // Open an agent in a new tab, named after it ("Claude", "Claude 2", ...), in the home dir.
-    function launch(program) {
-        const base = tabLabelFor(program)
-        const names = []
-        for (let i = 0; i < tabs.count; i++) names.push(tabs.get(i).name)
-        let label = base
-        for (let n = 2; names.indexOf(label) >= 0; n++) label = base + " " + n
-        addTab(label, program, "", "")
+    function ask(tool, args, kind) {
+        const id = backend.call(tool, JSON.stringify(args))
+        const p = pending; p[id] = kind; pending = p
+    }
+    function refreshData() {
+        ask("brain_tree", {}, "tree")
+        ask("brain_list_pages", { limit: 100000 }, "pages")
     }
 
-    Component.onCompleted: {
-        win.width = ui.width
-        win.height = ui.height
-        theme.watch()
-        backend.start()
-        agents = terminals.programs()
-        const saved = JSON.parse(terminals.load())
-        for (const t of saved)
-            tabs.append({ name: t.name, session: t.session, program: t.program, cwd: t.cwd || "", unread: false, title: "" })
-        const wanted = theme.startTab >= 0 ? theme.startTab : ui.lastTab
-        stack.currentIndex = Math.max(0, Math.min(wanted, tabCount - 1))
-    }
+    // ── Tabs ──────────────────────────────────────────────────────────────
 
-    function saveTabs() {
-        const out = []
-        for (let i = 0; i < tabs.count; i++) {
-            const t = tabs.get(i)
-            out.push({ name: t.name, session: t.session, program: t.program, cwd: t.cwd })
-        }
-        terminals.save(JSON.stringify(out))
-    }
+    function currentTab() { return stack.currentIndex >= 0 && stack.currentIndex < tabs.count ? tabs.get(stack.currentIndex) : null }
+    function findTab(pred) { for (let i = 0; i < tabs.count; i++) if (pred(tabs.get(i))) return i; return -1 }
+    function baseName(slug) { return slug.slice(slug.lastIndexOf("/") + 1) }
 
+    // Open a page: in the current page tab unless it is pinned, else in a new tab.
+    function openPage(slug, newTab) {
+        const existing = findTab(function (t) { return t.kind === "page" && t.slug === slug })
+        if (existing >= 0 && !newTab) { stack.currentIndex = existing; return }
+        const cur = currentTab()
+        if (!newTab && cur && cur.kind === "page" && !cur.pinned && currentNote) { currentNote.open(slug); return }
+        tabs.append({ kind: "page", title: baseName(slug), slug: slug, session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        stack.currentIndex = tabs.count - 1
+        saveTabs()
+    }
+    function openView(kind) {
+        const existing = findTab(function (t) { return t.kind === kind })
+        if (existing >= 0) { stack.currentIndex = existing; return }
+        tabs.append({ kind: kind, title: viewTitles[kind] || kind, slug: "", session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        stack.currentIndex = tabs.count - 1
+        saveTabs()
+    }
     function takenSessions() {
         const names = []
-        for (let i = 0; i < tabs.count; i++) names.push(tabs.get(i).session)
+        for (let i = 0; i < tabs.count; i++) if (tabs.get(i).session.length > 0) names.push(tabs.get(i).session)
         for (const s of terminals.sessions()) names.push(s)
         return names
     }
-
-    function addTab(name, program, session, cwd) {
-        const label = name.trim().length > 0 ? name.trim() : program.charAt(0).toUpperCase() + program.slice(1)
-        const sess = session.length > 0 ? session : terminals.sessionName(label, takenSessions())
-        tabs.append({ name: label, session: sess, program: program, cwd: cwd.trim(), unread: false, title: "" })
-        saveTabs()
+    // Open an agent in a new tab, named after it ("Claude", "Claude 2", ...).
+    function openTerminal(program, name, session, cwd) {
+        const base = name && name.trim().length > 0 ? name.trim() : tabLabelFor(program)
+        const names = []
+        for (let i = 0; i < tabs.count; i++) names.push(tabs.get(i).title)
+        let label = base
+        for (let n = 2; names.indexOf(label) >= 0; n++) label = base + " " + n
+        const sess = session && session.length > 0 ? session : terminals.sessionName(label, takenSessions())
+        tabs.append({ kind: "terminal", title: label, slug: "", session: sess, program: program, cwd: (cwd || "").trim(), pinned: false, unread: false, termTitle: "" })
         stack.currentIndex = tabs.count - 1
+        saveTabs()
     }
-
     function closeTab(i, endSession) {
         if (i < 0 || i >= tabs.count) return
-        const sess = tabs.get(i).session
+        const t = tabs.get(i)
+        if (t.pinned) { win.notice = "unpin the tab first"; return }
+        const sess = t.session
         tabs.remove(i)
         saveTabs()
-        if (endSession) terminals.endSession(sess)
-        if (stack.currentIndex >= tabCount) stack.currentIndex = tabCount - 1
+        if (endSession && sess.length > 0) terminals.endSession(sess)
+        if (stack.currentIndex >= tabs.count) stack.currentIndex = tabs.count - 1
+        updateCurrent()
     }
-
+    function closeOthers(i) {
+        for (let k = tabs.count - 1; k >= 0; k--) if (k !== i && !tabs.get(k).pinned) tabs.remove(k)
+        stack.currentIndex = findTab(function (t) { return true })
+        saveTabs()
+        updateCurrent()
+    }
+    function pinToggle(i) { if (i >= 0 && i < tabs.count) { tabs.setProperty(i, "pinned", !tabs.get(i).pinned); saveTabs() } }
     function renameTab(i, name) {
         if (i < 0 || i >= tabs.count || name.trim().length === 0) return
-        tabs.setProperty(i, "name", name.trim())
+        tabs.setProperty(i, "title", name.trim())
         saveTabs()
     }
-
     function moveTab(from, to) {
         if (from < 0 || from >= tabs.count || to < 0 || to >= tabs.count || from === to) return
         tabs.move(from, to, 1)
         saveTabs()
         stack.currentIndex = to
     }
-
-    function folderPath(url) {
-        let s = String(url)
-        if (s.startsWith("file://")) s = s.slice(7)
-        return decodeURIComponent(s)
+    function nextTab() { if (tabs.count > 0) stack.currentIndex = (stack.currentIndex + 1) % tabs.count }
+    function prevTab() { if (tabs.count > 0) stack.currentIndex = (stack.currentIndex + tabs.count - 1) % tabs.count }
+    function saveTabs() {
+        const out = []
+        for (let i = 0; i < tabs.count; i++) {
+            const t = tabs.get(i)
+            out.push({ kind: t.kind, title: t.title, slug: t.slug, session: t.session, program: t.program, cwd: t.cwd, pinned: t.pinned })
+        }
+        terminals.save(JSON.stringify(out))
+    }
+    function tabNavigated(i, slug, title) {
+        if (i < 0 || i >= tabs.count) return
+        if (tabs.get(i).slug !== slug) { tabs.setProperty(i, "slug", slug); saveTabs() }
+        tabs.setProperty(i, "title", baseName(slug))
+        if (i === stack.currentIndex) explorer.currentSlug = slug
+    }
+    function markUnread(i) {
+        if (i === stack.currentIndex || i < 0 || i >= tabs.count) return
+        if (!tabs.get(i).unread && theme.debug) console.log("rusty: unread tab", i, tabs.get(i).title)
+        tabs.setProperty(i, "unread", true)
+    }
+    function attention(i, message) {
+        if (i < 0 || i >= tabs.count) return
+        terminals.notify(tabs.get(i).title, message)
+        if (theme.debug) console.log("rusty: attention in tab", i)
+    }
+    function setTermTitle(i, t) { if (i >= 0 && i < tabs.count) tabs.setProperty(i, "termTitle", t) }
+    function updateCurrent() {
+        const h = hosts.itemAt(stack.currentIndex)
+        currentNote = (h && h.kind === "page") ? h.item : null
+        explorer.currentSlug = currentNote ? currentNote.slug : ""
+        const t = currentTab()
+        if (t && t.kind === "terminal") tabs.setProperty(stack.currentIndex, "unread", false)
     }
 
-    // Ctrl+PgUp / Ctrl+PgDn cycle; Ctrl+Shift+T / Ctrl+Shift+W add and close agent tabs.
-    // None of these are used by Claude Code or Codex.
-    Shortcut { sequences: ["Ctrl+PgDown", "Ctrl+Tab"]; onActivated: stack.currentIndex = (stack.currentIndex + 1) % tabCount }
-    Shortcut { sequences: ["Ctrl+PgUp", "Ctrl+Shift+Tab"]; onActivated: stack.currentIndex = (stack.currentIndex + tabCount - 1) % tabCount }
+    // ── Vault actions ─────────────────────────────────────────────────────
+
+    function newNote() {
+        const folder = currentNote ? currentNote.folder : ""
+        ask("brain_new_page", { folder: folder }, "created")
+    }
+    function createPage(name) { ask("brain_new_page", { folder: "", name: name }, "created") }
+    function todayNote() { ask("brain_daily_note", {}, "daily") }
+    function capture(text, target) { if (text.trim().length > 0) ask("brain_capture", { text: text.trim(), target: target }, "captured") }
+    function appendTimeline(text) {
+        if (!currentNote || text.trim().length === 0) return
+        ask("brain_add_timeline", { slug: currentNote.slug, summary: text.trim() }, "appended")
+    }
+    function searchFor(q) { ui.leftOpen = true; ui.leftPane = "search"; searchPane.searchFor(q) }
+    function showLeft(pane) { ui.leftOpen = true; ui.leftPane = pane; if (pane === "search") searchPane.focusEntry(); else explorerList.forceActiveFocus() }
+    function showRight(pane) { ui.rightOpen = true; ui.rightPane = pane; rightPane.current = pane; if (pane === "agent") rightPane.focusAgent() }
+
+    Connections {
+        target: backend
+        function onResult(id, tool, json, ok) {
+            const kind = win.pending[id]
+            if (kind === undefined) return
+            const p = win.pending; delete p[id]; win.pending = p
+            if (!ok) { win.notice = tool + ": " + json; return }
+            win.notice = ""
+            switch (kind) {
+            case "tree": win.tree = JSON.parse(json); break
+            case "pages": {
+                const list = JSON.parse(json)
+                win.pageList = list
+                const map = {}
+                for (const p of list) map[p.slug] = p.title
+                win.titles = map
+                break
+            }
+            case "created": { const slug = JSON.parse(json); win.openPage(slug, false); Qt.callLater(function () { if (win.currentNote && win.currentNote.slug === slug) win.currentNote.editTitle() }); break }
+            case "daily": win.openPage(JSON.parse(json).slug, false); break
+            case "captured": win.notice = "captured to " + JSON.parse(json).slug; break
+            case "appended": win.notice = "appended to the timeline"; break
+            }
+        }
+        function onDataChanged() { win.refreshData() }
+    }
+
+    Component.onCompleted: {
+        win.width = win_settings.width
+        win.height = win_settings.height
+        ui.load()
+        theme.watch()
+        backend.start()
+        agents = terminals.programs()
+        rightPane.programs = agents
+        rightPane.program = ui.paneProgram.length > 0 && agents.indexOf(ui.paneProgram) >= 0 ? ui.paneProgram : (agents.length > 0 ? agents[0] : "")
+        rightPane.current = ui.rightPane
+        try { explorer.expanded = JSON.parse(ui.expanded) } catch (e) { explorer.expanded = ({}) }
+        const saved = JSON.parse(terminals.load())
+        for (const t of saved) {
+            const kind = t.kind || "terminal"
+            tabs.append({ kind: kind, title: t.title || t.name || (kind === "page" ? baseName(t.slug || "") : viewTitles[kind] || kind), slug: t.slug || "",
+                          session: t.session || "", program: t.program || "", cwd: t.cwd || "", pinned: !!t.pinned, unread: false, termTitle: "" })
+        }
+        const wanted = theme.startTab >= 0 ? theme.startTab : win_settings.lastTab
+        stack.currentIndex = Math.max(0, Math.min(wanted, tabs.count - 1))
+        updateCurrent()
+    }
+
+    // `RUSTY_SHOT=<png>`: grab the window once it has settled, then quit. Screenshots for
+    // the docs and the record come from here, against a scratch vault. `RUSTY_SHOT_SCENE`
+    // sets the scene first: `switcher`, `palette`, `edit`, `right:<pane>`, `left:<pane>`.
+    Timer {
+        running: theme.shotPath.length > 0
+        interval: Math.max(200, theme.shotDelay - 900)
+        onTriggered: {
+            for (const part of theme.shotScene.split(",")) {
+                const p = part.trim()
+                if (p === "switcher") switcher.show()
+                else if (p === "palette") palette.show()
+                else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
+                else if (p.startsWith("right:")) win.showRight(p.slice(6))
+                else if (p.startsWith("left:")) win.showLeft(p.slice(5))
+                else if (p.startsWith("search:")) win.searchFor(p.slice(7))
+                else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
+                else if (p.startsWith("tab:")) stack.currentIndex = parseInt(p.slice(4))
+            }
+        }
+    }
+    Timer {
+        running: theme.shotPath.length > 0
+        interval: theme.shotDelay
+        onTriggered: {
+            const saved = tools.grabWindow(win, theme.shotPath)
+            console.log("rusty: shot", theme.shotPath, saved ? "saved" : "not saved")
+            Qt.quit()
+        }
+    }
+
+    // ── Keys (Obsidian's defaults; suspended while a terminal has focus) ────
+
+    Shortcut { sequences: ["Ctrl+O"]; enabled: !win.terminalFocused; onActivated: switcher.show() }
+    Shortcut { sequences: ["Ctrl+P"]; enabled: !win.terminalFocused; onActivated: palette.show() }
+    Shortcut { sequences: ["Ctrl+T"]; enabled: !win.terminalFocused; onActivated: switcher.show() }
+    Shortcut { sequences: ["Ctrl+N"]; enabled: !win.terminalFocused; onActivated: win.newNote() }
+    Shortcut { sequences: ["Ctrl+E"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.toggleEditing() }
+    Shortcut { sequences: ["Ctrl+S"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.save() }
+    Shortcut { sequences: ["Ctrl+W"]; enabled: !win.terminalFocused; onActivated: win.closeTab(stack.currentIndex, false) }
+    Shortcut { sequences: ["Ctrl+Tab"]; enabled: !win.terminalFocused; onActivated: win.nextTab() }
+    Shortcut { sequences: ["Ctrl+Shift+Tab"]; enabled: !win.terminalFocused; onActivated: win.prevTab() }
+    Shortcut { sequences: ["Ctrl+PgDown"]; onActivated: win.nextTab() }
+    Shortcut { sequences: ["Ctrl+PgUp"]; onActivated: win.prevTab() }
+    Shortcut { sequences: ["Ctrl+Shift+F"]; enabled: !win.terminalFocused; onActivated: win.showLeft("search") }
+    Shortcut { sequences: ["Ctrl+,"]; enabled: !win.terminalFocused; onActivated: win.openView("settings") }
+    Shortcut { sequences: ["Alt+Left"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goBack() }
+    Shortcut { sequences: ["Alt+Right"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goForward() }
+    Shortcut { sequences: ["F2"]; enabled: !win.terminalFocused; onActivated: { if (win.currentNote) win.currentNote.editTitle(); else if (win.currentTab() && win.currentTab().kind === "terminal") renameDialog.openFor(stack.currentIndex) } }
     Shortcut { sequences: ["Ctrl+Shift+T"]; onActivated: newTabDialog.openFresh() }
-    // Only live on agent tabs: otherwise they would swallow the keys before a page
-    // (the task list uses F2 to rename a task) ever sees them.
-    Shortcut { sequences: ["Ctrl+Shift+W"]; enabled: currentIsAgent(); onActivated: closeTab(stack.currentIndex, false) }
-    Shortcut { sequences: ["F2"]; enabled: currentIsAgent(); onActivated: renameDialog.openFor(stack.currentIndex) }
-    Shortcut { sequences: ["Ctrl+Shift+PgUp"]; enabled: currentIsAgent(); onActivated: moveTab(stack.currentIndex, stack.currentIndex - 1) }
-    Shortcut { sequences: ["Ctrl+Shift+PgDown"]; enabled: currentIsAgent(); onActivated: moveTab(stack.currentIndex, stack.currentIndex + 1) }
+    Shortcut { sequences: ["Ctrl+Shift+W"]; onActivated: win.closeTab(stack.currentIndex, false) }
+    Shortcut { sequences: ["Ctrl+Shift+PgUp"]; onActivated: win.moveTab(stack.currentIndex, stack.currentIndex - 1) }
+    Shortcut { sequences: ["Ctrl+Shift+PgDown"]; onActivated: win.moveTab(stack.currentIndex, stack.currentIndex + 1) }
 
-    // One agent tab = one tmux session in the built-in terminal, coloured like Alacritty.
-    // Closing the tab or the window leaves the session running.
-    component AgentTab: Item {
-        id: tab
-        required property int index
-        required property string session
-        required property string program
-        required property string cwd
-        readonly property bool isCurrent: stack.currentIndex === index
-        readonly property string startDir: cwd.length > 0 ? cwd : theme.homeDir
-        onIsCurrentChanged: if (isCurrent) { tabs.setProperty(index, "unread", false); term.forceActiveFocus() }
-        QMLTermWidget {
-            id: term
-            anchors.fill: parent
-            font.family: theme.termFont
-            font.pointSize: 11
-            colorScheme: theme.termScheme
-            session: QMLTermSession {
-                id: termSession
-                initialWorkingDirectory: tab.startDir
-                shellProgram: "tmux"
-                // After the session is up, tmux forwards the pane title (what Claude Code or
-                // Codex set) to us, which the rail shows under the tab name.
-                shellProgramArgs: ["new-session", "-A", "-s", tab.session, "-c", tab.startDir, terminals.commandFor(tab.program),
-                                   ";", "set-option", "-t", tab.session, "set-titles", "on",
-                                   ";", "set-option", "-t", tab.session, "set-titles-string", "#T"]
-            }
-            // An empty session name would make tmux attach to whatever session it used last.
-            Component.onCompleted: { if (tab.session.length > 0) termSession.startShellProgram(); term.forceActiveFocus() }
-            QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: theme.accent; opacity: 0.4; radius: 4 } }
+    // ── The palette's commands ────────────────────────────────────────────
+
+    function commandList() {
+        const list = [
+            { name: "Quick switcher: Open quick switcher", keys: "Ctrl+O", run: function () { switcher.show() } },
+            { name: "Create new note", keys: "Ctrl+N", run: function () { win.newNote() } },
+            { name: "Daily notes: Open today's daily note", keys: "", run: function () { win.todayNote() } },
+            { name: "Toggle reading view", keys: "Ctrl+E", enabled: win.currentNote !== null, run: function () { win.currentNote.toggleEditing() } },
+            { name: "Save current file", keys: "Ctrl+S", enabled: win.currentNote !== null, run: function () { win.currentNote.save() } },
+            { name: "Files: Reveal current file in explorer", keys: "", enabled: win.currentNote !== null, run: function () { win.showLeft("files"); explorer.reveal(win.currentNote.slug) } },
+            { name: "Files: Rename current file", keys: "F2", enabled: win.currentNote !== null, run: function () { win.currentNote.editTitle() } },
+            { name: "Files: Move current file to another folder", keys: "", enabled: win.currentNote !== null, run: function () { explorer.moveDialogFor(win.currentNote.slug) } },
+            { name: "Files: Delete current file", keys: "", enabled: win.currentNote !== null, run: function () { explorer.deleteDialogFor(win.currentNote.slug) } },
+            { name: "Files: Create new folder", keys: "", run: function () { win.showLeft("files"); explorer.newFolderAtRoot() } },
+            { name: "Search: Search in all files", keys: "Ctrl+Shift+F", run: function () { win.showLeft("search") } },
+            { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
+            { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },
+            { name: "Timeline: Append an entry to this page's timeline", keys: "", enabled: win.currentNote !== null, run: function () { promptDialog.openFor("Append to the timeline of " + win.currentNote.title, "", function (text) { win.appendTimeline(text) }) } },
+            { name: "Toggle left sidebar", keys: "", run: function () { ui.leftOpen = !ui.leftOpen } },
+            { name: "Toggle right sidebar", keys: "", run: function () { ui.rightOpen = !ui.rightOpen } },
+            { name: "Backlinks: Show backlinks", keys: "", run: function () { win.showRight("backlinks") } },
+            { name: "Outgoing links: Show outgoing links", keys: "", run: function () { win.showRight("outgoing") } },
+            { name: "Outline: Show outline", keys: "", run: function () { win.showRight("outline") } },
+            { name: "Agent: Show the agent pane", keys: "", run: function () { win.showRight("agent") } },
+            { name: "Graph view: Open graph view (coming with TICKET-004)", keys: "Ctrl+G", enabled: false, run: function () {} },
+            { name: "Tasks: Open tasks", keys: "", run: function () { win.openView("tasks") } },
+            { name: "Memory: Open memories", keys: "", run: function () { win.openView("memory") } },
+            { name: "Skills: Open skills", keys: "", run: function () { win.openView("skills") } },
+            { name: "Secrets: Open secrets", keys: "", run: function () { win.openView("secrets") } },
+            { name: "Settings: Open settings", keys: "Ctrl+,", run: function () { win.openView("settings") } },
+            { name: "Terminal: New terminal (custom)", keys: "Ctrl+Shift+T", run: function () { newTabDialog.openFresh() } },
+            { name: "Tabs: Close current tab", keys: "Ctrl+W", run: function () { win.closeTab(stack.currentIndex, false) } },
+            { name: "Tabs: Close other tabs", keys: "", run: function () { win.closeOthers(stack.currentIndex) } },
+            { name: "Tabs: Pin or unpin current tab", keys: "", run: function () { win.pinToggle(stack.currentIndex) } },
+            { name: "Tabs: Next tab", keys: "Ctrl+Tab", run: function () { win.nextTab() } },
+            { name: "Tabs: Previous tab", keys: "Ctrl+Shift+Tab", run: function () { win.prevTab() } },
+            { name: "Navigate back", keys: "Alt+Left", enabled: win.currentNote !== null, run: function () { win.currentNote.goBack() } },
+            { name: "Navigate forward", keys: "Alt+Right", enabled: win.currentNote !== null, run: function () { win.currentNote.goForward() } },
+            { name: "Theme: Reload the Omarchy theme", keys: "", run: function () { theme.reload() } },
+            { name: "Vault: Reload the file tree", keys: "", run: function () { win.refreshData() } }
+        ]
+        for (const a of win.agents) {
+            list.push({ name: "Terminal: Open " + win.agentLabel(a) + " in a new tab", keys: "", run: (function (p) { return function () { win.openTerminal(p, "", "", "") } })(a) })
         }
-        function focusTerminal() { term.forceActiveFocus() }
-        function markUnread() {
-            if (tab.isCurrent) return
-            if (!tabs.get(tab.index).unread && theme.debug) console.log("rusty: unread tab", tab.index, tabs.get(tab.index).name)
-            tabs.setProperty(tab.index, "unread", true)
-        }
-        // A bell in a tab that is not showing, or while the window is not focused, gets a
-        // desktop notification; a bell in the tab you are looking at does not.
-        function rang() {
-            tab.markUnread()
-            if (!tab.isCurrent || !win.active) terminals.notify(tabs.get(tab.index).name, "rang the bell")
-            if (theme.debug) console.log("rusty: bell in tab", tab.index)
-        }
-        // Codex and Claude Code announce attention through the title ("[ ! ] Action
-        // Required", "needs your input"); the bell does not reach us through tmux. A tab
-        // that is not showing, or a window that is not focused, turns that into a
-        // desktop notification, once per title.
-        property string lastAlert: ""
-        property double lastAlertAt: 0
-        function titled() {
-            const t = termSession.title || ""
-            tabs.setProperty(tab.index, "title", t)
-            if (theme.debug) console.log("rusty: title of tab", tab.index, JSON.stringify(t))
-            const wantsYou = /\[ ! \]|action required|needs your|waiting for you|permission/i.test(t)
-            // Codex blinks "[ ! ]" and "[ . ]" in front of the same message; compare without
-            // that frame, and never more than once a minute per tab.
-            const key = t.replace(/^\[ . \]\s*/, "")
-            const now = Date.now()
-            if (wantsYou && key !== lastAlert && now - lastAlertAt > 60000 && (!tab.isCurrent || !win.active)) {
-                lastAlert = key
-                lastAlertAt = now
-                terminals.notify(tabs.get(tab.index).name, key)
-                if (theme.debug) console.log("rusty: attention in tab", tab.index)
-            }
-            if (!wantsYou) lastAlert = ""
-        }
-        // The widget and its session each expose some of these; unknown ones are ignored.
-        Connections {
-            target: termSession
-            ignoreUnknownSignals: true
-            function onTitleChanged() { tab.titled() }
-            function onActivity() { tab.markUnread() }
-            function onBell() { tab.rang() }
-            function onReceivedData() { tab.markUnread() }
-        }
-        Connections {
-            target: term
-            ignoreUnknownSignals: true
-            // imagePainted fires whenever the emulation has new output, shown or not.
-            function onImagePainted() { tab.markUnread() }
-            function onActivity() { tab.markUnread() }
-            function onBell() { tab.rang() }
-            function onNotifyBell() { tab.rang() }
-        }
+        return list
     }
 
-    component RailItem: Rectangle {
-        id: item
-        property string label
-        property string subtitle: ""
-        property int stackIndex
-        property bool agent: false
-        property bool unread: false
-        signal activated()
-        signal menuRequested()
-        Layout.fillWidth: true
-        height: subtitle.length > 0 ? 40 : 34
-        radius: 6
-        color: stack.currentIndex === stackIndex ? theme.accent : (hover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent")
-        ColumnLayout {
-            anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12
-            anchors.right: dot.visible ? dot.left : parent.right; anchors.rightMargin: 8
-            spacing: 0
-            Text {
-                text: item.label
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-                color: stack.currentIndex === item.stackIndex ? theme.background : theme.foreground
-                font.pixelSize: 14
-            }
-            Text {
-                visible: item.subtitle.length > 0
-                text: item.subtitle
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-                color: stack.currentIndex === item.stackIndex ? theme.background : theme.foreground
-                opacity: 0.6
-                font.pixelSize: 10
-            }
-        }
-        Rectangle {
-            id: dot
-            visible: item.unread
-            width: 8; height: 8; radius: 4
-            anchors.right: parent.right; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter
-            color: stack.currentIndex === item.stackIndex ? theme.background : theme.accent
-        }
-        HoverHandler { id: hover }
-        TapHandler { acceptedButtons: Qt.LeftButton; onTapped: item.activated() }
-        TapHandler { acceptedButtons: Qt.RightButton; enabled: item.agent; onTapped: item.menuRequested() }
-        // Drag an agent tab up or down the rail to reorder it.
-        signal dropped(int steps)
-        DragHandler {
-            id: itemDrag
-            enabled: item.agent
-            target: null
-            xAxis.enabled: false
-            onActiveChanged: if (!active) item.dropped(Math.round(itemDrag.centroid.position.y / 36) - 0)
-        }
-        opacity: itemDrag.active ? 0.6 : 1
-        ToolTip.visible: hover.hovered && item.subtitle.length > 0
-        ToolTip.text: item.subtitle
-        ToolTip.delay: 600
+    QuickSwitcher { id: switcher; theme: win.theme; pages: win.pageList; onOpenPage: (slug) => win.openPage(slug, false); onCreatePage: (name) => win.createPage(name) }
+    CommandPalette { id: palette; theme: win.theme; onAboutToShow: commands = win.commandList() }
+
+    Dialog {
+        id: promptDialog
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property var callback: null
+        function openFor(titleText, initial, cb) { title = titleText; promptField.text = initial; callback = cb; open(); promptField.forceActiveFocus() }
+        onAccepted: if (callback) callback(promptField.text)
+        TextField { id: promptField; width: 420; onAccepted: promptDialog.accept() }
     }
 
     Menu {
         id: tabMenu
         property int tabIndex: -1
-        MenuItem { text: "Rename…"; onTriggered: renameDialog.openFor(tabMenu.tabIndex) }
-        MenuItem { text: "Move up"; enabled: tabMenu.tabIndex > 0; onTriggered: moveTab(tabMenu.tabIndex, tabMenu.tabIndex - 1) }
-        MenuItem { text: "Move down"; enabled: tabMenu.tabIndex < tabs.count - 1; onTriggered: moveTab(tabMenu.tabIndex, tabMenu.tabIndex + 1) }
-        MenuItem { text: "Close tab (keep session)"; onTriggered: closeTab(tabMenu.tabIndex, false) }
-        MenuItem { text: "Close tab and end session"; onTriggered: closeTab(tabMenu.tabIndex, true) }
+        readonly property var tab: tabIndex >= 0 && tabIndex < tabs.count ? tabs.get(tabIndex) : null
+        MenuItem { text: tabMenu.tab && tabMenu.tab.pinned ? "Unpin" : "Pin"; onTriggered: win.pinToggle(tabMenu.tabIndex) }
+        MenuItem { text: "Rename…"; visible: tabMenu.tab !== null && tabMenu.tab.kind === "terminal"; height: visible ? implicitHeight : 0; onTriggered: renameDialog.openFor(tabMenu.tabIndex) }
+        MenuItem { text: "Move left"; enabled: tabMenu.tabIndex > 0; onTriggered: win.moveTab(tabMenu.tabIndex, tabMenu.tabIndex - 1) }
+        MenuItem { text: "Move right"; enabled: tabMenu.tabIndex < tabs.count - 1; onTriggered: win.moveTab(tabMenu.tabIndex, tabMenu.tabIndex + 1) }
+        MenuSeparator {}
+        MenuItem { text: "Close"; onTriggered: win.closeTab(tabMenu.tabIndex, false) }
+        MenuItem { text: "Close others"; onTriggered: win.closeOthers(tabMenu.tabIndex) }
+        MenuItem { text: "Close and end the session"; visible: tabMenu.tab !== null && tabMenu.tab.kind === "terminal"; height: visible ? implicitHeight : 0; onTriggered: win.closeTab(tabMenu.tabIndex, true) }
     }
 
     FolderDialog {
         id: folderDialog
         title: "Working directory"
         onAccepted: cwdField.text = folderPath(selectedFolder)
+    }
+    function folderPath(url) {
+        let s = String(url)
+        if (s.startsWith("file://")) s = s.slice(7)
+        return decodeURIComponent(s)
     }
 
     Dialog {
@@ -321,7 +452,7 @@ ApplicationWindow {
             open()
             nameField.forceActiveFocus()
         }
-        onAccepted: addTab(nameField.text, programBox.currentText, sessionBox.currentIndex > 0 ? sessionBox.currentText : "", cwdField.text)
+        onAccepted: win.openTerminal(programBox.currentText, nameField.text, sessionBox.currentIndex > 0 ? sessionBox.currentText : "", cwdField.text)
         ColumnLayout {
             spacing: 10
             Label { text: "Name (optional)" }
@@ -346,163 +477,406 @@ ApplicationWindow {
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
         property int tabIndex: -1
-        function openFor(i) { tabIndex = i; renameField.text = tabs.get(i).name; open(); renameField.forceActiveFocus(); renameField.selectAll() }
-        onAccepted: renameTab(tabIndex, renameField.text)
+        function openFor(i) { tabIndex = i; renameField.text = tabs.get(i).title; open(); renameField.forceActiveFocus(); renameField.selectAll() }
+        onAccepted: win.renameTab(tabIndex, renameField.text)
         TextField { id: renameField; width: 320; onAccepted: renameDialog.accept() }
     }
 
-    RowLayout {
+    // ── One tab's content ─────────────────────────────────────────────────
+
+    component TabHost: Item {
+        id: host
+        required property int index
+        required property string kind
+        required property string slug
+        required property string session
+        required property string program
+        required property string cwd
+        required property string title
+        readonly property bool isCurrent: stack.currentIndex === index
+        readonly property var item: loader.item
+        Loader {
+            id: loader
+            anchors.fill: parent
+            sourceComponent: host.kind === "page" ? pageComp
+                           : host.kind === "terminal" ? termComp
+                           : host.kind === "tasks" ? tasksComp
+                           : host.kind === "memory" ? memoryComp
+                           : host.kind === "skills" ? skillsComp
+                           : host.kind === "secrets" ? secretsComp
+                           : host.kind === "settings" ? settingsComp : null
+            onLoaded: if (host.isCurrent) win.updateCurrent()
+        }
+        Component {
+            id: pageComp
+            NoteTab {
+                backend: win.backend
+                theme: win.theme
+                isCurrent: host.isCurrent
+                Component.onCompleted: open(host.slug)
+                onNavigated: (s, t) => win.tabNavigated(host.index, s, t)
+                onOpenTag: (tag) => win.searchFor("#" + tag)
+                onRequestMove: (s) => explorer.moveDialogFor(s)
+                onRequestDelete: (s) => explorer.deleteDialogFor(s)
+            }
+        }
+        Component {
+            id: termComp
+            AgentTerminal {
+                theme: win.theme
+                terminals: win.terminals
+                session: host.session
+                program: host.program
+                cwd: host.cwd
+                isCurrent: host.isCurrent
+                windowActive: win.active
+                onUnread: win.markUnread(host.index)
+                onAttention: (m) => win.attention(host.index, m)
+                onTitleChanged: win.setTermTitle(host.index, title)
+            }
+        }
+        Component { id: tasksComp; TasksPage { backend: win.backend; theme: win.theme } }
+        Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
+        Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
+        Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
+        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals } }
+    }
+
+    component RibbonButton: Rectangle {
+        id: rb
+        property string icon: ""
+        property string glyph: ""
+        property string tip: ""
+        property bool active: false
+        signal clicked()
+        width: 30
+        height: 30
+        radius: 6
+        color: rb.active ? theme.active : (rbHover.hovered && enabled ? theme.hover : "transparent")
+        opacity: enabled ? 1 : 0.35
+        Icon { visible: rb.icon.length > 0; anchors.centerIn: parent; name: rb.icon; color: rb.active ? theme.foreground : theme.muted; size: 18 }
+        Text { visible: rb.glyph.length > 0; anchors.centerIn: parent; text: rb.glyph; color: rb.active ? theme.foreground : theme.muted; font.pixelSize: 16 }
+        HoverHandler { id: rbHover; cursorShape: Qt.PointingHandCursor; enabled: theme.shotPath.length === 0 }
+        TapHandler { onTapped: if (rb.enabled) rb.clicked() }
+        ToolTip.visible: rbHover.hovered && rb.tip.length > 0
+        ToolTip.text: rb.tip
+        ToolTip.delay: 500
+    }
+
+    component SideTab: Rectangle {
+        id: st
+        property string icon
+        property string tip: ""
+        property bool active: false
+        signal clicked()
+        width: 28
+        height: 26
+        radius: 5
+        color: st.active ? theme.active : (stHover.hovered ? theme.hover : "transparent")
+        Icon { anchors.centerIn: parent; name: st.icon; color: st.active ? theme.foreground : theme.muted; size: 16 }
+        HoverHandler { id: stHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: st.clicked() }
+        ToolTip.visible: stHover.hovered && st.tip.length > 0
+        ToolTip.text: st.tip
+        ToolTip.delay: 600
+    }
+
+    component Splitter: Item {
+        id: sp
+        property bool isLeft: true
+        width: 7
+        Rectangle { anchors.centerIn: parent; width: 1; height: parent.height; color: theme.line }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.SplitHCursor
+            property real startX: 0
+            property int startWidth: 0
+            onPressed: (mouse) => { startX = mouse.x; startWidth = sp.isLeft ? ui.leftWidth : ui.rightWidth }
+            onPositionChanged: (mouse) => {
+                if (!pressed) return
+                const delta = mouse.x - startX
+                if (sp.isLeft) ui.leftWidth = Math.max(180, Math.min(600, startWidth + delta))
+                else ui.rightWidth = Math.max(200, Math.min(700, startWidth - delta))
+            }
+        }
+    }
+
+    // ── Layout ────────────────────────────────────────────────────────────
+
+    ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        Rectangle {
-            Layout.fillHeight: true
-            width: 172
-            color: theme.background
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 10
-                spacing: 4
-                Text { text: "Rusty"; color: theme.accent; font.pixelSize: 20; font.bold: true; Layout.bottomMargin: 10; Layout.leftMargin: 6 }
-                Repeater {
-                    model: tabs
-                    delegate: RailItem {
-                        required property int index
-                        required property string name
-                        required property string title
-                        required property bool unread
-                        label: name
-                        subtitle: (title.length === 0 || title === theme.hostName || title.startsWith(theme.hostName + ":")) ? "" : title
-                        stackIndex: index
-                        agent: true
-                        onActivated: stack.currentIndex = index
-                        onMenuRequested: { tabMenu.tabIndex = index; tabMenu.popup() }
-                        onDropped: (steps) => { if (steps !== 0) moveTab(index, Math.max(0, Math.min(tabs.count - 1, index + steps))) }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 28
-                    radius: 6
-                    color: addHover.hovered ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
-                    Text { anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 12; text: "+ terminal"; color: theme.foreground; opacity: 0.7; font.pixelSize: 13 }
-                    HoverHandler { id: addHover }
-                    TapHandler { onTapped: newTabDialog.openFresh() }
-                }
-                Rectangle { Layout.fillWidth: true; height: 1; color: theme.accent; opacity: 0.25; Layout.topMargin: 6; Layout.bottomMargin: 6 }
-                Repeater {
-                    model: pageNames
-                    delegate: RailItem {
-                        required property int index
-                        required property string modelData
-                        label: modelData
-                        stackIndex: pageIndex(index)
-                        onActivated: stack.currentIndex = pageIndex(index)
-                    }
-                }
-                Item { Layout.fillHeight: true }
-                Text { text: "theme " + theme.accent; color: theme.foreground; opacity: 0.5; font.pixelSize: 11; Layout.leftMargin: 6 }
-            }
-        }
-        Rectangle { width: 1; Layout.fillHeight: true; color: theme.accent; opacity: 0.25 }
-
-        ColumnLayout {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
 
-            // Launch bar: one button per agent found on this machine. A click opens it in a
-            // new tab; the rail lists only the tabs that are open.
+            // The ribbon.
             Rectangle {
-                Layout.fillWidth: true
-                height: 40
-                color: Qt.darker(theme.background, 1.08)
-                RowLayout {
+                Layout.fillHeight: true
+                width: 44
+                color: theme.surface
+                ColumnLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    spacing: 6
-                    Text { text: "Open"; color: theme.foreground; opacity: 0.5; font.pixelSize: 12 }
+                    anchors.topMargin: 8
+                    anchors.bottomMargin: 8
+                    spacing: 4
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; tip: "Graph view (TICKET-004)"; enabled: false }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "command"; tip: "Command palette (Ctrl+P)"; onClicked: palette.show() }
+                    Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "memory"; tip: "Memory"; active: win.currentTab() !== null && win.currentTab().kind === "memory"; onClicked: win.openView("memory") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "skills"; tip: "Skills"; active: win.currentTab() !== null && win.currentTab().kind === "skills"; onClicked: win.openView("skills") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "secrets"; tip: "Secrets"; active: win.currentTab() !== null && win.currentTab().kind === "secrets"; onClicked: win.openView("secrets") }
+                    Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
                     Repeater {
                         model: win.agents
-                        delegate: Rectangle {
+                        delegate: RibbonButton {
                             required property string modelData
-                            radius: 6
-                            height: 28
-                            width: launchLabel.implicitWidth + 24
-                            color: launchHover.hovered ? theme.accent : Qt.rgba(1, 1, 1, 0.06)
-                            Text {
-                                id: launchLabel
-                                anchors.centerIn: parent
-                                text: win.agentGlyph(modelData) + "  " + win.agentLabel(modelData)
-                                color: launchHover.hovered ? theme.background : theme.foreground
-                                font.pixelSize: 13
-                            }
-                            HoverHandler { id: launchHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: win.launch(modelData) }
-                            ToolTip.visible: launchHover.hovered
-                            ToolTip.text: "Open " + win.agentLabel(modelData) + " in a new tab"
-                            ToolTip.delay: 600
+                            Layout.alignment: Qt.AlignHCenter
+                            glyph: win.agentGlyph(modelData)
+                            tip: "Open " + win.agentLabel(modelData) + " in a new tab"
+                            onClicked: win.openTerminal(modelData, "", "", "")
                         }
                     }
-                    Text {
-                        visible: win.agents.length <= 1
-                        text: "no agent CLI on PATH (claude, codex); the shell still works"
-                        color: theme.foreground; opacity: 0.5; font.pixelSize: 12
-                    }
-                    Rectangle {
-                        radius: 6; height: 28; width: customLabel.implicitWidth + 24
-                        color: customHover.hovered ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
-                        Text { id: customLabel; anchors.centerIn: parent; text: "custom…"; color: theme.foreground; opacity: 0.7; font.pixelSize: 13 }
-                        HoverHandler { id: customHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: newTabDialog.openFresh() }
-                        ToolTip.visible: customHover.hovered
-                        ToolTip.text: "Name, agent, session and working directory"
-                        ToolTip.delay: 600
-                    }
-                    Item { Layout.fillWidth: true }
-                    Rectangle { width: 8; height: 8; radius: 4; color: backend.connected ? theme.accent : "#f7768e" }
-                    Text { text: backend.connected ? "back end" : backend.status; color: theme.foreground; opacity: 0.5; font.pixelSize: 11; elide: Text.ElideRight; Layout.maximumWidth: 320 }
+                    Item { Layout.fillHeight: true }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "settings"; tip: "Settings (Ctrl+,)"; active: win.currentTab() !== null && win.currentTab().kind === "settings"; onClicked: win.openView("settings") }
                 }
             }
-            Rectangle { Layout.fillWidth: true; height: 1; color: theme.accent; opacity: 0.25 }
+            Rectangle { width: 1; Layout.fillHeight: true; color: theme.line }
 
-        StackLayout {
-            id: stack
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            onCurrentIndexChanged: {
-                ui.lastTab = currentIndex
-                if (currentIsAgent()) {
-                    const item = agentTabs.itemAt(currentIndex)
-                    if (item) item.focusTerminal()
-                } else if (currentIndex === pageIndex(0)) {
-                    tasksPage.focusAdd()
-                } else if (currentIndex === pageIndex(1)) {
-                    brainPage.focusEntry()
-                } else if (currentIndex === pageIndex(2)) {
-                    notesPage.focusEntry()
-                } else if (currentIndex === pageIndex(3)) {
-                    memoryPage.focusEntry()
-                } else if (currentIndex === pageIndex(4)) {
-                    skillsPage.focusEntry()
-                } else if (currentIndex === pageIndex(5)) {
-                    secretsPage.focusEntry()
+            // The left sidebar: files and search.
+            Rectangle {
+                visible: ui.leftOpen
+                Layout.fillHeight: true
+                width: ui.leftWidth
+                color: theme.surface
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 6
+                        Layout.rightMargin: 6
+                        Layout.topMargin: 5
+                        spacing: 2
+                        SideTab { icon: "panel-left"; tip: "Collapse"; onClicked: ui.leftOpen = false }
+                        Item { width: 6 }
+                        SideTab { icon: "files"; tip: "Files"; active: ui.leftPane === "files"; onClicked: win.showLeft("files") }
+                        SideTab { icon: "search"; tip: "Search (Ctrl+Shift+F)"; active: ui.leftPane === "search"; onClicked: win.showLeft("search") }
+                        SideTab { icon: "bookmark"; tip: "Bookmarks (TICKET-005)"; opacity: 0.35 }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6; Layout.topMargin: 5 }
+                    StackLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        currentIndex: ui.leftPane === "search" ? 1 : 0
+                        Explorer {
+                            id: explorer
+                            backend: win.backend
+                            theme: win.theme
+                            tree: win.tree
+                            onOpenPage: (slug) => win.openPage(slug, false)
+                            onCreated: (slug) => { win.openPage(slug, false); Qt.callLater(function () { if (win.currentNote && win.currentNote.slug === slug) win.currentNote.editTitle() }) }
+                            onExpandedEdited: ui.expanded = JSON.stringify(expanded)
+                            function newFolderAtRoot() { folderDialogRoot.openFor("") }
+                            Dialog {
+                                id: folderDialogRoot
+                                title: "New folder"
+                                modal: true
+                                anchors.centerIn: Overlay.overlay
+                                standardButtons: Dialog.Ok | Dialog.Cancel
+                                property string parentFolder: ""
+                                function openFor(folder) { parentFolder = folder; rootFolderName.text = ""; open(); rootFolderName.forceActiveFocus() }
+                                onAccepted: explorer.newFolder(parentFolder, rootFolderName.text)
+                                TextField { id: rootFolderName; width: 320; placeholderText: "Folder name"; onAccepted: folderDialogRoot.accept() }
+                            }
+                        }
+                        SearchPane { id: searchPane; backend: win.backend; theme: win.theme; onOpenPage: (slug) => win.openPage(slug, false) }
+                    }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6 }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 10
+                        Layout.rightMargin: 6
+                        height: 30
+                        spacing: 6
+                        Icon { name: "vault"; color: theme.muted; size: 14 }
+                        Text { text: win.tree ? win.tree.name : "brain"; color: theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: win.tree ? win.tree.pages + " pages" : ""; color: theme.faint; font.pixelSize: 11 }
+                        SideTab { icon: "help"; tip: "Command palette (Ctrl+P) lists every action with its key"; onClicked: palette.show() }
+                        SideTab { icon: "settings"; tip: "Settings"; onClicked: win.openView("settings") }
+                    }
                 }
             }
-            Repeater {
-                id: agentTabs
-                model: tabs
-                delegate: AgentTab {}
+            Splitter { visible: ui.leftOpen; Layout.fillHeight: true; isLeft: true }
+
+            // The main area: the tab strip and the tabs.
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36
+                    color: theme.surface
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 0
+                        SideTab { visible: !ui.leftOpen; Layout.leftMargin: 6; icon: "panel-left"; tip: "Expand"; onClicked: ui.leftOpen = true }
+                        Flickable {
+                            id: tabStrip
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            contentWidth: tabRow.implicitWidth
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            Row {
+                                id: tabRow
+                                height: parent.height
+                                spacing: 0
+                                leftPadding: 6
+                                Repeater {
+                                    model: tabs
+                                    delegate: Item {
+                                        id: tabItem
+                                        required property int index
+                                        required property string title
+                                        required property string kind
+                                        required property string program
+                                        required property bool pinned
+                                        required property bool unread
+                                        required property string termTitle
+                                        readonly property bool active: stack.currentIndex === index
+                                        width: Math.min(230, Math.max(110, tabLabel.implicitWidth + 62))
+                                        height: 36
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            anchors.topMargin: 5
+                                            radius: 6
+                                            color: tabItem.active ? theme.background : (tabHover.hovered ? theme.hover : "transparent")
+                                            Rectangle { visible: tabItem.active; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 8; color: theme.background }
+                                        }
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.topMargin: 5
+                                            anchors.leftMargin: 10
+                                            anchors.rightMargin: 6
+                                            spacing: 5
+                                            Icon { visible: tabItem.pinned; name: "pin"; color: theme.muted; size: 12 }
+                                            Text { visible: tabItem.kind === "terminal"; text: win.agentGlyph(tabItem.program); color: tabItem.active ? theme.foreground : theme.muted; font.pixelSize: 12 }
+                                            Text {
+                                                id: tabLabel
+                                                Layout.fillWidth: true
+                                                text: tabItem.title
+                                                color: tabItem.active ? theme.foreground : theme.muted
+                                                font.pixelSize: 13
+                                                elide: Text.ElideRight
+                                            }
+                                            Rectangle { visible: tabItem.unread; width: 7; height: 7; radius: 4; color: theme.accent }
+                                            Rectangle {
+                                                width: 18; height: 18; radius: 4
+                                                color: closeHover.hovered ? theme.hover : "transparent"
+                                                opacity: tabItem.active || tabHover.hovered ? 1 : 0
+                                                Icon { anchors.centerIn: parent; name: "close"; color: theme.muted; size: 12 }
+                                                HoverHandler { id: closeHover }
+                                                TapHandler { onTapped: win.closeTab(tabItem.index, false) }
+                                            }
+                                        }
+                                        HoverHandler { id: tabHover }
+                                        TapHandler { acceptedButtons: Qt.LeftButton; onTapped: stack.currentIndex = tabItem.index }
+                                        TapHandler { acceptedButtons: Qt.MiddleButton; onTapped: win.closeTab(tabItem.index, false) }
+                                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: { tabMenu.tabIndex = tabItem.index; tabMenu.popup() } }
+                                        ToolTip.visible: tabHover.hovered && tabItem.termTitle.length > 0
+                                        ToolTip.text: tabItem.termTitle
+                                        ToolTip.delay: 600
+                                    }
+                                }
+                                Item { width: 4; height: 1 }
+                                SideTab { icon: "plus"; tip: "New tab (Ctrl+T)"; anchors.verticalCenter: parent.verticalCenter; onClicked: switcher.show() }
+                            }
+                        }
+                        Rectangle { width: 7; height: 7; radius: 4; color: backend.connected ? theme.accent : (win.tokens.red || theme.muted); Layout.rightMargin: 6; ToolTip.visible: dotHover.hovered; ToolTip.text: backend.connected ? "rusty-mcp connected" : backend.status; HoverHandler { id: dotHover } }
+                        SideTab { visible: !ui.rightOpen; Layout.rightMargin: 6; icon: "panel-right"; tip: "Expand"; onClicked: ui.rightOpen = true }
+                    }
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6 }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    StackLayout {
+                        id: stack
+                        anchors.fill: parent
+                        onCurrentIndexChanged: { win_settings.lastTab = currentIndex; win.updateCurrent() }
+                        Repeater {
+                            id: hosts
+                            model: tabs
+                            delegate: TabHost {}
+                        }
+                    }
+
+                // Nothing open.
+                ColumnLayout {
+                    visible: tabs.count === 0
+                    anchors.centerIn: parent
+                    spacing: 10
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "No file is open"; color: theme.muted; font.pixelSize: 20 }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Create new note (Ctrl+N)"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.newNote() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Go to file (Ctrl+O)"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: switcher.show() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Open today's daily note"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.todayNote() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; visible: win.agents.length > 0; text: "Open " + win.agentLabel(win.agents[0]) + " in a terminal"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.openTerminal(win.agents[0], "", "", "") } }
+                }
+                }
             }
-            TasksPage { id: tasksPage; backend: backend; theme: theme }
-            BrainPage { id: brainPage; backend: backend; theme: theme }
-            NotesPage { id: notesPage; backend: backend; theme: theme }
-            MemoryPage { id: memoryPage; backend: backend; theme: theme }
-            SkillsPage { id: skillsPage; backend: backend; theme: theme }
-            SecretsPage { id: secretsPage; backend: backend; theme: theme }
-            SettingsPage { backend: backend; theme: theme; terminals: terminals }
+
+            Splitter { visible: ui.rightOpen; Layout.fillHeight: true; isLeft: false }
+
+            // The right sidebar.
+            Rectangle {
+                visible: ui.rightOpen
+                Layout.fillHeight: true
+                width: ui.rightWidth
+                color: theme.surface
+                RightPane {
+                    id: rightPane
+                    anchors.fill: parent
+                    backend: win.backend
+                    theme: win.theme
+                    terminals: win.terminals
+                    note: win.currentNote
+                    titles: win.titles
+                    windowActive: win.active
+                    onOpenPage: (slug) => win.openPage(slug, false)
+                    onCreatePage: (name) => win.createPage(name)
+                    onPaneChanged: (name) => ui.rightPane = name
+                    onProgramChanged: ui.paneProgram = program
+                }
+                SideTab { anchors.right: parent.right; anchors.top: parent.top; anchors.rightMargin: 6; anchors.topMargin: 4; icon: "panel-right"; tip: "Collapse"; onClicked: ui.rightOpen = false }
+            }
         }
+
+        // The status bar.
+        Rectangle {
+            Layout.fillWidth: true
+            height: 24
+            color: theme.surface
+            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: theme.line; opacity: 0.6 }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 14
+                Text { text: win.notice.length > 0 ? win.notice : (backend.connected ? "" : backend.status); color: theme.faint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.backlinkCount : 0) + " backlinks"; color: theme.faint; font.pixelSize: 11 }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.properties.length : 0) + " properties"; color: theme.faint; font.pixelSize: 11 }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.words : 0) + " words"; color: theme.faint; font.pixelSize: 11 }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.characters : 0) + " characters"; color: theme.faint; font.pixelSize: 11 }
+            }
         }
     }
 }

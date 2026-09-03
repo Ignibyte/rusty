@@ -50,12 +50,15 @@ async fn a_real_client_can_list_call_and_read() {
     assert!(server_name.contains("rusty"), "{server_name}");
 
     let tools = client.list_all_tools().await.unwrap();
-    assert!(tools.len() >= 57, "{} tools", tools.len());
+    assert!(tools.len() >= 67, "{} tools", tools.len());
     for name in [
         "list_task_groups",
         "brain_capture",
         "obsidian_status",
         "settings_list",
+        "brain_tree",
+        "brain_render",
+        "brain_rename",
     ] {
         assert!(tools.iter().any(|t| t.name == name), "missing {name}");
     }
@@ -88,6 +91,102 @@ async fn a_real_client_can_list_call_and_read() {
 
     let resources = client.list_all_resources().await.unwrap();
     assert!(resources.iter().any(|r| r.uri == "rusty://tasks"));
+
+    // The workspace path: a page in a folder, rendered, edited whole, moved with its
+    // links rewritten, and the tree that shows it.
+    let created = client
+        .call_tool(
+            CallToolRequestParams::new("brain_new_page").with_arguments(args(
+                serde_json::json!({"folder": "projects", "name": "Smoke plan"}),
+            )),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        text_of(&created),
+        "\"projects/Smoke plan\"",
+        "{}",
+        text_of(&created)
+    );
+    let linked = client
+        .call_tool(
+            CallToolRequestParams::new("brain_new_page").with_arguments(args(
+                serde_json::json!({"folder": "ideas", "name": "Linker"}),
+            )),
+        )
+        .await
+        .unwrap();
+    assert!(!linked.is_error.unwrap_or(false), "{}", text_of(&linked));
+    let written = client
+        .call_tool(
+            CallToolRequestParams::new("brain_write_page").with_arguments(args(serde_json::json!({
+                "slug": "ideas/Linker",
+                "content": "---\ntitle: Linker\ntype: idea\n---\n\nSee [[projects/Smoke plan|the plan]].\n\n> [!tip] Hint\n> - [ ] a task\n"
+            }))),
+        )
+        .await
+        .unwrap();
+    assert!(!written.is_error.unwrap_or(false), "{}", text_of(&written));
+    let rendered = client
+        .call_tool(
+            CallToolRequestParams::new("brain_render").with_arguments(args(serde_json::json!({
+                "slug": "ideas/Linker",
+                "style": {"accent": "#123456"}
+            }))),
+        )
+        .await
+        .unwrap();
+    let rendered_text = text_of(&rendered);
+    assert!(
+        rendered_text.contains("rusty:page/projects/Smoke plan"),
+        "{rendered_text}"
+    );
+    assert!(rendered_text.contains("Hint"), "{rendered_text}");
+    assert!(rendered_text.contains("\"tasks\": 1"), "{rendered_text}");
+    let moved = client
+        .call_tool(
+            CallToolRequestParams::new("brain_rename").with_arguments(args(serde_json::json!({
+                "from": "projects/Smoke plan",
+                "to": "concepts/Moved plan"
+            }))),
+        )
+        .await
+        .unwrap();
+    let moved_text = text_of(&moved);
+    assert!(
+        moved_text.contains("\"pages_rewritten\": 1"),
+        "{moved_text}"
+    );
+    let after = client
+        .call_tool(
+            CallToolRequestParams::new("brain_read_page")
+                .with_arguments(args(serde_json::json!({"slug": "ideas/Linker"}))),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&after).contains("[[concepts/Moved plan|the plan]]"),
+        "{}",
+        text_of(&after)
+    );
+    let tree = client
+        .call_tool(CallToolRequestParams::new("brain_tree"))
+        .await
+        .unwrap();
+    let tree_text = text_of(&tree);
+    assert!(
+        tree_text.contains("\"path\": \"concepts/Moved plan\""),
+        "{tree_text}"
+    );
+    let unresolved = client
+        .call_tool(CallToolRequestParams::new("brain_unresolved"))
+        .await
+        .unwrap();
+    assert!(
+        text_of(&unresolved).trim() == "[]",
+        "{}",
+        text_of(&unresolved)
+    );
 
     client.cancel().await.unwrap();
     let _ = std::fs::remove_dir_all(&home);

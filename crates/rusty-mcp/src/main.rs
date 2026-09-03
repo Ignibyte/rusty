@@ -451,6 +451,55 @@ pub struct ObsidianRenameParams {
     pub to: String,
 }
 
+/// Parameters for `brain_render`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct RenderParams {
+    /// The page slug, folder included.
+    pub slug: String,
+    /// Colours and fonts for the HTML, any subset of the renderer's style keys
+    /// (`text`, `muted`, `link`, `unresolved`, `accent`, `code`, `code_bg`, `mono`,
+    /// `mark_bg`, `line`, `tag`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`,
+    /// `headings`, `size`); the rest take defaults.
+    #[serde(default)]
+    pub style: Option<serde_json::Value>,
+}
+
+/// Parameters for `brain_write_page`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct WritePageParams {
+    /// The page slug, folder included.
+    pub slug: String,
+    /// The whole file: frontmatter, body and timeline, exactly as it should be on disk.
+    pub content: String,
+}
+
+/// Parameters for `brain_new_page`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct NewPageParams {
+    /// The folder to create the page in; empty for the vault root.
+    #[serde(default)]
+    pub folder: String,
+    /// The file name without `.md`; omitted means `Untitled`, `Untitled 1`, ...
+    pub name: Option<String>,
+}
+
+/// A vault-relative folder path.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct FolderParams {
+    /// The folder path, e.g. `projects/archive`.
+    pub path: String,
+}
+
+/// Parameters for `brain_rename`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct RenameParams {
+    /// The page slug or folder path to move.
+    pub from: String,
+    /// The new slug or folder path; a value ending in `/` moves into that folder under
+    /// the same name.
+    pub to: String,
+}
+
 /// The MCP server: the tool router, a shared [`Core`], and the connected peers.
 #[derive(Clone)]
 pub struct Rusty {
@@ -891,6 +940,85 @@ impl Rusty {
     #[tool(description = "Brain vault statistics: pages, links, tags, timeline entries")]
     fn brain_stats(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.stats())
+    }
+
+    #[tool(
+        description = "The vault as a tree: folders first, then pages and other files, with page counts; dot-folders left out"
+    )]
+    fn brain_tree(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.tree())
+    }
+
+    #[tool(
+        description = "A brain page rendered as rich-text HTML (Obsidian flavour: wikilinks, embeds, callouts, tasks, tables, footnotes), with its outline, links, unresolved targets, task and word counts, properties and raw file"
+    )]
+    fn brain_render(
+        &self,
+        Parameters(p): Parameters<RenderParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let style = match p.style {
+            Some(value) => serde_json::from_value(value)
+                .map_err(|e| McpError::invalid_params(format!("style: {e}"), None))?,
+            None => rusty_core::brain::render::Style::default(),
+        };
+        json_result(self.core.brain_manager.render_page(&p.slug, &style))
+    }
+
+    #[tool(
+        description = "Replace a brain page's whole file (frontmatter, body, timeline) the way an editor saves; the previous text is kept as a version"
+    )]
+    fn brain_write_page(
+        &self,
+        Parameters(p): Parameters<WritePageParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.brain_manager.write_raw(&p.slug, &p.content))
+    }
+
+    #[tool(
+        description = "Create a page in a folder (the root when empty), named as given or Untitled, typed after the folder; returns the slug"
+    )]
+    fn brain_new_page(
+        &self,
+        Parameters(p): Parameters<NewPageParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(
+            self.core
+                .brain_manager
+                .new_page(&p.folder, p.name.as_deref()),
+        )
+    }
+
+    #[tool(description = "Create a folder in the vault; returns its path")]
+    fn brain_new_folder(
+        &self,
+        Parameters(p): Parameters<FolderParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.brain_manager.new_folder(&p.path))
+    }
+
+    #[tool(
+        description = "Soft-delete a folder and everything in it into archive/; returns where it went"
+    )]
+    fn brain_delete_folder(
+        &self,
+        Parameters(p): Parameters<FolderParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.brain_manager.delete_folder(&p.path))
+    }
+
+    #[tool(
+        description = "Rename or move a page or folder; every link to it in the vault is rewritten and the index follows"
+    )]
+    fn brain_rename(
+        &self,
+        Parameters(p): Parameters<RenameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.brain_manager.rename(&p.from, &p.to))
+    }
+
+    #[tool(description = "Every wikilink in the vault whose target is no page, with its line")]
+    fn brain_unresolved(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.unresolved())
     }
 
     #[tool(description = "List long-term memories, optionally by category")]
@@ -1376,6 +1504,11 @@ fn spawn_indexer(core: Arc<Core>, mut events: tokio::sync::broadcast::Receiver<A
         loop {
             let worker = Arc::clone(&core);
             let outcome = tokio::task::spawn_blocking(move || {
+                // Files changed by another program (Obsidian, an editor, git) reach the
+                // index here; the tools index what they write themselves.
+                if let Err(e) = worker.brain_manager.sync_all() {
+                    eprintln!("rusty-mcp: vault sync: {e}");
+                }
                 worker
                     .embedder()
                     .map(|e| worker.brain_manager.index_stale(e.as_ref(), false))
@@ -1551,6 +1684,14 @@ mod tests {
         "skill_update",
         "brain_semantic_status",
         "brain_reembed",
+        "brain_tree",
+        "brain_render",
+        "brain_write_page",
+        "brain_new_page",
+        "brain_new_folder",
+        "brain_delete_folder",
+        "brain_rename",
+        "brain_unresolved",
     ];
 
     #[test]

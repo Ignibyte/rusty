@@ -1,8 +1,9 @@
 //! Vault filesystem manager for brain pages.
 //!
-//! Manages the `~/.rusty/brain/` directory structure — creating type directories,
-//! reading/writing markdown files, soft-deleting to `archive/`, and generating
-//! slugs from titles.
+//! Manages the `~/.rusty/brain/` directory: the type folders, any folder the user adds
+//! (the tree is real and nested, as Obsidian shows it), reading and writing markdown
+//! files, renames, soft-deletes into `archive/`, and slugs from titles. Dot-folders
+//! (`.git`, `.obsidian`, `.templates`) are never part of the tree.
 
 use std::path::{Path, PathBuf};
 
@@ -19,9 +20,44 @@ const TYPE_DIRS: &[(&str, &str)] = &[
     ("conversation", "conversations"),
 ];
 
+/// The type of a page in a folder that is not a type folder, or at the root.
+pub const NOTE_TYPE: &str = "note";
+
 /// Every page type with the vault folder it lives in, in display order.
 pub fn page_types() -> &'static [(&'static str, &'static str)] {
     TYPE_DIRS
+}
+
+/// The page type a folder implies: `people` is `person`; anything else is `note`.
+pub fn type_for_folder(folder: &str) -> &'static str {
+    TYPE_DIRS
+        .iter()
+        .find(|(_, d)| *d == folder)
+        .map(|(t, _)| *t)
+        .unwrap_or(NOTE_TYPE)
+}
+
+/// The page type a slug's top folder implies.
+pub fn type_for_slug(slug: &str) -> &'static str {
+    match slug.split_once('/') {
+        Some((top, _)) => type_for_folder(top),
+        None => NOTE_TYPE,
+    }
+}
+
+/// One entry of the vault tree.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VaultNode {
+    /// File or folder name as shown (`sarah-chen`, `projects`, `diagram.png`).
+    pub name: String,
+    /// Vault-relative path: the slug for a page, the folder path, or the file path.
+    pub path: String,
+    /// `folder`, `page` (markdown) or `file` (anything else).
+    pub kind: String,
+    /// Pages in this folder and below (0 for files).
+    pub pages: usize,
+    /// Children, folders first, each group sorted by name.
+    pub children: Vec<VaultNode>,
 }
 
 /// Manages markdown files in the brain vault directory.
@@ -168,55 +204,238 @@ impl VaultManager {
         if !path.exists() {
             return Err(format!("Page not found: {slug}"));
         }
+        self.archive(&path).map(|_| ())
+    }
 
+    /// Move a file or folder into `archive/` under `<name>_<timestamp>`; returns the
+    /// vault-relative path it now has.
+    fn archive(&self, path: &Path) -> Result<String, String> {
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-
         let file_name = path
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        let dest = self
-            .root
-            .join("archive")
-            .join(format!("{file_name}_{timestamp}"));
+        let archive_dir = self.root.join("archive");
+        std::fs::create_dir_all(&archive_dir)
+            .map_err(|e| format!("Failed to create archive/: {e}"))?;
+        let dest = archive_dir.join(format!("{file_name}_{timestamp}"));
+        std::fs::rename(path, &dest).map_err(|e| format!("Failed to archive: {e}"))?;
+        Ok(format!(
+            "archive/{}",
+            dest.file_name().unwrap_or_default().to_string_lossy()
+        ))
+    }
 
-        std::fs::rename(&path, &dest).map_err(|e| format!("Failed to archive page: {e}"))
+    /// Soft-delete a folder (and everything in it) into `archive/`.
+    pub fn delete_folder(&self, folder: &str) -> Result<String, String> {
+        let path = self.resolve_rel(folder)?;
+        if !path.is_dir() {
+            return Err(format!("Folder not found: {folder}"));
+        }
+        if path == self.root {
+            return Err("Refusing to delete the vault root".to_string());
+        }
+        self.archive(&path)
+    }
+
+    /// Create a folder (and its parents) inside the vault.
+    pub fn create_folder(&self, folder: &str) -> Result<String, String> {
+        let rel = clean_rel(folder);
+        if rel.is_empty() {
+            return Err("A folder needs a name".to_string());
+        }
+        let path = self.resolve_rel(&rel)?;
+        if path.exists() {
+            return Err(format!("Already exists: {rel}"));
+        }
+        std::fs::create_dir_all(&path).map_err(|e| format!("Failed to create folder: {e}"))?;
+        Ok(rel)
+    }
+
+    /// Rename or move a file or folder. Both are vault-relative paths; a file keeps its
+    /// extension (`people/x.md` to `archive/x.md`). The target's parents are created; an
+    /// existing target is refused.
+    pub fn rename_path(&self, from: &str, to: &str) -> Result<(), String> {
+        let from_path = self.resolve_rel(from)?;
+        let to_path = self.resolve_rel(to)?;
+        if !from_path.exists() {
+            return Err(format!("Not found: {from}"));
+        }
+        if to_path.exists() {
+            return Err(format!("Already exists: {to}"));
+        }
+        if from_path == self.root || to_path.starts_with(&from_path) && from_path.is_dir() {
+            return Err("Cannot move a folder into itself".to_string());
+        }
+        if let Some(parent) = to_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {e}"))?;
+        }
+        std::fs::rename(&from_path, &to_path).map_err(|e| format!("Failed to move: {e}"))
+    }
+
+    /// Whether a vault-relative path (file or folder) exists.
+    pub fn exists(&self, rel: &str) -> bool {
+        self.resolve_rel(rel).map(|p| p.exists()).unwrap_or(false)
+    }
+
+    /// Whether a vault-relative path is a folder.
+    pub fn is_folder(&self, rel: &str) -> bool {
+        self.resolve_rel(rel).map(|p| p.is_dir()).unwrap_or(false)
     }
 
     /// Check if a page file exists on disk.
     pub fn page_exists(&self, slug: &str) -> bool {
-        self.resolve_path(slug).map(|p| p.exists()).unwrap_or(false)
+        self.resolve_path(slug)
+            .map(|p| p.is_file())
+            .unwrap_or(false)
     }
 
-    /// List all markdown files in the vault as (slug, path) pairs.
-    #[allow(dead_code)] // Public API for sync_all in future phases
-    pub fn list_all_files(&self) -> Result<Vec<(String, PathBuf)>, String> {
+    /// The vault as a tree: folders first, then pages and other files, each group by
+    /// name, dot-entries left out.
+    pub fn tree(&self) -> Result<VaultNode, String> {
+        let mut root = VaultNode {
+            name: self
+                .root
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "vault".to_string()),
+            path: String::new(),
+            kind: "folder".to_string(),
+            pages: 0,
+            children: Vec::new(),
+        };
+        self.fill_tree(&self.root, "", &mut root)?;
+        Ok(root)
+    }
+
+    fn fill_tree(&self, dir: &Path, rel: &str, node: &mut VaultNode) -> Result<(), String> {
+        let entries = std::fs::read_dir(dir).map_err(|e| format!("Failed to read {rel}: {e}"))?;
+        let mut folders = Vec::new();
         let mut files = Vec::new();
-        for (_, dir_name) in TYPE_DIRS {
-            let dir = self.root.join(dir_name);
-            if !dir.exists() {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
                 continue;
             }
-            let entries =
-                std::fs::read_dir(&dir).map_err(|e| format!("Failed to read {dir_name}/: {e}"))?;
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("md") {
-                    let stem = path
-                        .file_stem()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string();
-                    let slug = format!("{dir_name}/{stem}");
-                    files.push((slug, path));
-                }
+            let path = entry.path();
+            let child_rel = if rel.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel}/{name}")
+            };
+            if path.is_dir() {
+                let mut child = VaultNode {
+                    name,
+                    path: child_rel.clone(),
+                    kind: "folder".to_string(),
+                    pages: 0,
+                    children: Vec::new(),
+                };
+                self.fill_tree(&path, &child_rel, &mut child)?;
+                folders.push(child);
+            } else if path.is_file() {
+                let is_page = path.extension().and_then(|e| e.to_str()) == Some("md");
+                files.push(VaultNode {
+                    name: if is_page {
+                        name.trim_end_matches(".md").to_string()
+                    } else {
+                        name
+                    },
+                    path: if is_page {
+                        child_rel.trim_end_matches(".md").to_string()
+                    } else {
+                        child_rel
+                    },
+                    kind: if is_page { "page" } else { "file" }.to_string(),
+                    pages: usize::from(is_page),
+                    children: Vec::new(),
+                });
             }
         }
+        let by_name =
+            |a: &VaultNode, b: &VaultNode| a.name.to_lowercase().cmp(&b.name.to_lowercase());
+        folders.sort_by(by_name);
+        files.sort_by(by_name);
+        node.pages = folders.iter().map(|f| f.pages).sum::<usize>()
+            + files.iter().map(|f| f.pages).sum::<usize>();
+        node.children = folders;
+        node.children.extend(files);
+        Ok(())
+    }
+
+    /// Every markdown file in the vault, in any folder, as (slug, path) pairs, sorted by
+    /// slug. Dot-folders are skipped.
+    pub fn list_all_files(&self) -> Result<Vec<(String, PathBuf)>, String> {
+        let mut files = Vec::new();
+        self.walk_pages(&self.root, "", &mut files)?;
+        files.sort();
         Ok(files)
+    }
+
+    fn walk_pages(
+        &self,
+        dir: &Path,
+        rel: &str,
+        out: &mut Vec<(String, PathBuf)>,
+    ) -> Result<(), String> {
+        let entries = std::fs::read_dir(dir).map_err(|e| format!("Failed to read {rel}: {e}"))?;
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                continue;
+            }
+            let path = entry.path();
+            let child_rel = if rel.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel}/{name}")
+            };
+            if path.is_dir() {
+                self.walk_pages(&path, &child_rel, out)?;
+            } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                out.push((child_rel.trim_end_matches(".md").to_string(), path));
+            }
+        }
+        Ok(())
+    }
+
+    /// Find a non-markdown file (an image, say) by its vault path or, failing that, by
+    /// its file name anywhere in the vault; the first match by path order wins.
+    pub fn find_file(&self, target: &str) -> Option<PathBuf> {
+        let rel = clean_rel(target);
+        if let Ok(path) = self.resolve_rel(&rel) {
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+        let wanted = rel.rsplit('/').next()?.to_lowercase();
+        let mut found = Vec::new();
+        self.walk_files(&self.root, &wanted, &mut found);
+        found.sort();
+        found.into_iter().next()
+    }
+
+    fn walk_files(&self, dir: &Path, wanted: &str, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                continue;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                self.walk_files(&path, wanted, out);
+            } else if name.to_lowercase() == wanted {
+                out.push(path);
+            }
+        }
     }
 
     /// Resolve a slug to its absolute filesystem path.
@@ -233,11 +452,37 @@ impl VaultManager {
         Ok(path)
     }
 
+    /// Resolve a vault-relative path (file with extension, or folder) to an absolute
+    /// path inside the vault.
+    pub fn resolve_rel(&self, rel: &str) -> Result<PathBuf, String> {
+        if rel.contains("..") {
+            return Err("Invalid path: path traversal not allowed".to_string());
+        }
+        let rel = clean_rel(rel);
+        let path = if rel.is_empty() {
+            self.root.clone()
+        } else {
+            self.root.join(&rel)
+        };
+        if !path.starts_with(&self.root) {
+            return Err("Invalid path: outside vault directory".to_string());
+        }
+        Ok(path)
+    }
+
     /// Get the vault root path.
-    #[allow(dead_code)] // Public API for future phases (frontend vault browsing)
     pub fn root(&self) -> &Path {
         &self.root
     }
+}
+
+/// A vault-relative path without leading or trailing slashes or `./`.
+pub fn clean_rel(rel: &str) -> String {
+    let mut r = rel.trim().trim_matches('/');
+    while let Some(rest) = r.strip_prefix("./") {
+        r = rest;
+    }
+    r.to_string()
 }
 
 /// Convert a title string to a URL-safe slug.
@@ -349,6 +594,10 @@ mod tests {
         assert_eq!(type_to_dir("project").unwrap(), "projects");
         assert_eq!(type_to_dir("daily").unwrap(), "daily");
         assert!(type_to_dir("invalid").is_err());
+        assert_eq!(type_for_folder("people"), "person");
+        assert_eq!(type_for_folder("notes"), "note");
+        assert_eq!(type_for_slug("2026-09-02"), "note");
+        assert_eq!(type_for_slug("projects/deep/one"), "project");
     }
 
     #[test]
@@ -397,16 +646,85 @@ mod tests {
     }
 
     #[test]
-    fn list_all_files() {
+    fn list_all_files_walks_every_folder() {
         let (dir, vm) = test_vault("list_all");
         vm.write_page("people/alice", "# Alice").unwrap();
         vm.write_page("concepts/rust", "# Rust").unwrap();
+        vm.write_page("projects/deep/nested", "# Nested").unwrap();
+        vm.write_page("loose", "# Loose").unwrap();
+        fs::write(dir.join(".templates/person.md"), "tpl").unwrap();
 
         let files = vm.list_all_files().unwrap();
         let slugs: Vec<&str> = files.iter().map(|(s, _)| s.as_str()).collect();
-        assert!(slugs.contains(&"people/alice"));
-        assert!(slugs.contains(&"concepts/rust"));
-        assert_eq!(files.len(), 2);
+        assert_eq!(
+            slugs,
+            vec![
+                "concepts/rust",
+                "loose",
+                "people/alice",
+                "projects/deep/nested"
+            ]
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn tree_is_folders_first_with_counts() {
+        let (dir, vm) = test_vault("tree");
+        vm.write_page("people/alice", "# Alice").unwrap();
+        vm.write_page("projects/deep/nested", "# Nested").unwrap();
+        vm.write_page("projects/Zed", "# Z").unwrap();
+        vm.write_page("2026-09-02", "daily").unwrap();
+        fs::write(dir.join("projects/data.json"), "{}").unwrap();
+        let tree = vm.tree().unwrap();
+        assert_eq!(tree.pages, 4);
+        let names: Vec<&str> = tree.children.iter().map(|c| c.name.as_str()).collect();
+        // Folders (the nine type folders plus archive) first, then the loose page.
+        assert_eq!(names.last().copied(), Some("2026-09-02"));
+        assert_eq!(tree.children.last().unwrap().kind, "page");
+        let projects = tree.children.iter().find(|c| c.name == "projects").unwrap();
+        assert_eq!(projects.pages, 2);
+        let kinds: Vec<(&str, &str)> = projects
+            .children
+            .iter()
+            .map(|c| (c.name.as_str(), c.kind.as_str()))
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![("deep", "folder"), ("data.json", "file"), ("Zed", "page")]
+        );
+        assert_eq!(projects.children[2].path, "projects/Zed");
+        assert_eq!(projects.children[1].path, "projects/data.json");
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn folders_and_renames() {
+        let (dir, vm) = test_vault("folders");
+        assert_eq!(vm.create_folder("/areas/health/").unwrap(), "areas/health");
+        assert!(vm.is_folder("areas/health"));
+        assert!(vm.create_folder("areas/health").is_err());
+        vm.write_page("areas/health/run", "# Run").unwrap();
+        vm.rename_path("areas/health/run.md", "projects/run.md")
+            .unwrap();
+        assert!(vm.page_exists("projects/run"));
+        assert!(vm
+            .rename_path("projects/run.md", "projects/run.md")
+            .is_err());
+        vm.rename_path("areas", "zones").unwrap();
+        assert!(vm.is_folder("zones/health"));
+        assert!(vm.rename_path("zones", "zones/inner").is_err());
+        let archived = vm.delete_folder("zones").unwrap();
+        assert!(archived.starts_with("archive/zones_"));
+        assert!(!vm.exists("zones"));
+        assert!(vm.delete_folder("").is_err());
+        fs::write(dir.join("projects/pic.png"), "png").unwrap();
+        assert!(vm
+            .find_file("pic.png")
+            .unwrap()
+            .ends_with("projects/pic.png"));
+        assert!(vm.find_file("projects/pic.png").is_some());
+        assert!(vm.find_file("nope.png").is_none());
         cleanup(&dir);
     }
 
@@ -415,6 +733,8 @@ mod tests {
         let (dir, vm) = test_vault("traversal");
         assert!(vm.resolve_path("../etc/passwd").is_err());
         assert!(vm.write_page("../../evil", "hack").is_err());
+        assert!(vm.resolve_rel("../x").is_err());
+        assert!(vm.create_folder("../x").is_err());
         cleanup(&dir);
     }
 }

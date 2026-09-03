@@ -7,16 +7,23 @@
 
 pub mod enrichment;
 pub mod frontmatter;
+pub mod links;
+pub mod render;
 pub mod semantic;
 pub mod vault;
 
 use crate::engine::db::Database;
-use frontmatter::{parse_page, render_body, render_page, split_raw, today_iso, BrainFrontmatter};
+use frontmatter::{
+    parse_lenient, parse_page, properties_of, render_body, render_page, split_raw, today_iso,
+    BrainFrontmatter,
+};
+use links::scan as scan_links;
+use render::{Rendered, Resolver, Style};
 use semantic::{Embedder, IndexReport, SemanticIndex};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
-use vault::{title_to_slug, type_to_dir, VaultManager};
+use vault::{clean_rel, title_to_slug, type_to_dir, VaultManager, VaultNode};
 
 /// A full brain page with parsed content.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -97,7 +104,62 @@ pub struct LinkEntry {
     pub to_slug: String,
     /// Link type (reference, works_at, invested_in, etc.).
     pub link_type: String,
-    /// Context text.
+    /// The line the link sits on, for backlink context.
+    pub context: String,
+    /// Whether `to_slug` names a page that exists.
+    #[serde(default)]
+    pub resolved: bool,
+}
+
+/// One frontmatter property, in file order.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Property {
+    /// The key as written.
+    pub key: String,
+    /// The value as JSON.
+    pub value: serde_json::Value,
+}
+
+/// A page rendered for the workspace: identity, properties, the rich text and what the
+/// renderer learned, plus the raw file for the editor.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RenderedPage {
+    /// The page slug.
+    pub slug: String,
+    /// The title (frontmatter, else the file name).
+    pub title: String,
+    /// The page type (frontmatter, else the folder's).
+    pub page_type: String,
+    /// Frontmatter properties in file order.
+    pub properties: Vec<Property>,
+    /// The raw file, for the source editor.
+    pub raw: String,
+    /// The rendering.
+    #[serde(flatten)]
+    pub rendered: Rendered,
+}
+
+/// What a rename or move did.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RenameReport {
+    /// The slug or folder as it was.
+    pub from: String,
+    /// The slug or folder as it is now.
+    pub to: String,
+    /// `page` or `folder`.
+    pub kind: String,
+    /// Pages whose links were rewritten.
+    pub pages_rewritten: usize,
+}
+
+/// A wikilink whose target is no page.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnresolvedLink {
+    /// The page holding the link.
+    pub from_slug: String,
+    /// The target as written.
+    pub target: String,
+    /// The line the link sits on.
     pub context: String,
 }
 
@@ -294,7 +356,8 @@ impl BrainManager {
             None => return Ok(None),
         };
 
-        let parsed = parse_page(&raw)?;
+        let mut parsed = parse_lenient(&raw);
+        parsed.frontmatter.fill_defaults(slug);
         let hash = compute_hash(&raw);
 
         // Get timestamps from index (fall back to 0 if not indexed)
@@ -324,7 +387,8 @@ impl BrainManager {
             .ok_or_else(|| format!("Page not found: {slug}"))?;
 
         // Snapshot current version
-        let current_parsed = parse_page(&current_raw)?;
+        let mut current_parsed = parse_lenient(&current_raw);
+        current_parsed.frontmatter.fill_defaults(slug);
         self.create_version(slug, &current_raw, &current_parsed.frontmatter)?;
 
         // Update frontmatter's updated date
@@ -502,15 +566,22 @@ impl BrainManager {
             .ok_or_else(|| format!("Page file not found: {slug}"))?;
 
         let hash = compute_hash(&raw);
+        let mut parsed = parse_lenient(&raw);
+        parsed.frontmatter.fill_defaults(slug);
 
-        // Check if already indexed with the same hash
+        // Already indexed with the same hash: only the link rows are refreshed, so rows
+        // written by an older scanner (raw targets, no context) catch up.
         if let Some(existing_hash) = self.get_content_hash(slug) {
             if existing_hash == hash {
-                return Ok(()); // No changes
+                let full_content = if parsed.timeline.is_empty() {
+                    parsed.compiled_truth.clone()
+                } else {
+                    format!("{}\n\n{}", parsed.compiled_truth, parsed.timeline)
+                };
+                let conn = self.db.conn()?;
+                return index_links(&conn, slug, &full_content);
             }
         }
-
-        let parsed = parse_page(&raw)?;
         let now = unix_now();
         let created = self.get_timestamps(slug).map(|(c, _)| c).unwrap_or(now);
 
@@ -575,8 +646,39 @@ impl BrainManager {
                 self.remove_from_index(slug)?;
             }
         }
+        self.resolve_pending_links()?;
 
         Ok(synced)
+    }
+
+    /// Give unresolved link rows another chance: a page indexed after the page that
+    /// links to it by bare name resolves now.
+    fn resolve_pending_links(&self) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        let pending: Vec<(i64, String)> = {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT l.id, l.to_slug FROM brain_links l \
+                     LEFT JOIN brain_pages p ON p.slug = l.to_slug WHERE p.slug IS NULL",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let rows = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            rows
+        };
+        for (id, target) in pending {
+            if let Some(slug) = resolve_on(&conn, &target) {
+                conn.execute(
+                    "UPDATE OR IGNORE brain_links SET to_slug = ?1 WHERE id = ?2",
+                    rusqlite::params![slug, id],
+                )
+                .map_err(|e| format!("Failed to resolve link: {e}"))?;
+            }
+        }
+        Ok(())
     }
 
     // ── Timeline ───────────────────────────────────────────────────────
@@ -607,7 +709,8 @@ impl BrainManager {
             .vault
             .read_page(slug)?
             .ok_or_else(|| format!("Page not found: {slug}"))?;
-        let parsed = parse_page(&current_raw)?;
+        let mut parsed = parse_lenient(&current_raw);
+        parsed.frontmatter.fill_defaults(slug);
 
         // 1. Structured row in brain_timeline. Scope the connection guard so it is
         //    dropped before the index helpers below acquire their own connection
@@ -670,12 +773,17 @@ impl BrainManager {
             .map_err(|e| format!("Failed to update page index: {e}"))?;
 
             // Additive (INSERT OR IGNORE) so existing links are preserved.
-            for to_slug in parse_wiki_links(&new_timeline) {
+            for link in scan_links(&new_timeline) {
+                if link.target.is_empty() {
+                    continue;
+                }
+                let to_slug = resolve_on(&conn, &link.target)
+                    .unwrap_or_else(|| links::normalise_target(&link.target));
                 if to_slug != slug {
                     conn.execute(
                         "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
-                         VALUES (?1, ?2, 'reference', '', ?3)",
-                        rusqlite::params![slug, to_slug, now],
+                         VALUES (?1, ?2, 'reference', ?3, ?4)",
+                        rusqlite::params![slug, to_slug, link.line, now],
                     )
                     .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
                 }
@@ -1064,19 +1172,13 @@ impl BrainManager {
         // Outbound links
         let mut stmt = conn
             .prepare(
-                "SELECT from_slug, to_slug, link_type, context FROM brain_links \
-                 WHERE from_slug = ?1",
+                "SELECT l.from_slug, l.to_slug, l.link_type, l.context, p.slug IS NOT NULL \
+                 FROM brain_links l LEFT JOIN brain_pages p ON p.slug = l.to_slug \
+                 WHERE l.from_slug = ?1 ORDER BY l.id",
             )
             .map_err(|e| format!("Query error: {e}"))?;
         let outbound: Vec<LinkEntry> = stmt
-            .query_map(rusqlite::params![slug], |row| {
-                Ok(LinkEntry {
-                    from_slug: row.get(0)?,
-                    to_slug: row.get(1)?,
-                    link_type: row.get(2)?,
-                    context: row.get(3)?,
-                })
-            })
+            .query_map(rusqlite::params![slug], row_to_link)
             .map_err(|e| format!("Query error: {e}"))?
             .flatten()
             .collect();
@@ -1084,19 +1186,12 @@ impl BrainManager {
         // Backlinks
         let mut stmt = conn
             .prepare(
-                "SELECT from_slug, to_slug, link_type, context FROM brain_links \
-                 WHERE to_slug = ?1",
+                "SELECT l.from_slug, l.to_slug, l.link_type, l.context, 1 \
+                 FROM brain_links l WHERE l.to_slug = ?1 ORDER BY l.from_slug",
             )
             .map_err(|e| format!("Query error: {e}"))?;
         let backlinks: Vec<LinkEntry> = stmt
-            .query_map(rusqlite::params![slug], |row| {
-                Ok(LinkEntry {
-                    from_slug: row.get(0)?,
-                    to_slug: row.get(1)?,
-                    link_type: row.get(2)?,
-                    context: row.get(3)?,
-                })
-            })
+            .query_map(rusqlite::params![slug], row_to_link)
             .map_err(|e| format!("Query error: {e}"))?
             .flatten()
             .collect();
@@ -1135,17 +1230,13 @@ impl BrainManager {
     pub fn get_all_links(&self) -> Result<Vec<LinkEntry>, String> {
         let conn = self.db.conn()?;
         let mut stmt = conn
-            .prepare("SELECT from_slug, to_slug, link_type, context FROM brain_links")
+            .prepare(
+                "SELECT l.from_slug, l.to_slug, l.link_type, l.context, p.slug IS NOT NULL \
+                 FROM brain_links l LEFT JOIN brain_pages p ON p.slug = l.to_slug",
+            )
             .map_err(|e| format!("Query error: {e}"))?;
         let links: Vec<LinkEntry> = stmt
-            .query_map([], |row| {
-                Ok(LinkEntry {
-                    from_slug: row.get(0)?,
-                    to_slug: row.get(1)?,
-                    link_type: row.get(2)?,
-                    context: row.get(3)?,
-                })
-            })
+            .query_map([], row_to_link)
             .map_err(|e| format!("Query error: {e}"))?
             .flatten()
             .collect();
@@ -1287,6 +1378,319 @@ impl BrainManager {
         parts.join("\n")
     }
 
+    // ── The workspace: tree, rendering, whole-file edits, files and folders ──
+
+    /// The vault as a tree, folders first, dot-entries left out.
+    pub fn tree(&self) -> Result<VaultNode, String> {
+        self.vault.tree()
+    }
+
+    /// A page rendered for the workspace, or `None` when there is no such page.
+    pub fn render_page(&self, slug: &str, style: &Style) -> Result<Option<RenderedPage>, String> {
+        let Some(raw) = self.vault.read_page(slug)? else {
+            return Ok(None);
+        };
+        let mut parsed = parse_lenient(&raw);
+        parsed.frontmatter.fill_defaults(slug);
+        let resolver = DbResolver { brain: self };
+        let rendered = render::render(render::body_of(&raw), style, &resolver, Some(slug));
+        let properties = properties_of(&raw)
+            .into_iter()
+            .map(|(key, value)| Property { key, value })
+            .collect();
+        Ok(Some(RenderedPage {
+            slug: slug.to_string(),
+            title: parsed.frontmatter.title,
+            page_type: parsed.frontmatter.page_type,
+            properties,
+            raw,
+            rendered,
+        }))
+    }
+
+    /// Replace a page's whole file, frontmatter and timeline included, the way an
+    /// editor saves. The previous text is kept as a version; an unchanged file is not
+    /// written or committed.
+    pub fn write_raw(&self, slug: &str, content: &str) -> Result<BrainPage, String> {
+        let existing = self.vault.read_page(slug)?;
+        if existing.as_deref() == Some(content) {
+            return self
+                .read_page(slug)?
+                .ok_or_else(|| format!("Page not found: {slug}"));
+        }
+        if let Some(raw) = &existing {
+            let mut parsed = parse_lenient(raw);
+            parsed.frontmatter.fill_defaults(slug);
+            self.create_version(slug, raw, &parsed.frontmatter)?;
+        }
+        self.vault.write_page(slug, content)?;
+        self.sync_page(slug)?;
+        let page = self
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found after write: {slug}"))?;
+        self.vault.git_commit(&format!("edit: {}", page.title));
+        Ok(page)
+    }
+
+    /// A new page in `folder` (the root when empty) named `name`, or `Untitled`,
+    /// `Untitled 1`, ... when no name is given, typed after the folder and started from
+    /// that type's template. Returns the slug.
+    pub fn new_page(&self, folder: &str, name: Option<&str>) -> Result<String, String> {
+        let folder = clean_rel(folder);
+        if folder.contains("..") {
+            return Err("Invalid folder".to_string());
+        }
+        if !folder.is_empty() && !self.vault.is_folder(&folder) {
+            return Err(format!("No folder {folder}"));
+        }
+        let base = name
+            .map(str::trim)
+            .filter(|n| !n.is_empty())
+            .map(|n| n.trim_end_matches(".md").replace('/', "-"))
+            .unwrap_or_else(|| "Untitled".to_string());
+        let prefix = if folder.is_empty() {
+            String::new()
+        } else {
+            format!("{folder}/")
+        };
+        let mut candidate = base.clone();
+        let mut n = 1;
+        while self.vault.exists(&format!("{prefix}{candidate}.md")) {
+            candidate = format!("{base} {n}");
+            n += 1;
+        }
+        let slug = format!("{prefix}{candidate}");
+        let page_type = vault::type_for_slug(&slug);
+        let fm = BrainFrontmatter::new(page_type, &candidate);
+        let body = self.load_template(page_type).unwrap_or_default();
+        let raw = render_page(&fm, &body, "")?;
+        self.vault.write_page(&slug, &raw)?;
+        self.sync_page(&slug)?;
+        self.vault.git_commit(&format!("create: {candidate}"));
+        Ok(slug)
+    }
+
+    /// A new folder; returns its cleaned path.
+    pub fn new_folder(&self, path: &str) -> Result<String, String> {
+        let created = self.vault.create_folder(path)?;
+        self.vault.git_commit(&format!("folder: {created}"));
+        Ok(created)
+    }
+
+    /// Soft-delete a folder into `archive/` and drop its pages from the index.
+    pub fn delete_folder(&self, path: &str) -> Result<String, String> {
+        let folder = clean_rel(path);
+        let prefix = format!("{folder}/");
+        let under: Vec<String> = self
+            .vault
+            .list_all_files()?
+            .into_iter()
+            .map(|(slug, _)| slug)
+            .filter(|slug| slug.starts_with(&prefix))
+            .collect();
+        let archived = self.vault.delete_folder(&folder)?;
+        for slug in &under {
+            self.remove_from_index(slug)?;
+        }
+        self.vault.git_commit(&format!("delete folder: {folder}"));
+        Ok(archived)
+    }
+
+    /// Rename or move a page or a folder. `to` is the new slug or folder path; a `to`
+    /// that ends in `/` means "into that folder" under the same name. Every link to
+    /// what moved is rewritten in every page (fenced code untouched), the index rows
+    /// follow, and one commit records it.
+    pub fn rename(&self, from: &str, to: &str) -> Result<RenameReport, String> {
+        let from = clean_rel(from.trim_end_matches(".md"));
+        let into_folder = to.trim().ends_with('/');
+        let mut to = clean_rel(to.trim_end_matches(".md"));
+        if from.contains("..") || to.contains("..") {
+            return Err("Invalid path".to_string());
+        }
+        if into_folder {
+            let name = from.rsplit('/').next().unwrap_or(&from);
+            to = if to.is_empty() {
+                name.to_string()
+            } else {
+                format!("{to}/{name}")
+            };
+        }
+        if to.is_empty() {
+            return Err("A name is needed".to_string());
+        }
+        if self.vault.page_exists(&from) {
+            self.rename_page(&from, &to)
+        } else if self.vault.is_folder(&from) {
+            self.rename_folder(&from, &to)
+        } else {
+            Err(format!("Not found: {from}"))
+        }
+    }
+
+    fn rename_page(&self, from: &str, to: &str) -> Result<RenameReport, String> {
+        if from == to {
+            return Ok(RenameReport {
+                from: from.to_string(),
+                to: to.to_string(),
+                kind: "page".to_string(),
+                pages_rewritten: 0,
+            });
+        }
+        if self.vault.exists(&format!("{to}.md")) {
+            return Err(format!("Already exists: {to}"));
+        }
+        let files = self.vault.list_all_files()?;
+        let basename = from.rsplit('/').next().unwrap_or(from).to_lowercase();
+        let unique = files
+            .iter()
+            .filter(|(slug, _)| slug.rsplit('/').next().unwrap_or(slug).to_lowercase() == basename)
+            .count()
+            == 1;
+        self.vault
+            .rename_path(&format!("{from}.md"), &format!("{to}.md"))?;
+        // A title that was the old file name follows the new one.
+        if let Some(raw) = self.vault.read_page(to)? {
+            let parsed = parse_lenient(&raw);
+            let old_name = from.rsplit('/').next().unwrap_or(from);
+            let new_name = to.rsplit('/').next().unwrap_or(to);
+            if parsed.frontmatter.title.eq_ignore_ascii_case(old_name) && old_name != new_name {
+                let mut fm = parsed.frontmatter;
+                fm.title = new_name.to_string();
+                let new_raw = render_page(&fm, &parsed.compiled_truth, &parsed.timeline)?;
+                self.vault.write_page(to, &new_raw)?;
+            }
+        }
+        let map = links::move_map(from, to, unique);
+        let rewritten = self.rewrite_everywhere(&map, from, to)?;
+        self.move_index_rows(from, to, false)?;
+        self.sync_page(to)?;
+        for slug in &rewritten {
+            self.sync_page(slug)?;
+        }
+        self.resolve_pending_links()?;
+        self.vault.git_commit(&format!(
+            "move: {from} to {to} ({} pages updated)",
+            rewritten.len()
+        ));
+        Ok(RenameReport {
+            from: from.to_string(),
+            to: to.to_string(),
+            kind: "page".to_string(),
+            pages_rewritten: rewritten.len(),
+        })
+    }
+
+    fn rename_folder(&self, from: &str, to: &str) -> Result<RenameReport, String> {
+        if from == to {
+            return Ok(RenameReport {
+                from: from.to_string(),
+                to: to.to_string(),
+                kind: "folder".to_string(),
+                pages_rewritten: 0,
+            });
+        }
+        if self.vault.exists(to) {
+            return Err(format!("Already exists: {to}"));
+        }
+        self.vault.rename_path(from, to)?;
+        let map = links::folder_move_map(from, to);
+        let rewritten = self.rewrite_everywhere(&map, from, to)?;
+        self.move_index_rows(from, to, true)?;
+        for slug in &rewritten {
+            self.sync_page(slug)?;
+        }
+        self.resolve_pending_links()?;
+        self.vault.git_commit(&format!(
+            "move folder: {from} to {to} ({} pages updated)",
+            rewritten.len()
+        ));
+        Ok(RenameReport {
+            from: from.to_string(),
+            to: to.to_string(),
+            kind: "folder".to_string(),
+            pages_rewritten: rewritten.len(),
+        })
+    }
+
+    /// Rewrite links in every page after a move; returns the slugs that changed.
+    fn rewrite_everywhere(
+        &self,
+        map: &dyn Fn(&str) -> Option<String>,
+        _from: &str,
+        _to: &str,
+    ) -> Result<Vec<String>, String> {
+        let mut changed = Vec::new();
+        for (slug, path) in self.vault.list_all_files()? {
+            let raw = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let (new_raw, n) = links::rewrite_targets(&raw, map);
+            if n > 0 && new_raw != raw {
+                std::fs::write(&path, new_raw)
+                    .map_err(|e| format!("Failed to write {}: {e}", path.display()))?;
+                changed.push(slug);
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Point every index row at the new slug (or folder prefix).
+    fn move_index_rows(&self, from: &str, to: &str, folder: bool) -> Result<(), String> {
+        let conn = self.db.conn()?;
+        let tables = [
+            ("brain_pages", "slug"),
+            ("brain_fts", "slug"),
+            ("brain_links", "from_slug"),
+            ("brain_links", "to_slug"),
+            ("brain_tags", "slug"),
+            ("brain_aliases", "slug"),
+            ("brain_timeline", "slug"),
+            ("brain_versions", "slug"),
+            ("brain_chunks", "slug"),
+        ];
+        for (table, column) in tables {
+            let sql = if folder {
+                format!(
+                    "UPDATE OR IGNORE {table} SET {column} = ?2 || substr({column}, length(?1) + 1) \
+                     WHERE substr({column}, 1, length(?1)) = ?1"
+                )
+            } else {
+                format!("UPDATE OR IGNORE {table} SET {column} = ?2 WHERE {column} = ?1")
+            };
+            let (a, b) = if folder {
+                (format!("{from}/"), format!("{to}/"))
+            } else {
+                (from.to_string(), to.to_string())
+            };
+            conn.execute(&sql, rusqlite::params![a, b])
+                .map_err(|e| format!("Failed to move index rows in {table}: {e}"))?;
+        }
+        Ok(())
+    }
+
+    /// Every wikilink whose target is no page, with the line it sits on.
+    pub fn unresolved(&self) -> Result<Vec<UnresolvedLink>, String> {
+        let conn = self.db.conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT l.from_slug, l.to_slug, l.context FROM brain_links l \
+                 LEFT JOIN brain_pages p ON p.slug = l.to_slug \
+                 WHERE p.slug IS NULL ORDER BY l.from_slug, l.id",
+            )
+            .map_err(|e| format!("Query error: {e}"))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(UnresolvedLink {
+                    from_slug: row.get(0)?,
+                    target: row.get(1)?,
+                    context: row.get(2)?,
+                })
+            })
+            .map_err(|e| format!("Query error: {e}"))?
+            .flatten()
+            .collect();
+        Ok(rows)
+    }
+
     // ── Private helpers ────────────────────────────────────────────────
 
     /// Build an FTS5 OR query from a natural language prompt.
@@ -1393,28 +1797,8 @@ impl BrainManager {
         )
         .map_err(|e| format!("Failed to index FTS: {e}"))?;
 
-        // Parse wiki links from content and store in brain_links
-        // (inline to avoid deadlock — conn is already held)
-        conn.execute(
-            "DELETE FROM brain_links WHERE from_slug = ?1 AND link_type = 'reference'",
-            rusqlite::params![entry.slug],
-        )
-        .map_err(|e| format!("Failed to clear wiki links: {e}"))?;
-
-        let links = parse_wiki_links(entry.content);
-        let now = unix_now();
-        for to_slug in &links {
-            if *to_slug != entry.slug {
-                conn.execute(
-                    "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
-                     VALUES (?1, ?2, 'reference', '', ?3)",
-                    rusqlite::params![entry.slug, to_slug, now],
-                )
-                .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
-            }
-        }
-
-        Ok(())
+        // The wiki links, on the same connection guard (a second take would deadlock).
+        index_links(&conn, entry.slug, entry.content)
     }
 
     /// Remove a page from the brain_pages table, brain_fts, aliases, and tags.
@@ -1666,33 +2050,6 @@ impl LinkIndex {
     }
 }
 
-/// Parse `[[slug]]` and `[[slug|display text]]` wiki links from markdown content.
-///
-/// Returns a deduplicated list of target slugs.
-fn parse_wiki_links(content: &str) -> Vec<String> {
-    let mut links = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    let mut remaining = content;
-
-    while let Some(start) = remaining.find("[[") {
-        remaining = &remaining[start + 2..];
-        if let Some(end) = remaining.find("]]") {
-            let inner = &remaining[..end];
-            // [[slug|display text]] → take slug part
-            let slug = inner.split('|').next().unwrap_or("").trim();
-            if !slug.is_empty() && !seen.contains(slug) {
-                seen.insert(slug.to_string());
-                links.push(slug.to_string());
-            }
-            remaining = &remaining[end + 2..];
-        } else {
-            break;
-        }
-    }
-
-    links
-}
-
 /// Compute SHA-256 hash of content.
 fn compute_hash(content: &str) -> String {
     let mut hasher = Sha256::new();
@@ -1706,6 +2063,118 @@ fn unix_now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
+}
+
+/// Replace a page's wiki-link rows from its content: every distinct target, resolved
+/// through the index when it can be, with the line it sits on as context.
+fn index_links(conn: &rusqlite::Connection, slug: &str, content: &str) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM brain_links WHERE from_slug = ?1 AND link_type = 'reference'",
+        rusqlite::params![slug],
+    )
+    .map_err(|e| format!("Failed to clear wiki links: {e}"))?;
+    let now = unix_now();
+    let mut seen = std::collections::HashSet::new();
+    for link in scan_links(content) {
+        if link.target.is_empty() {
+            continue;
+        }
+        let to_slug =
+            resolve_on(conn, &link.target).unwrap_or_else(|| links::normalise_target(&link.target));
+        if to_slug == slug || !seen.insert(to_slug.clone()) {
+            continue;
+        }
+        conn.execute(
+            "INSERT OR IGNORE INTO brain_links (from_slug, to_slug, link_type, context, created_at) \
+             VALUES (?1, ?2, 'reference', ?3, ?4)",
+            rusqlite::params![slug, to_slug, link.line, now],
+        )
+        .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Row mapper for link rows selected as `from, to, type, context, resolved`.
+fn row_to_link(row: &rusqlite::Row) -> rusqlite::Result<LinkEntry> {
+    Ok(LinkEntry {
+        from_slug: row.get(0)?,
+        to_slug: row.get(1)?,
+        link_type: row.get(2)?,
+        context: row.get(3)?,
+        resolved: row.get::<_, i64>(4)? != 0,
+    })
+}
+
+/// The slug a link target names, from the index: the exact slug (case-insensitive),
+/// else a unique file name anywhere in the vault, else a unique title or alias.
+fn resolve_on(conn: &rusqlite::Connection, target: &str) -> Option<String> {
+    let t = links::normalise_target(target);
+    if t.is_empty() {
+        return None;
+    }
+    if let Ok(slug) = conn.query_row(
+        "SELECT slug FROM brain_pages WHERE LOWER(slug) = LOWER(?1)",
+        rusqlite::params![t],
+        |row| row.get::<_, String>(0),
+    ) {
+        return Some(slug);
+    }
+    let unique = |sql: &str| -> Option<String> {
+        let mut stmt = conn.prepare(sql).ok()?;
+        let rows: Vec<String> = stmt
+            .query_map(rusqlite::params![t], |row| row.get(0))
+            .ok()?
+            .flatten()
+            .collect();
+        if rows.len() == 1 {
+            Some(rows[0].clone())
+        } else {
+            None
+        }
+    };
+    if !t.contains('/') {
+        if let Some(slug) = unique(
+            "SELECT slug FROM brain_pages \
+             WHERE LOWER(substr(slug, length(slug) - length(?1) + 1)) = LOWER(?1) \
+             AND substr(slug, length(slug) - length(?1), 1) = '/' LIMIT 2",
+        ) {
+            return Some(slug);
+        }
+    }
+    unique(
+        "SELECT slug FROM brain_pages WHERE LOWER(title) = LOWER(?1) \
+         UNION SELECT slug FROM brain_aliases WHERE LOWER(alias) = LOWER(?1) LIMIT 2",
+    )
+}
+
+/// The renderer's view of the vault: the index for resolution, the disk for content.
+struct DbResolver<'a> {
+    brain: &'a BrainManager,
+}
+
+impl Resolver for DbResolver<'_> {
+    fn resolve(&self, target: &str) -> Option<String> {
+        let t = links::normalise_target(target);
+        if self.brain.vault.page_exists(&t) {
+            return Some(t);
+        }
+        let conn = self.brain.db.conn().ok()?;
+        resolve_on(&conn, &t)
+    }
+
+    fn page(&self, slug: &str) -> Option<(String, String)> {
+        let raw = self.brain.vault.read_page(slug).ok()??;
+        let mut parsed = parse_lenient(&raw);
+        parsed.frontmatter.fill_defaults(slug);
+        Some((parsed.frontmatter.title, raw))
+    }
+
+    fn file_url(&self, target: &str) -> Option<String> {
+        self.brain
+            .vault
+            .find_file(target)
+            .map(|p| format!("file://{}", p.display()))
+    }
 }
 
 /// Row mapper for FTS5 search results.
@@ -1743,6 +2212,188 @@ mod tests {
 
     fn cleanup(dir: &std::path::Path) {
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn tree_render_and_whole_file_edits() {
+        let (dir, bm) = test_brain("workspace");
+        bm.create_page(
+            "project",
+            "Orbit",
+            "Links [[people/sarah-chen]] and [[nobody]].",
+        )
+        .unwrap();
+        bm.create_page("person", "Sarah Chen", "Works on [[orbit]].")
+            .unwrap();
+        fs::write(
+            dir.join("2026-09-02.md"),
+            "# Loose\n\nNo frontmatter, #tagged.\n",
+        )
+        .unwrap();
+        bm.sync_all().unwrap();
+
+        let tree = bm.tree().unwrap();
+        assert_eq!(tree.pages, 3);
+        assert!(tree
+            .children
+            .iter()
+            .any(|c| c.name == "2026-09-02" && c.kind == "page"));
+
+        let page = bm.read_page("2026-09-02").unwrap().unwrap();
+        assert_eq!(page.title, "2026-09-02");
+        assert_eq!(page.page_type, "note");
+
+        let rendered = bm
+            .render_page("projects/orbit", &Style::default())
+            .unwrap()
+            .unwrap();
+        assert!(rendered
+            .rendered
+            .html
+            .contains("rusty:page/people/sarah-chen"));
+        assert_eq!(rendered.rendered.unresolved, vec!["nobody"]);
+        assert_eq!(rendered.properties[0].key, "title");
+        assert!(rendered.raw.starts_with("---\n"));
+        // The bare name resolved through the index.
+        let sarah = bm
+            .render_page("people/sarah-chen", &Style::default())
+            .unwrap()
+            .unwrap();
+        assert!(sarah.rendered.html.contains("rusty:page/projects/orbit"));
+        let links = bm.get_links("people/sarah-chen").unwrap();
+        assert_eq!(links.outbound[0].to_slug, "projects/orbit");
+        assert!(links.outbound[0].resolved);
+        assert_eq!(links.outbound[0].context, "Works on [[orbit]].");
+        let back = bm.get_links("projects/orbit").unwrap();
+        assert_eq!(back.backlinks.len(), 1);
+        assert_eq!(back.backlinks[0].from_slug, "people/sarah-chen");
+        let unresolved = bm.unresolved().unwrap();
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].target, "nobody");
+        assert_eq!(unresolved[0].from_slug, "projects/orbit");
+
+        // A whole-file edit keeps what the editor did not touch.
+        let raw = fs::read_to_string(dir.join("projects/orbit.md")).unwrap();
+        let edited = raw.replace("[[nobody]]", "[[somebody]]");
+        let page = bm.write_raw("projects/orbit", &edited).unwrap();
+        assert_eq!(
+            fs::read_to_string(dir.join("projects/orbit.md")).unwrap(),
+            edited
+        );
+        assert_eq!(page.title, "Orbit");
+        assert!(bm
+            .unresolved()
+            .unwrap()
+            .iter()
+            .any(|u| u.target == "somebody"));
+        let same = bm.write_raw("projects/orbit", &edited).unwrap();
+        assert_eq!(same.content_hash, page.content_hash);
+        assert!(bm
+            .search("somebody", None, None)
+            .unwrap()
+            .iter()
+            .any(|r| r.slug == "projects/orbit"));
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn new_pages_folders_and_moves_rewrite_links() {
+        let (dir, bm) = test_brain("moves");
+        let a = bm.new_page("projects", None).unwrap();
+        let b = bm.new_page("projects", None).unwrap();
+        assert_eq!(
+            (a.as_str(), b.as_str()),
+            ("projects/Untitled", "projects/Untitled 1")
+        );
+        let page = bm.read_page(&a).unwrap().unwrap();
+        assert_eq!(page.page_type, "project");
+        assert_eq!(page.title, "Untitled");
+        assert!(bm.new_page("nope", None).is_err());
+        let root = bm.new_page("", Some("Loose one")).unwrap();
+        assert_eq!(root, "Loose one");
+        assert_eq!(bm.read_page(&root).unwrap().unwrap().page_type, "note");
+        assert_eq!(bm.new_folder("areas/health").unwrap(), "areas/health");
+
+        bm.write_raw("people/alice", "---\ntitle: Alice\ntype: person\n---\n\nSee [[projects/Untitled|the plan]] and [[Untitled 1]] and [[projects/Untitled#Goals]].\n\n```\n[[projects/Untitled]]\n```\n").unwrap();
+        bm.write_raw(
+            "projects/Untitled 1",
+            "---\ntitle: Untitled 1\ntype: project\n---\n\nSibling [[Untitled]].\n",
+        )
+        .unwrap();
+        bm.add_timeline(
+            "people/alice",
+            "2026-09-02",
+            "test",
+            "Talked about [[projects/Untitled]]",
+            None,
+        )
+        .unwrap();
+
+        // Rename a page: the title that was the file name follows; links move.
+        let report = bm.rename("projects/Untitled", "projects/launch").unwrap();
+        assert_eq!(report.kind, "page");
+        assert_eq!(report.pages_rewritten, 2, "{report:?}");
+        assert!(dir.join("projects/launch.md").exists());
+        assert!(!dir.join("projects/Untitled.md").exists());
+        let launch = bm.read_page("projects/launch").unwrap().unwrap();
+        assert_eq!(launch.title, "launch");
+        let alice = fs::read_to_string(dir.join("people/alice.md")).unwrap();
+        assert!(alice.contains("[[projects/launch|the plan]]"), "{alice}");
+        assert!(alice.contains("[[projects/launch#Goals]]"));
+        assert!(alice.contains("[[Untitled 1]]"));
+        assert!(alice.contains("```\n[[projects/Untitled]]\n```"));
+        assert!(alice.contains("Talked about [[projects/launch]]"));
+        let sibling = fs::read_to_string(dir.join("projects/Untitled 1.md")).unwrap();
+        assert!(sibling.contains("Sibling [[projects/launch]]"), "{sibling}");
+        let links = bm.get_links("projects/launch").unwrap();
+        assert_eq!(links.backlinks.len(), 2);
+        assert!(bm.get_timeline("projects/launch", None).unwrap().is_empty());
+        assert_eq!(bm.get_timeline("people/alice", None).unwrap().len(), 1);
+        assert!(bm.read_page("projects/Untitled").unwrap().is_none());
+        assert!(bm
+            .list_pages(None, None)
+            .unwrap()
+            .iter()
+            .all(|p| p.slug != "projects/Untitled"));
+
+        // Move into a folder with a trailing slash; move a folder.
+        let report = bm.rename("projects/launch", "areas/health/").unwrap();
+        assert_eq!(report.to, "areas/health/launch");
+        assert!(fs::read_to_string(dir.join("people/alice.md"))
+            .unwrap()
+            .contains("[[areas/health/launch|the plan]]"));
+        let report = bm.rename("areas", "zones").unwrap();
+        assert_eq!(report.kind, "folder");
+        assert!(dir.join("zones/health/launch.md").exists());
+        let alice = fs::read_to_string(dir.join("people/alice.md")).unwrap();
+        assert!(
+            alice.contains("[[zones/health/launch|the plan]]"),
+            "{alice}"
+        );
+        assert!(bm.read_page("zones/health/launch").unwrap().is_some());
+        assert_eq!(
+            bm.get_links("zones/health/launch").unwrap().backlinks.len(),
+            2
+        );
+        assert!(bm.rename("zones", "people").is_err());
+        assert!(bm.rename("missing/page", "x").is_err());
+
+        let archived = bm.delete_folder("zones").unwrap();
+        assert!(archived.starts_with("archive/zones_"));
+        assert!(bm.read_page("zones/health/launch").unwrap().is_none());
+        assert!(bm
+            .list_pages(None, None)
+            .unwrap()
+            .iter()
+            .all(|p| !p.slug.starts_with("zones/")));
+        assert!(bm
+            .unresolved()
+            .unwrap()
+            .iter()
+            .any(|u| u.target == "zones/health/launch"));
+
+        cleanup(&dir);
     }
 
     #[test]
@@ -2210,7 +2861,7 @@ mod tests {
 
     #[test]
     fn parse_wiki_links_basic() {
-        let links = parse_wiki_links("Links to [[people/alice]] and [[companies/acme]].");
+        let links = links::targets("Links to [[people/alice]] and [[companies/acme]].");
         assert_eq!(links.len(), 2);
         assert!(links.contains(&"people/alice".to_string()));
         assert!(links.contains(&"companies/acme".to_string()));
@@ -2218,20 +2869,20 @@ mod tests {
 
     #[test]
     fn parse_wiki_links_with_display_text() {
-        let links = parse_wiki_links("See [[people/alice|Alice]] for details.");
+        let links = links::targets("See [[people/alice|Alice]] for details.");
         assert_eq!(links.len(), 1);
         assert_eq!(links[0], "people/alice");
     }
 
     #[test]
     fn parse_wiki_links_deduplicates() {
-        let links = parse_wiki_links("First [[people/alice]] then [[people/alice]] again.");
+        let links = links::targets("First [[people/alice]] then [[people/alice]] again.");
         assert_eq!(links.len(), 1);
     }
 
     #[test]
     fn parse_wiki_links_empty() {
-        let links = parse_wiki_links("No links here.");
+        let links = links::targets("No links here.");
         assert!(links.is_empty());
     }
 

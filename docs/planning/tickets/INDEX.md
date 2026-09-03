@@ -8,8 +8,9 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-- [`TICKET-002` — Knowledge workspace shell](open/TICKET-002-knowledge-workspace-shell.md) (in progress, Phase 1; spec awaits Chad's seal)
+(empty; the roadmap's M8 tickets 003 to 006 open one at a time, next 003)
 
 ## Closed
 
+- [`TICKET-002` — Knowledge workspace shell](closed/TICKET-002-knowledge-workspace-shell.md) (done 2026-09-02)
 - [`TICKET-001` — Agent workflow bootstrap](closed/TICKET-001-agent-workflow-bootstrap.md) (done 2026-09-02)

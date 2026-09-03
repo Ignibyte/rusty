@@ -18,7 +18,7 @@ The shape is in `docs/architecture.md`.
 | M5 Skills, Secrets, Settings | done 2026-09-02 |
 | M6 Omarchy packaging and cutover | next (waits on Chad) |
 | M7 Daily use | done 2026-09-02 |
-| M8 Knowledge workspace | next (spec awaits seal) |
+| M8 Knowledge workspace | in progress (shell landed 2026-09-02) |
 | M9 Workflow | in progress |
 
 ## M0. Foundation (done 2026-09-02)
@@ -208,10 +208,14 @@ Chad, 2026-09-02: skip the Obsidian API and remake Obsidian inside Rusty; the Re
 `docs/planning/intake/INTAKE-knowledge-workspace.md`; work runs as tickets through the
 workflow in `CONSTITUTION.md`.
 
-- [ ] TICKET-002 Workspace shell: rail, real folder tree with file operations and link-safe
-      rename, document tabs, Rust markdown renderer (Obsidian flavour), source editor with
-      highlighting, backlinks/outgoing/unresolved/outline, quick switcher, command palette,
-      agent terminal as the right pane, theme tokens; replaces the Brain and Notes tabs
+- [x] TICKET-002 Workspace shell (2026-09-02): Obsidian's layout (ribbon, explorer over the
+      real folder tree with new, rename, move and delete, document tabs, breadcrumb header,
+      inline title, properties, right sidebar with backlinks in context, outgoing links,
+      outline and an agent pane, status bar counts), the Rust renderer for Obsidian's flavour
+      (`brain::render`), the source editor with a Rust-tokenized highlighter, link-safe rename
+      and folder operations in the core with eight new tools, quick switcher, command palette,
+      Obsidian's keys, theme tokens from the Omarchy theme's `obsidian.css`; the Brain and
+      Notes tabs are gone. Screenshots come from `scripts/screenshot.sh` against a scratch vault
 - [ ] TICKET-003 Tags (inline and frontmatter) and a properties editor
 - [ ] TICKET-004 Global and local graph views with filters, groups and forces
 - [ ] TICKET-005 Search operators, bookmarks, hotkeys table

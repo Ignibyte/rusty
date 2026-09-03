@@ -1,12 +1,15 @@
-//! Rusty's desktop app: a QML shell for Omarchy with native Claude Code and Codex
-//! terminals, and tabs for tasks, the brain, notes, memories, skills and settings.
+//! Rusty's desktop app: the knowledge workspace for Omarchy, laid out as Obsidian is,
+//! with native Claude Code and Codex terminals as tabs and as a pane beside the note,
+//! and views for tasks, memories, skills, secrets and settings.
 //!
 //! The window is `qml/Main.qml`, bundled into the binary as the QML module
-//! `dev.ignibyte.rusty`. Rust supplies the `Theme` type (Omarchy colours, terminal font
-//! and colour scheme) and, as the milestones land, the models behind each tab. Data
-//! comes from `rusty-mcp` over local HTTP; the app holds no store of its own.
+//! `dev.ignibyte.rusty`. Rust supplies `Theme` (Omarchy colours and tokens, terminal
+//! font and colour scheme), `Terminals` (tabs and tmux), `Backend` (the MCP client) and
+//! the source editor's tokenizer behind the C++ `MarkdownHighlighter`. Data comes from
+//! `rusty-mcp` over local HTTP; the app holds no store of its own.
 
 mod backend;
+mod markdown;
 mod omarchy;
 mod terminals;
 mod theme;
