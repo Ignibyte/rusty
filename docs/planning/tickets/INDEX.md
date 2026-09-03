@@ -4,11 +4,19 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - Open tickets: [`open/`](open/)
 - Closed tickets: [`closed/`](closed/)
-- **Next ticket number: `011`**
+- **Next ticket number: `019`**
 
 ## Open queue
 
 - [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (Phase 1, awaiting Chad's seal, 2026-09-03)
+- [`TICKET-011` — Top bar: command and agents](open/TICKET-011-top-bar-command-and-agents.md) (queued 2026-09-03)
+- [`TICKET-012` — Text size](open/TICKET-012-text-size.md) (queued 2026-09-03)
+- [`TICKET-013` — Favorites](open/TICKET-013-favorites.md) (queued 2026-09-03)
+- [`TICKET-014` — Notes into the vault](open/TICKET-014-notes-into-the-vault.md) (queued 2026-09-03)
+- [`TICKET-015` — Secrets behind a PIN](open/TICKET-015-secrets-behind-a-pin.md) (queued 2026-09-03)
+- [`TICKET-016` — Folders, part one](open/TICKET-016-folders.md) (queued 2026-09-03)
+- [`TICKET-017` — Ribbon redo](open/TICKET-017-ribbon-redo.md) (queued, waiting for Chad's explanation, 2026-09-03)
+- [`TICKET-018` — The brain loop: Ask, Decide, Follow up](open/TICKET-018-brain-loop.md) (queued 2026-09-03)
 
 ## Closed
 
