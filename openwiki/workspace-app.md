@@ -21,16 +21,24 @@ sources:
     resource: repo://crates/rusty-app/qml/SearchPane.qml
   - id: openwiki-source-157820f2258f93d1ba08859f
     resource: repo://crates/rusty-app/qml/SettingsPage.qml
+  - id: openwiki-source-f536fe8c8de4eb428d24ba4b
+    resource: repo://crates/rusty-app/qml/TopBar.qml
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
-  - id: openwiki-source-040df95238fa90bd4e7ad29b
-    resource: repo://crates/rusty-app/src/omarchy.rs
+  - id: openwiki-source-c20a2a4e587e9ab45705b8d4
+    resource: repo://crates/rusty-app/src/desk.rs
+  - id: openwiki-source-c8c0347aa7a687c601520d1a
+    resource: repo://crates/rusty-app/src/main.rs
+  - id: openwiki-source-c3978cc62c783d6d3ec4b39d
+    resource: repo://crates/rusty-app/src/skin.rs
   - id: openwiki-source-720644bc52136dc05589b8d5
     resource: repo://crates/rusty-app/src/terminals.rs
+  - id: openwiki-source-62f5347acdae1a6fb6fd8a74
+    resource: repo://crates/rusty-app/src/theme.rs
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:46:21.914Z
+    at: 2026-09-03T13:09:51.830Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -50,10 +58,22 @@ every view backed by the MCP server that agents share.
   runtime, reconnecting every three seconds; `call(tool, argsJson)` returns an id and
   the reply arrives through `result(id, tool, json, ok)`; `resources/list_changed`
   becomes `dataChanged`.
-- `src/theme.rs` and `src/omarchy.rs`: `Theme`, the Omarchy colours and the tokens read
-  from the theme's `obsidian.css` and Alacritty palette (surface, line, muted, faint,
-  code, headings, ANSI colours), the terminal font and a generated Konsole scheme; a
-  watcher on `~/.config/omarchy/current` reloads on `omarchy theme set`.
+- `src/skin.rs`: the look as data. `Roles` (a ground and three panel levels, two line
+  weights, three text weights, an accent and its softer twin, gold, an alive colour,
+  red, the six semantic colours, a face and a corner radius), the built-in `PRESETS`
+  (Amber phosphor first), `from_omarchy` (the desktop palette and its ANSI colours
+  mapped onto the roles), `parse_theme` and `from_file` for `~/.config/rusty/themes/`,
+  `resolve` for a `Choice` (`preset`, `omarchy` or `file`, a name, the scanline switch)
+  and `tokens`, which derives every colour the shell binds to under the older names
+  and the new.
+- `src/theme.rs` and `src/omarchy.rs`: `Theme` exposes the tokens, the faces, the radius
+  and the switch as properties, `select()` switches the skin from the choice the shell
+  keeps in the workspace state, `reload()` re-reads the desktop, and a watcher on
+  `~/.config/omarchy/current` reloads on `omarchy theme set`; `omarchy.rs` reads the
+  palette, the Alacritty font and colours, and writes the Konsole scheme. `main.rs` sets
+  the application font from the saved skin before any item exists.
+- `src/desk.rs`: `Desk`, what the top bar reads: memory in use, the CPU's share, the
+  clock, Hyprland's workspaces and the active one through `hyprctl -j`, the login name.
 - `src/terminals.rs`: `Terminals`, the tabs file (`~/.config/rusty/tabs.json`), the
   workspace state file (`~/.config/rusty/workspace.json`), tmux session names and
   listing, installed agents, desktop notifications.
@@ -63,7 +83,7 @@ every view backed by the MCP server that agents share.
   `NoteTab.qml`, `RightPane.qml`, `AgentTerminal.qml`, `QuickSwitcher.qml`,
   `CommandPalette.qml`, `Icon.qml`; the built-in views `TasksPage.qml`,
   `MemoryPage.qml`, `SkillsPage.qml`, `SecretsPage.qml`, `SettingsPage.qml`;
-  `BookmarksPane.qml` and `GraphView.qml`.
+  `BookmarksPane.qml`, `GraphView.qml`, `TopBar.qml` and `Scanlines.qml`.
 
 ## Runtime flow
 
@@ -111,6 +131,15 @@ every view backed by the MCP server that agents share.
   runs the search, or opens the page and scrolls to the heading once it has rendered.
   Settings renders the palette's command list as the Hotkeys table, the terminal keys
   added, with a filter field.
+- The look (`TopBar`, the rail, the pane heads, the tree, the tab strip, the note's
+  furniture, the assistant header, the toast, `Scanlines`) follows the design mock:
+  uppercase micro-labels, square corners unless the skin sets a radius, the accent on
+  the active thing, gold on titles and folders, the alive colour on links and state.
+  Settings shows every skin `Theme.choices` lists; a pick goes through
+  `win.selectTheme`, which stores `{source, name, scanlines}` under `theme` in the
+  workspace state and calls `Theme.select`, so every token repaints at once; the face
+  applies at the next launch. The note asks `brain_graph` around itself (depth 3) for
+  the legend card's direct, related and distant counts.
 - Keys are Obsidian's (Ctrl+O, Ctrl+P, Ctrl+N, Ctrl+E, Ctrl+W, Ctrl+Tab, Ctrl+Shift+F,
   Ctrl+,, Ctrl+G, Alt+Left/Right, F2) and are disabled while a terminal has focus; the
   four terminal keys (Ctrl+Shift+T, Ctrl+Shift+W, Ctrl+PgUp/PgDn) stay global.
@@ -121,7 +150,8 @@ every view backed by the MCP server that agents share.
 ## Invariants
 
 - The app holds no store; every view calls tools and renders JSON.
-- Every colour is a theme token; nothing is sent anywhere but the local back end.
+- Every colour is a token derived from the skin's roles; no QML file names a colour of
+  its own. Nothing is sent anywhere but the local back end.
 - Inside an inline QML `Component`, shared objects are bound through the window
   (`theme: win.theme`), because an unqualified name finds the component's own property
   first.
@@ -141,11 +171,13 @@ every view backed by the MCP server that agents share.
 
 - A new tab kind: a `Component` in `TabHost`, a title in `viewTitles`, a ribbon button.
 - A new palette command: an entry in `commandList()`.
-- A new theme token: `omarchy::tokens`, a `Theme` property, its use in QML.
+- A new role: `skin::Roles`, `skin::fill` for its default, `skin::tokens`, a `Theme`
+  property, its use in QML. A new preset: an entry in `skin::PRESETS`.
 
 ## Tests
 
-- `cargo test -p rusty-app`: the tokenizer, the tabs JSON, the tokens.
+- `cargo test -p rusty-app`: the tokenizer, the tabs JSON, the skin (presets, the
+  Omarchy mapping, theme files, tokens), the colour math, the desk readings.
 - `scripts/screenshot.sh` for the visual record; pointer and keyboard walks are done
   by hand, never by synthetic input on the user's desktop.
 

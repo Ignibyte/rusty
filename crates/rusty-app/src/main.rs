@@ -9,12 +9,14 @@
 //! `rusty-mcp` over local HTTP; the app holds no store of its own.
 
 mod backend;
+mod desk;
 mod markdown;
 mod omarchy;
+mod skin;
 mod terminals;
 mod theme;
 
-use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QString, QUrl};
+use cxx_qt_lib::{QFont, QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 
 fn main() {
     // Wayland first on Omarchy; Qt still falls back to X11 when there is no compositor.
@@ -37,6 +39,12 @@ fn main() {
             .set_organization_name(&QString::from("Ignibyte"));
         app.as_mut()
             .set_organization_domain(&QString::from("ignibyte.com"));
+        // The skin's face for every label, set once before any item exists.
+        let (family, px) = theme::startup_font();
+        let mut font = QFont::default();
+        font.set_family(&QString::from(&family));
+        font.set_pixel_size(px);
+        app.as_mut().set_application_font(&font);
     }
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {

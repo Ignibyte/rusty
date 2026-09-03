@@ -1690,6 +1690,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 name = "rusty-app"
 version = "3.0.0-alpha.1"
 dependencies = [
+ "chrono",
  "cxx",
  "cxx-qt",
  "cxx-qt-build",
@@ -1697,6 +1698,7 @@ dependencies = [
  "dirs",
  "notify",
  "rmcp",
+ "serde",
  "serde_json",
  "tokio",
  "toml",

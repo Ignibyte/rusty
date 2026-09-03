@@ -19,7 +19,7 @@ Popup {
     x: Math.round((parent.width - width) / 2)
     y: 72
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    background: Rectangle { color: pop.theme.surface; border.color: pop.theme.line; border.width: 1; radius: 8 }
+    background: Rectangle { color: pop.theme.panel; border.color: pop.theme.accent; border.width: 1; radius: pop.theme.radius }
 
     function show() { field.text = ""; refilter(); open(); field.forceActiveFocus() }
     onCommandsChanged: refilter()

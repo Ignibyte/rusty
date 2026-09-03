@@ -115,6 +115,10 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   `obsidian_*` tools, `rusty-cli obsidian`, the installer's registration, the app's theme-snippet
   call) went once the workspace tiers covered links, unresolved targets, renames and opening
   pages. The vault stays an Obsidian vault by format.
+- Skinned on 2026-09-03 (TICKET-008): the look is data in `crates/rusty-app/src/skin.rs`, a set
+  of colour roles from a preset, the Omarchy theme or a file under `~/.config/rusty/themes/`;
+  `Theme` turns the roles into every token the QML and the renderer bind to, `Desk` reads the
+  machine for the top bar, and the application font is the skin's face.
 - Vault rules, applied by `rusty-cli brain migrate`: the timeline is a `## Timeline` section (the
   bare `---` rule is read for compatibility, never written), and wikilinks are vault paths,
   `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).

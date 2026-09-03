@@ -32,6 +32,19 @@ Item {
         anchors.fill: parent
         spacing: 0
 
+        // The mock's pane head: the pane's name, and the assistant's sigil and state.
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 42
+            Layout.leftMargin: 12
+            Layout.rightMargin: 40
+            spacing: 8
+            Text { visible: pane.current === "agent"; text: "✦"; color: pane.theme.accent; font.pixelSize: 15 }
+            Text { text: pane.current === "agent" ? "Rusty / Assistant" : pane.current === "backlinks" ? "Backlinks" : pane.current === "outgoing" ? "Outgoing links" : pane.current === "outline" ? "Outline" : "Tags"; color: pane.theme.bright; font.pixelSize: 10; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+            Item { Layout.fillWidth: true }
+            Text { visible: pane.current === "agent"; text: "● " + (pane.program.length > 0 ? "Ready" : "Idle"); color: pane.theme.alive; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+        }
+        Rectangle { Layout.fillWidth: true; height: 1; color: pane.theme.line }
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: 8
@@ -219,11 +232,40 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
+            // The mock's context card: what the assistant has in front of it.
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.margins: 12
+                Layout.bottomMargin: 4
+                implicitHeight: contextCol.implicitHeight + 20
+                color: pane.theme.panel3
+                border.width: 1
+                border.color: pane.theme.lineBright
+                ColumnLayout {
+                    id: contextCol
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Context loaded"; color: pane.theme.accent; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Item { Layout.fillWidth: true }
+                        Text { text: pane.note ? pane.note.words + " words" : "—"; color: pane.theme.accent; font.pixelSize: 9; font.capitalization: Font.AllUppercase }
+                    }
+                    Text { text: pane.note ? pane.note.title + (pane.note.backlinkCount > 0 ? " + " + pane.note.backlinkCount + (pane.note.backlinkCount === 1 ? " backlink" : " backlinks") : "") : "no page open"; color: pane.theme.foreground; font.pixelSize: 10; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 3
+                        color: pane.theme.line
+                        Rectangle { width: parent.width * (pane.note ? Math.min(1, pane.note.words / 1500) : 0); height: 3; color: pane.theme.alive }
+                    }
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Layout.margins: 6
                 spacing: 6
-                Text { text: "Agent"; color: pane.theme.muted; font.pixelSize: 12 }
+                Text { text: "Agent"; color: pane.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
                 ComboBox {
                     id: programBox
                     Layout.fillWidth: true
@@ -260,7 +302,7 @@ Item {
         property string tip: ""
         width: 28
         height: 26
-        radius: 5
+        radius: pane.theme.radius
         color: pane.current === name ? pane.theme.active : (ptHover.hovered ? pane.theme.hover : "transparent")
         Icon { anchors.centerIn: parent; name: pt.icon; color: pane.current === pt.name ? pane.theme.foreground : pane.theme.muted; size: 16 }
         HoverHandler { id: ptHover; cursorShape: Qt.PointingHandCursor }

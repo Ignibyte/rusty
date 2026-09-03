@@ -141,15 +141,14 @@ Item {
                 required property int index
                 required property var modelData
                 width: list.width
-                height: 26
+                height: 24
                 readonly property bool active: modelData.kind === "page" && modelData.path === explorer.currentSlug
                 readonly property bool isRenaming: explorer.renaming === modelData.path
                 Rectangle {
                     anchors.fill: parent
-                    anchors.leftMargin: 6
-                    anchors.rightMargin: 6
-                    radius: 4
+                    radius: explorer.theme.radius
                     color: row.active ? explorer.theme.active : (rowHover.hovered || list.currentIndex === row.index ? explorer.theme.hover : "transparent")
+                    Rectangle { visible: row.active; anchors.left: parent.left; width: 1; height: parent.height; color: explorer.theme.accent }
                 }
                 // Indent guides for nested rows.
                 Repeater {
@@ -172,16 +171,17 @@ Item {
                     Icon {
                         visible: row.modelData.kind === "folder"
                         name: explorer.expanded[row.modelData.path] ? "chevron-down" : "chevron-right"
-                        color: explorer.theme.faint
-                        size: 14
+                        color: explorer.theme.accentSoft
+                        size: 12
                     }
-                    Item { visible: row.modelData.kind !== "folder"; width: 14; height: 1 }
+                    Text { visible: row.modelData.kind === "folder"; text: "▰"; color: explorer.theme.gold; font.pixelSize: 9 }
+                    Text { visible: row.modelData.kind !== "folder"; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: 10; Layout.preferredWidth: 12 }
                     Text {
                         visible: !row.isRenaming
                         Layout.fillWidth: true
                         text: row.modelData.name
-                        color: row.active ? explorer.theme.foreground : explorer.theme.muted
-                        font.pixelSize: 13
+                        color: row.active ? explorer.theme.bright : explorer.theme.muted
+                        font.pixelSize: 12
                         elide: Text.ElideRight
                     }
                     TextField {
@@ -195,6 +195,7 @@ Item {
                         Keys.onEscapePressed: explorer.renaming = ""
                         onActiveFocusChanged: if (!activeFocus && row.isRenaming) explorer.renaming = ""
                     }
+                    Text { visible: row.modelData.kind === "folder" && row.modelData.pages !== undefined; text: String(row.modelData.pages).padStart(2, "0"); color: explorer.theme.faint; font.pixelSize: 10 }
                     Text {
                         visible: row.modelData.kind === "file"
                         text: row.modelData.name.indexOf(".") >= 0 ? row.modelData.name.slice(row.modelData.name.lastIndexOf(".") + 1).toUpperCase() : ""

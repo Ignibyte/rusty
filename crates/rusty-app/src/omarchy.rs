@@ -48,32 +48,6 @@ pub fn theme_dir() -> PathBuf {
     home().join(".config/omarchy/current/theme")
 }
 
-/// The theme's `obsidian.css` custom properties that are plain hex colours
-/// (`background-secondary`, `text-muted`, `text-title-h1`, ...), keyed without the
-/// leading dashes. Omarchy ships one per theme for Obsidian; the workspace reads the
-/// same file so both look alike.
-pub fn obsidian_tokens() -> BTreeMap<String, String> {
-    let mut out = BTreeMap::new();
-    let Ok(text) = std::fs::read_to_string(theme_dir().join("obsidian.css")) else {
-        return out;
-    };
-    for line in text.lines() {
-        let line = line.trim();
-        let Some(rest) = line.strip_prefix("--") else {
-            continue;
-        };
-        let Some((key, value)) = rest.split_once(':') else {
-            continue;
-        };
-        let value = value.trim().trim_end_matches(';').trim();
-        if is_hex_colour(value) {
-            out.entry(key.trim().to_string())
-                .or_insert_with(|| value.to_string());
-        }
-    }
-    out
-}
-
 /// Alacritty's ANSI palette from the theme, as `red`, `bright-red`, ... plus the
 /// selection background when the theme names one.
 pub fn ansi_tokens() -> BTreeMap<String, String> {
@@ -105,92 +79,6 @@ pub fn ansi_tokens() -> BTreeMap<String, String> {
         out.insert("selection".to_string(), v.to_string());
     }
     out
-}
-
-/// Every colour the workspace binds to, `#rrggbb` each: the four base colours, what the
-/// theme's `obsidian.css` and Alacritty palette say, and derived surfaces for whatever
-/// the theme leaves unsaid.
-pub fn tokens(palette: &Palette) -> BTreeMap<String, String> {
-    let obsidian = obsidian_tokens();
-    let ansi = ansi_tokens();
-    let bg = palette.background.clone();
-    let fg = palette.foreground.clone();
-    let dark = is_dark(&bg);
-    let up = |hex: &str, amount: f32| {
-        if dark {
-            shade(hex, amount)
-        } else {
-            shade(hex, -amount)
-        }
-    };
-    let mut t: BTreeMap<String, String> = BTreeMap::new();
-    let mut put = |key: &str, value: String| {
-        t.insert(key.to_string(), value);
-    };
-    let pick = |key: &str, fallback: String| obsidian.get(key).cloned().unwrap_or(fallback);
-    let ansi_or = |key: &str, fallback: &str| {
-        ansi.get(key)
-            .cloned()
-            .unwrap_or_else(|| fallback.to_string())
-    };
-    put("background", bg.clone());
-    put("foreground", fg.clone());
-    put("accent", palette.accent.clone());
-    put("cursor", palette.cursor.clone());
-    put("dark", if dark { "true" } else { "false" }.to_string());
-    put("surface", pick("background-secondary", up(&bg, 0.04)));
-    put(
-        "surface-alt",
-        pick("background-secondary-alt", up(&bg, 0.08)),
-    );
-    put(
-        "line",
-        pick("background-modifier-border", blend(&fg, &bg, 0.22)),
-    );
-    put("muted", pick("text-muted", blend(&fg, &bg, 0.7)));
-    put("faint", pick("text-faint", blend(&fg, &bg, 0.5)));
-    put("link", pick("text-link", palette.accent.clone()));
-    put(
-        "selection",
-        pick("text-selection", ansi_or("selection", &palette.accent)),
-    );
-    let red = ansi_or("red", "#f7768e");
-    let green = ansi_or("green", "#9ece6a");
-    let yellow = ansi_or("yellow", "#e0af68");
-    let blue = ansi_or("blue", "#7aa2f7");
-    let magenta = ansi_or("magenta", "#ad8ee6");
-    let cyan = ansi_or("cyan", "#7dcfff");
-    put("red", pick("text-error", red.clone()));
-    put("green", pick("text-success", green.clone()));
-    put("yellow", yellow.clone());
-    put("blue", blue.clone());
-    put("magenta", magenta.clone());
-    put("cyan", cyan.clone());
-    put("code", pick("code-normal", cyan.clone()));
-    put("code-bg", up(&bg, 0.06));
-    put("tag", pick("tag-color", cyan.clone()));
-    put("tag-bg", pick("tag-background", up(&bg, 0.12)));
-    put("mark", blend(&yellow, &bg, 0.4));
-    put("hover", blend(&fg, &bg, 0.08));
-    put("active", blend(&palette.accent, &bg, 0.22));
-    for (i, fallback) in [red, green.clone(), yellow, blue, magenta.clone(), magenta]
-        .into_iter()
-        .enumerate()
-    {
-        let level = i + 1;
-        put(
-            &format!("h{level}"),
-            pick(&format!("text-title-h{level}"), fallback),
-        );
-    }
-    put("graph-line", pick("graph-line", blend(&fg, &bg, 0.3)));
-    put("graph-node", pick("graph-node", palette.accent.clone()));
-    put("graph-node-tag", pick("graph-node-tag", cyan));
-    put(
-        "graph-node-attachment",
-        pick("graph-node-attachment", green),
-    );
-    t
 }
 
 fn hex_to_rgb(hex: &str) -> (f32, f32, f32) {
@@ -365,8 +253,6 @@ pub struct Look {
     pub scheme: String,
     /// Extra values worth showing on the Settings page.
     pub facts: BTreeMap<String, String>,
-    /// Every workspace colour; see [`tokens`].
-    pub tokens: BTreeMap<String, String>,
 }
 
 impl Look {
@@ -385,13 +271,11 @@ impl Look {
         );
         facts.insert("terminal font".into(), font.clone());
         facts.insert("colour scheme".into(), scheme.clone());
-        let tokens = tokens(&palette);
         Self {
             palette,
             font,
             scheme,
             facts,
-            tokens,
         }
     }
 }
@@ -444,26 +328,11 @@ white = "#acb0d0"
     }
 
     #[test]
-    fn colour_math_and_derived_tokens() {
+    fn colour_math() {
         assert_eq!(blend("#ffffff", "#000000", 0.5), "#808080");
         assert_eq!(shade("#000000", 0.5), "#808080");
         assert_eq!(shade("#ffffff", -0.5), "#808080");
-        assert!(is_dark("#1a1b26"));
-        assert!(!is_dark("#eff1f5"));
-        let t = tokens(&Palette::default());
-        assert_eq!(t["background"], "#1a1b26");
-        assert!(is_hex_colour(&t["surface"]));
-        assert!(is_hex_colour(&t["muted"]));
-        assert!(is_hex_colour(&t["h6"]));
-        assert_eq!(t["dark"], "true");
-        let light = tokens(&Palette {
-            background: "#eff1f5".into(),
-            foreground: "#4c4f69".into(),
-            accent: "#1e66f5".into(),
-            cursor: "#dc8a78".into(),
-        });
-        assert_eq!(light["dark"], "false");
-        assert!(is_hex_colour(&light["code-bg"]));
+        assert!(is_dark("#1a1b26") && !is_dark("#f3eee2"));
     }
 
     #[test]

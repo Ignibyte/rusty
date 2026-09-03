@@ -227,6 +227,9 @@ workflow in `CONSTITUTION.md`.
       commands, the installer's registration and the app's theme-snippet call are gone; the
       vault stays an Obsidian vault by format (2026-09-03, on Chad's approval of tickets 2
       to 6 rather than on daily use)
+- [x] TICKET-008 The mock's look as a skin: colour roles, the Amber phosphor preset and
+      three more, Follow Omarchy, theme files, the skin picker; the top bar, rail labels,
+      pane heads, tabs, note furniture, the assistant header, a CRT overlay (2026-09-03)
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

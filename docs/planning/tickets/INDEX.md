@@ -4,15 +4,16 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - Open tickets: [`open/`](open/)
 - Closed tickets: [`closed/`](closed/)
-- **Next ticket number: `008`** (003 to 006 are reserved by the roadmap's M8 list and
+- **Next ticket number: `009`** (003 to 006 are reserved by the roadmap's M8 list and
   open one at a time)
 
 ## Open queue
 
-(empty; M8 is complete, the next ticket takes number 008)
+(empty; the next ticket takes number 009)
 
 ## Closed
 
+- [`TICKET-008` — Amber phosphor and themes](closed/TICKET-008-amber-phosphor-and-themes.md) (done 2026-09-03)
 - [`TICKET-006` — Retire the Obsidian bridge](closed/TICKET-006-retire-obsidian-bridge.md) (done 2026-09-03)
 - [`TICKET-005` — Search operators, bookmarks, hotkeys](closed/TICKET-005-search-bookmarks-hotkeys.md) (done 2026-09-03)
 - [`TICKET-004` — Graph views](closed/TICKET-004-graph-views.md) (done 2026-09-03)

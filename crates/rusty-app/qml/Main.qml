@@ -65,6 +65,7 @@ ApplicationWindow {
         property string paneProgram: ""
         property string graph: "{}"
         property string bookmarks: "[]"
+        property string theme: ""
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
@@ -77,6 +78,7 @@ ApplicationWindow {
         onPaneProgramChanged: save()
         onGraphChanged: save()
         onBookmarksChanged: save()
+        onThemeChanged: save()
         // Written with the `ui.` prefix throughout: an unqualified `rightPane` here would
         // find the sidebar item of that id before this object's property.
         function load() {
@@ -92,13 +94,14 @@ ApplicationWindow {
                 if (typeof s.paneProgram === "string") ui.paneProgram = s.paneProgram
                 if (typeof s.graph === "string") ui.graph = s.graph
                 if (typeof s.bookmarks === "string") ui.bookmarks = s.bookmarks
+                if (typeof s.theme === "string") ui.theme = s.theme
             } catch (e) {}
             ui.loaded = true
         }
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, theme: ui.theme }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -106,6 +109,10 @@ ApplicationWindow {
     // kind, title, slug, session, program, cwd, pinned are saved; unread and termTitle
     // live only while running.
     ListModel { id: tabs }
+
+    // The machine, for the top bar.
+    Desk { id: desk }
+    Timer { interval: 2000; repeat: true; running: true; onTriggered: desk.refresh() }
 
     property var tree: null
     property var pageList: []
@@ -123,6 +130,11 @@ ApplicationWindow {
     property string lastPageSlug: ""
     readonly property var graphSettings: { try { return JSON.parse(ui.graph || "{}") } catch (e) { return ({}) } }
     function saveGraphSettings(s) { ui.graph = JSON.stringify(s) }
+    // The skin: a preset, the Omarchy theme, or a file; kept in the state and handed
+    // to the Rust theme, which repaints every token.
+    function selectTheme(source, name) { ui.theme = JSON.stringify({ source: source, name: name, scanlines: theme.scanlines }); theme.select(ui.theme) }
+    function setScanlines(on) { ui.theme = JSON.stringify({ source: theme.source, name: theme.themeName, scanlines: on }); theme.select(ui.theme) }
+    property int unresolvedCount: 0
     // Bookmarks: files, folders, searches and headings, kept in the workspace state as
     // one JSON array. Adding one that exists removes it, so every entry point toggles.
     readonly property var bookmarkList: { try { return JSON.parse(ui.bookmarks) } catch (e) { return [] } }
@@ -160,6 +172,7 @@ ApplicationWindow {
         ask("brain_tree", {}, "tree")
         ask("brain_list_pages", { limit: 100000 }, "pages")
         ask("brain_tags", {}, "tags")
+        ask("brain_unresolved", {}, "unresolved")
     }
 
     // ── Tabs ──────────────────────────────────────────────────────────────
@@ -313,6 +326,7 @@ ApplicationWindow {
             switch (kind) {
             case "tree": win.tree = JSON.parse(json); break
             case "tags": win.tags = JSON.parse(json); break
+            case "unresolved": { const u = JSON.parse(json); win.unresolvedCount = Array.isArray(u) ? u.length : 0; break }
             case "pages": {
                 const list = JSON.parse(json)
                 win.pageList = list
@@ -369,6 +383,7 @@ ApplicationWindow {
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
                 else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
                 else if (p.startsWith("view:")) win.openView(p.slice(5))
+                else if (p.startsWith("theme:")) { const parts = p.slice(6).split(":"); win.selectTheme(parts[0], parts[1] || "") }
                 else if (p === "graph") win.openGraph(false)
                 else if (p === "localgraph") win.openGraph(true)
                 else if (p.startsWith("tab:")) stack.currentIndex = parseInt(p.slice(4))
@@ -620,23 +635,33 @@ ApplicationWindow {
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
         Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
-        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList() } }
+        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on) } }
     }
 
     component RibbonButton: Rectangle {
         id: rb
         property string icon: ""
         property string glyph: ""
+        property string label: ""
         property string tip: ""
         property bool active: false
         signal clicked()
-        width: 30
-        height: 30
-        radius: 6
-        color: rb.active ? theme.active : (rbHover.hovered && enabled ? theme.hover : "transparent")
+        readonly property bool lit: rb.active || (rbHover.hovered && enabled)
+        width: 32
+        height: rb.label.length > 0 ? 38 : 30
+        radius: theme.radius
+        color: rb.lit ? theme.panel3 : "transparent"
+        border.width: 1
+        border.color: rb.lit ? theme.lineBright : "transparent"
         opacity: enabled ? 1 : 0.35
-        Icon { visible: rb.icon.length > 0; anchors.centerIn: parent; name: rb.icon; color: rb.active ? theme.foreground : theme.muted; size: 18 }
-        Text { visible: rb.glyph.length > 0; anchors.centerIn: parent; text: rb.glyph; color: rb.active ? theme.foreground : theme.muted; font.pixelSize: 16 }
+        Rectangle { visible: rb.active; x: -7; y: 8; width: 2; height: 14; color: theme.accent }
+        Column {
+            anchors.centerIn: parent
+            spacing: 1
+            Icon { visible: rb.icon.length > 0; anchors.horizontalCenter: parent.horizontalCenter; name: rb.icon; color: rb.lit ? theme.accent : theme.muted; size: 15 }
+            Text { visible: rb.glyph.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.glyph; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: 15 }
+            Text { visible: rb.label.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.label; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: 7 }
+        }
         HoverHandler { id: rbHover; cursorShape: Qt.PointingHandCursor; enabled: theme.shotPath.length === 0 }
         TapHandler { onTapped: if (rb.enabled) rb.clicked() }
         ToolTip.visible: rbHover.hovered && rb.tip.length > 0
@@ -688,6 +713,8 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
+        TopBar { Layout.fillWidth: true; theme: win.theme; desk: desk; backend: win.backend; pages: win.tree ? win.tree.pages : 0; onQuit: Qt.quit() }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -696,22 +723,24 @@ ApplicationWindow {
             // The ribbon.
             Rectangle {
                 Layout.fillHeight: true
-                width: 44
-                color: theme.surface
+                width: 45
+                color: theme.panel
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.topMargin: 8
-                    anchors.bottomMargin: 8
-                    spacing: 4
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; tip: "Graph view (Ctrl+G)"; active: win.currentTab() !== null && win.currentTab().kind === "graph"; onClicked: win.openGraph(false) }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "command"; tip: "Command palette (Ctrl+P)"; onClicked: palette.show() }
+                    anchors.topMargin: 10
+                    anchors.bottomMargin: 10
+                    spacing: 6
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "⌘"; color: theme.accent; font.pixelSize: 16 }
+                    Rectangle { Layout.alignment: Qt.AlignHCenter; width: 30; height: 1; color: theme.line; Layout.bottomMargin: 2 }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; label: "new"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; label: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "graph"; label: "graph"; tip: "Graph view (Ctrl+G)"; active: win.currentTab() !== null && win.currentTab().kind === "graph"; onClicked: win.openGraph(false) }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "command"; label: "cmd"; tip: "Command palette (Ctrl+P)"; onClicked: palette.show() }
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "memory"; tip: "Memory"; active: win.currentTab() !== null && win.currentTab().kind === "memory"; onClicked: win.openView("memory") }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "skills"; tip: "Skills"; active: win.currentTab() !== null && win.currentTab().kind === "skills"; onClicked: win.openView("skills") }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "secrets"; tip: "Secrets"; active: win.currentTab() !== null && win.currentTab().kind === "secrets"; onClicked: win.openView("secrets") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "tasks"; label: "tasks"; tip: "Tasks"; active: win.currentTab() !== null && win.currentTab().kind === "tasks"; onClicked: win.openView("tasks") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "memory"; label: "memory"; tip: "Memory"; active: win.currentTab() !== null && win.currentTab().kind === "memory"; onClicked: win.openView("memory") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "skills"; label: "skills"; tip: "Skills"; active: win.currentTab() !== null && win.currentTab().kind === "skills"; onClicked: win.openView("skills") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "secrets"; label: "secrets"; tip: "Secrets"; active: win.currentTab() !== null && win.currentTab().kind === "secrets"; onClicked: win.openView("secrets") }
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 22; height: 1; color: theme.line; Layout.topMargin: 4; Layout.bottomMargin: 4 }
                     Repeater {
                         model: win.agents
@@ -719,12 +748,21 @@ ApplicationWindow {
                             required property string modelData
                             Layout.alignment: Qt.AlignHCenter
                             glyph: win.agentGlyph(modelData)
+                            label: modelData.slice(0, 6)
                             tip: "Open " + win.agentLabel(modelData) + " in a new tab"
                             onClicked: win.openTerminal(modelData, "", "", "")
                         }
                     }
                     Item { Layout.fillHeight: true }
-                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "settings"; tip: "Settings (Ctrl+,)"; active: win.currentTab() !== null && win.currentTab().kind === "settings"; onClicked: win.openView("settings") }
+                    RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "settings"; label: "setup"; tip: "Settings (Ctrl+,)"; active: win.currentTab() !== null && win.currentTab().kind === "settings"; onClicked: win.openView("settings") }
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        width: 30; height: 30
+                        color: "transparent"
+                        border.width: 1
+                        border.color: theme.line
+                        Text { anchors.centerIn: parent; text: desk.user.slice(0, 2).toUpperCase(); color: theme.alive; font.pixelSize: 10 }
+                    }
                 }
             }
             Rectangle { width: 1; Layout.fillHeight: true; color: theme.line }
@@ -742,16 +780,17 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.leftMargin: 6
                         Layout.rightMargin: 6
-                        Layout.topMargin: 5
+                        Layout.topMargin: 6
+                        Layout.bottomMargin: 4
                         spacing: 2
-                        SideTab { icon: "panel-left"; tip: "Collapse"; onClicked: ui.leftOpen = false }
-                        Item { width: 6 }
+                        Text { text: ui.leftPane === "files" ? "Vault files" : ui.leftPane === "search" ? "Search" : "Bookmarks"; color: theme.bright; font.pixelSize: 9; font.letterSpacing: 1.3; font.capitalization: Font.AllUppercase; Layout.leftMargin: 6 }
+                        Item { Layout.fillWidth: true }
                         SideTab { icon: "files"; tip: "Files"; active: ui.leftPane === "files"; onClicked: win.showLeft("files") }
                         SideTab { icon: "search"; tip: "Search (Ctrl+Shift+F)"; active: ui.leftPane === "search"; onClicked: win.showLeft("search") }
                         SideTab { icon: "bookmark"; tip: "Bookmarks"; active: ui.leftPane === "bookmarks"; onClicked: win.showLeft("bookmarks") }
-                        Item { Layout.fillWidth: true }
+                        SideTab { icon: "panel-left"; tip: "Collapse"; onClicked: ui.leftOpen = false }
                     }
-                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6; Layout.topMargin: 5 }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: theme.line }
                     StackLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -801,9 +840,7 @@ ApplicationWindow {
                         Layout.rightMargin: 6
                         height: 30
                         spacing: 6
-                        Icon { name: "vault"; color: theme.muted; size: 14 }
-                        Text { text: win.tree ? win.tree.name : "brain"; color: theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: win.tree ? win.tree.pages + " pages" : ""; color: theme.faint; font.pixelSize: 11 }
+                        Text { text: (win.tree ? win.tree.pages + " notes" : "Indexing") + (win.unresolvedCount > 0 ? " · " + win.unresolvedCount + " unresolved" : ""); color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
                         SideTab { icon: "help"; tip: "Command palette (Ctrl+P) lists every action with its key"; onClicked: palette.show() }
                         SideTab { icon: "settings"; tip: "Settings"; onClicked: win.openView("settings") }
                     }
@@ -818,8 +855,8 @@ ApplicationWindow {
                 spacing: 0
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 36
-                    color: theme.surface
+                    height: 42
+                    color: theme.panel2
                     RowLayout {
                         anchors.fill: parent
                         spacing: 0
@@ -835,7 +872,7 @@ ApplicationWindow {
                                 id: tabRow
                                 height: parent.height
                                 spacing: 0
-                                leftPadding: 6
+                                leftPadding: 0
                                 Repeater {
                                     model: tabs
                                     delegate: Item {
@@ -848,30 +885,29 @@ ApplicationWindow {
                                         required property bool unread
                                         required property string termTitle
                                         readonly property bool active: stack.currentIndex === index
-                                        width: Math.min(230, Math.max(110, tabLabel.implicitWidth + 62))
-                                        height: 36
+                                        width: Math.min(230, Math.max(150, tabLabel.implicitWidth + 70))
+                                        height: 42
                                         Rectangle {
                                             anchors.fill: parent
-                                            anchors.topMargin: 5
-                                            radius: 6
-                                            color: tabItem.active ? theme.background : (tabHover.hovered ? theme.hover : "transparent")
-                                            Rectangle { visible: tabItem.active; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 8; color: theme.background }
+                                            color: tabItem.active ? theme.background : (tabHover.hovered ? theme.panel3 : theme.panel2)
+                                            Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: theme.line }
+                                            Rectangle { visible: tabItem.active; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 2; color: theme.accent }
                                         }
                                         RowLayout {
                                             anchors.fill: parent
-                                            anchors.topMargin: 5
-                                            anchors.leftMargin: 10
+                                            anchors.leftMargin: 13
                                             anchors.rightMargin: 6
-                                            spacing: 5
+                                            spacing: 7
                                             Icon { visible: tabItem.pinned; name: "pin"; color: theme.muted; size: 12 }
+                                            Text { visible: tabItem.kind !== "terminal" && tabItem.kind !== "graph"; text: tabItem.active ? "◆" : "◇"; color: tabItem.active ? theme.accent : theme.muted; font.pixelSize: 10 }
                                             Text { visible: tabItem.kind === "terminal"; text: win.agentGlyph(tabItem.program); color: tabItem.active ? theme.foreground : theme.muted; font.pixelSize: 12 }
                                             Icon { visible: tabItem.kind === "graph"; name: "graph"; color: tabItem.active ? theme.foreground : theme.muted; size: 13 }
                                             Text {
                                                 id: tabLabel
                                                 Layout.fillWidth: true
                                                 text: tabItem.title
-                                                color: tabItem.active ? theme.foreground : theme.muted
-                                                font.pixelSize: 13
+                                                color: tabItem.active ? theme.bright : theme.muted
+                                                font.pixelSize: 10
                                                 elide: Text.ElideRight
                                             }
                                             Rectangle { visible: tabItem.unread; width: 7; height: 7; radius: 4; color: theme.accent }
@@ -964,19 +1000,39 @@ ApplicationWindow {
         Rectangle {
             Layout.fillWidth: true
             height: 24
-            color: theme.surface
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: theme.line; opacity: 0.6 }
+            color: theme.panel
+            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: theme.line }
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 14
-                Text { text: win.notice.length > 0 ? win.notice : (backend.connected ? "" : backend.status); color: theme.faint; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.backlinkCount : 0) + " backlinks"; color: theme.faint; font.pixelSize: 11 }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.properties.length : 0) + " properties"; color: theme.faint; font.pixelSize: 11 }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.words : 0) + " words"; color: theme.faint; font.pixelSize: 11 }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.characters : 0) + " characters"; color: theme.faint; font.pixelSize: 11 }
+                Text { text: backend.connected ? "" : backend.status; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.backlinkCount : 0) + " backlinks"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.properties.length : 0) + " properties"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.words : 0) + " words"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.characters : 0) + " characters"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
             }
         }
     }
+
+    // The mock's toast, for the window's notices.
+    Rectangle {
+        visible: win.notice.length > 0
+        z: 50
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 22
+        anchors.bottomMargin: 18
+        width: toastText.implicitWidth + 24
+        height: 30
+        color: theme.panel
+        border.width: 1
+        border.color: theme.alive
+        Text { id: toastText; anchors.centerIn: parent; text: win.notice; color: theme.alive; font.pixelSize: 10 }
+        Timer { running: win.notice.length > 0; interval: 2600; onTriggered: win.notice = "" }
+    }
+
+    // The CRT overlay, when the skin asks for it.
+    Scanlines { anchors.fill: parent; z: 40; visible: theme.scanlines }
 }

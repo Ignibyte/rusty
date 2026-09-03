@@ -11,10 +11,10 @@ sources:
     resource: repo://crates/rusty-app/src/markdown.rs
   - id: openwiki-source-b0fccdb632d2710022a80345
     resource: repo://crates/rusty-core/src/brain/render.rs
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T13:09:51.830Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T13:09:51.830Z
 ---
 
 # Markdown rendering: Obsidian's flavour to Qt rich text
@@ -30,8 +30,9 @@ whose rules live in Rust.
 
 - `crates/rusty-core/src/brain/render.rs`: `render(body, &Style, &dyn Resolver,
   self_slug)` on pulldown-cmark 0.13 with tables, footnotes, strikethrough, task lists,
-  wikilinks and math enabled; `Style` (colours, fonts and the base size, every field
-  with a default so a partial JSON fills the rest); the `Resolver` trait (link targets to
+  wikilinks and math enabled; `Style` (colours, fonts and the base size, the skin's
+  roles the page is painted with, and two switches, `marks` and `code_head`, every
+  field with a default so a partial JSON fills the rest); the `Resolver` trait (link targets to
   slugs, page text for embeds, file URLs for images); `Rendered` (html, outline, links,
   unresolved targets, task count, word and character counts).
 - `crates/rusty-app/src/markdown.rs`: `highlight_line(line, prev_state)`, the per-line
@@ -50,8 +51,12 @@ whose rules live in Rust.
    `> [!kind]` head is rewritten with private-use markers, because pulldown-cmark
    splits `[!kind]` into several text events.
 3. The writer walks the events and emits HTML with inline styles: headings with
-   Obsidian's size scale and the theme's heading colours, callouts and quotes as tables
-   with a coloured bar, code blocks as tables with the code background, tables with
+   Obsidian's size scale and the theme's heading colours (with `marks`, a `#` per
+   level in the accent before the text and a rule under a section title), callouts
+   and quotes as tables with a coloured bar (with `marks`, the label uppercase and
+   small), code blocks as tables with the code background (with `code_head`, a header
+   strip naming the fenced language), task boxes in the line colour and the alive
+   colour when `marks` is on, tables with
    header cells, footnotes collected after an `<hr>`, task boxes as
    `rusty:task/<n>` links (done items struck through), `==highlights==` as background
    spans, `#tags` as `rusty:tag/<tag>` links, images with `file://` URLs from the

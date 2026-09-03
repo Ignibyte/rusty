@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use pulldown_cmark::{Alignment, Event, LinkType, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{Alignment, CodeBlockKind, Event, LinkType, Options, Parser, Tag, TagEnd};
 use serde::{Deserialize, Serialize};
 
 use super::frontmatter::split_raw;
@@ -59,6 +59,23 @@ pub struct Style {
     pub headings: Vec<String>,
     /// Base font size in pixels; headings and code scale from it.
     pub size: f32,
+    /// Titles: the first heading and the strongest text.
+    pub bright: String,
+    /// Section titles.
+    pub gold: String,
+    /// What is alive: done task boxes.
+    pub alive: String,
+    /// The accent where a surface takes it.
+    pub accent_soft: String,
+    /// A raised surface: code block headers.
+    pub panel3: String,
+    /// Lines that should be seen: open task boxes.
+    pub line_bright: String,
+    /// The mock's marks: `#` before headings in the accent, a rule under a section
+    /// title, uppercase callout labels, task boxes in the line and alive colours.
+    pub marks: bool,
+    /// A header strip naming the language above a fenced code block.
+    pub code_head: bool,
 }
 
 impl Default for Style {
@@ -90,6 +107,14 @@ impl Default for Style {
                 "#ad8ee6".into(),
             ],
             size: 16.0,
+            bright: "#c0caf5".into(),
+            gold: "#e0af68".into(),
+            alive: "#7dcfff".into(),
+            accent_soft: "#3d59a1".into(),
+            panel3: "#24283b".into(),
+            line_bright: "#565f89".into(),
+            marks: false,
+            code_head: false,
         }
     }
 }
@@ -472,6 +497,8 @@ struct Writer<'a> {
     skip: usize,
     /// The text of the fenced or indented code block being read.
     code: Option<String>,
+    /// The fenced block's info string (its language), for the header strip.
+    code_info: String,
     /// A paragraph ended inside a list item; the next one in the same item gets a break.
     item_break: bool,
     /// The number and label of a footnote definition whose first paragraph has not
@@ -508,6 +535,7 @@ impl<'a> Writer<'a> {
             in_head: false,
             skip: 0,
             code: None,
+            code_info: String::new(),
             item_break: false,
             footnote_head: None,
             skip_break: false,
@@ -558,9 +586,17 @@ impl<'a> Writer<'a> {
         let (colour, glyph) = callout_look(kind, self.style);
         let colour = colour.to_string();
         let bg = self.style.code_bg.clone();
-        self.push(&format!(
-            "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"{bg}\" style=\"margin-top:10px;margin-bottom:10px\"><tr><td width=\"3\" bgcolor=\"{colour}\"></td><td width=\"14\"></td><td><p style=\"margin-bottom:2px\"><b><span style=\"color:{colour}\">{glyph}&nbsp; {}</span></b></p>",
+        let label = if self.style.marks {
+            format!(
+                "<span style=\"font-size:{}px\">{}</span>",
+                self.style.size * 0.625,
+                esc(&title.to_uppercase())
+            )
+        } else {
             esc(title)
+        };
+        self.push(&format!(
+            "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"{bg}\" style=\"margin-top:10px;margin-bottom:10px\"><tr><td width=\"3\" bgcolor=\"{colour}\"></td><td width=\"14\"></td><td><p style=\"margin-bottom:2px\"><b><span style=\"color:{colour}\">{glyph}&nbsp; {label}</span></b></p>"
         ));
     }
 
@@ -647,9 +683,16 @@ impl<'a> Writer<'a> {
                 let n = self.tasks;
                 self.tasks += 1;
                 let glyph = if done { "☑" } else { "☐" };
+                let colour = if !self.style.marks {
+                    &self.style.accent
+                } else if done {
+                    &self.style.alive
+                } else {
+                    &self.style.line_bright
+                };
                 self.push(&format!(
                     "<a href=\"rusty:task/{n}\" style=\"text-decoration:none;color:{}\">{glyph}</a> ",
-                    self.style.accent
+                    colour
                 ));
                 if done {
                     self.push(&format!("<s style=\"color:{}\">", self.style.muted));
@@ -672,8 +715,20 @@ impl<'a> Writer<'a> {
     }
 
     fn code_block(&mut self, code: &str) {
+        let head = if self.style.code_head && !self.code_info.is_empty() {
+            format!(
+                "<tr><td bgcolor=\"{}\"><span style=\"font-family:'{}';font-size:{}px;color:{}\">{}</span></td></tr>",
+                self.style.panel3,
+                esc(&self.style.mono),
+                self.style.size * 0.625,
+                self.style.muted,
+                esc(&self.code_info.to_uppercase())
+            )
+        } else {
+            String::new()
+        };
         self.push(&format!(
-            "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"10\"><tr><td bgcolor=\"{}\"><pre style=\"font-family:'{}';font-size:{}px;color:{}\">{}</pre></td></tr></table>",
+            "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"10\">{head}<tr><td bgcolor=\"{}\"><pre style=\"font-family:'{}';font-size:{}px;color:{}\">{}</pre></td></tr></table>",
             self.style.code_bg,
             esc(&self.style.mono),
             self.style.size * 0.875,
@@ -726,13 +781,32 @@ impl<'a> Writer<'a> {
                     self.style.heading_colour(level),
                     self.style.heading_size(level)
                 ));
+                if self.style.marks {
+                    let mark_size = if level == 1 {
+                        self.style.heading_size(1)
+                    } else {
+                        self.style.size * 0.7
+                    };
+                    self.push(&format!(
+                        "<span style=\"color:{};font-size:{}px;font-weight:400\">{}</span> ",
+                        self.style.accent,
+                        mark_size,
+                        "#".repeat(level)
+                    ));
+                }
             }
             Tag::BlockQuote(_) => {
                 self.quotes.push(QuoteState { opened: false });
             }
-            Tag::CodeBlock(_) => {
+            Tag::CodeBlock(kind) => {
                 // The code arrives as Text events; collect them into one block.
                 self.code = Some(String::new());
+                self.code_info = match kind {
+                    CodeBlockKind::Fenced(info) => {
+                        info.split_whitespace().next().unwrap_or("").to_string()
+                    }
+                    CodeBlockKind::Indented => String::new(),
+                };
             }
             Tag::HtmlBlock => {}
             Tag::List(start) => {
@@ -883,6 +957,9 @@ impl<'a> Writer<'a> {
             }
             TagEnd::Heading(level) => {
                 self.push(&format!("</h{}>", level as usize));
+                if self.style.marks && level as usize == 2 {
+                    self.push(&format!("<hr style=\"color:{}\">", self.style.line));
+                }
             }
             TagEnd::BlockQuote(_) => {
                 if let Some(q) = self.quotes.pop() {
@@ -1332,6 +1409,53 @@ mod tests {
         assert_eq!(r.words, 2);
         assert_eq!(r.characters, 14);
         assert_eq!(body_of("no fences"), "no fences");
+    }
+
+    #[test]
+    fn marks_add_heading_prefixes_code_heads_and_task_colours() {
+        let style = Style {
+            marks: true,
+            code_head: true,
+            accent: "#ffb000".into(),
+            alive: "#69d8bb".into(),
+            line_bright: "#656b32".into(),
+            ..Style::default()
+        };
+        let r = render(
+            "# Title\n\n## Section\n\n> [!tip] Design directive\n> Keep it.\n\n```toml\na = 1\n```\n\n- [ ] open\n- [x] done\n",
+            &style,
+            &resolver(),
+            None,
+        );
+        assert!(
+            r.html
+                .contains("color:#ffb000;font-size:28.832px;font-weight:400\">#</span> Title"),
+            "{}",
+            r.html
+        );
+        assert!(
+            r.html.contains("\">##</span> Section</h2><hr"),
+            "{}",
+            r.html
+        );
+        assert!(r.html.contains("DESIGN DIRECTIVE"), "{}", r.html);
+        assert!(r.html.contains(">TOML</span>"), "{}", r.html);
+        assert!(
+            r.html.contains("color:#656b32\">☐</a>") && r.html.contains("color:#69d8bb\">☑</a>"),
+            "{}",
+            r.html
+        );
+        let plain = render(
+            "## Section\n\n```toml\na = 1\n```\n",
+            &Style::default(),
+            &resolver(),
+            None,
+        );
+        assert!(
+            !plain.html.contains("##</span>") && !plain.html.contains("TOML"),
+            "{}",
+            plain.html
+        );
     }
 
     #[test]

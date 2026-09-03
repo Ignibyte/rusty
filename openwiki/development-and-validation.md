@@ -10,9 +10,6 @@ sources:
   - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
     resource: repo://scripts/screenshot.sh
 generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
-verified:
-  - by: openwiki/0.3.3
-    at: 2026-09-03T05:53:02.624Z
 ---
 
 # Development and validation

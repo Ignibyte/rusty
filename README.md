@@ -91,10 +91,24 @@ everywhere. Each terminal is a tmux session that outlives the window; a tab that
 while another is showing gets a mark, and a title that asks for attention raises a desktop
 notification.
 
-Colours come from the Omarchy theme: its `obsidian.css` tokens and its Alacritty palette,
-so the workspace and Obsidian look alike, and `omarchy theme set` re-themes the running app.
+The look is a skin: one set of colour roles (a ground and three panel levels, two line
+weights, three text weights, an accent and its softer twin, gold for titles, an "alive"
+colour for links and state, red) that every surface and the renderer paint from, in the
+monospace face the terminal uses. The default is Amber phosphor, the palette of the
+design mock; Green phosphor, Ice and Paper ship beside it; "Follow Omarchy" maps the
+desktop theme onto the same roles and follows `omarchy theme set`; and a file in
+`~/.config/rusty/themes/<name>.toml` is a skin of your own (a `[colors]` table with `bg`,
+`text` and `accent` at least, the rest derived). Settings picks the skin and the CRT
+scanline overlay. The chrome is the mock's too: a top bar with the brand, Hyprland's
+workspaces, the vault's state, memory, CPU and the clock; rail buttons with labels; pane
+heads as micro-labels; a note's meta line, heading marks, code header strips and "linked
+from" footer; the assistant's header and context card on the agent pane.
 
-![A light theme at 1280 px](docs/screenshots/workspace-light.png)
+![Follow Omarchy (Tokyo Night)](docs/screenshots/skin-omarchy.png)
+
+![A skin from a theme file](docs/screenshots/skin-file.png)
+
+![The Paper preset](docs/screenshots/workspace-light.png)
 
 Under Omarchy the app's messages go to the journal when it is not started from a terminal:
 `journalctl --user -t rusty`, or `QT_FORCE_STDERR_LOGGING=1`; `RUSTY_DEBUG=1` adds a line

@@ -19,6 +19,8 @@ fn main() {
                 "qml/RightPane.qml",
                 "qml/GraphView.qml",
                 "qml/BookmarksPane.qml",
+                "qml/TopBar.qml",
+                "qml/Scanlines.qml",
                 "qml/AgentTerminal.qml",
                 "qml/QuickSwitcher.qml",
                 "qml/CommandPalette.qml",
@@ -31,6 +33,7 @@ fn main() {
     )
     .files([
         "src/theme.rs",
+        "src/desk.rs",
         "src/terminals.rs",
         "src/backend.rs",
         "src/markdown.rs",

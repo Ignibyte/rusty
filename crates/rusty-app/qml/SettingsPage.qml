@@ -14,6 +14,10 @@ Item {
     property string notice: ""
     // The palette's command list, rendered as the Hotkeys table with the terminal keys.
     property var commands: []
+    // The skins the theme offers, and the choice going back to the window.
+    readonly property var skinChoices: { try { return JSON.parse(page.theme.choices) } catch (e) { return [] } }
+    signal selectSkin(string source, string name)
+    signal setScanlines(bool on)
     readonly property var terminalKeys: [
         { name: "Terminal: Close terminal tab", keys: "Ctrl+Shift+W" },
         { name: "Terminal: Previous or next tab while a terminal has focus", keys: "Ctrl+PgUp / Ctrl+PgDn" },
@@ -81,6 +85,33 @@ Item {
             }
             Text { text: "Click an agent in the top bar to open it in a new tab · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12 }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
+
+            Text { text: "Skin"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Repeater {
+                    model: page.skinChoices
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property bool on: modelData.source === page.theme.source && (modelData.source === "omarchy" || modelData.name === page.theme.themeName)
+                        width: chipText.implicitWidth + 20
+                        height: 24
+                        radius: page.theme.radius
+                        color: on ? page.theme.active : page.theme.panel3
+                        border.width: 1
+                        border.color: on ? page.theme.accent : page.theme.line
+                        Text { id: chipText; anchors.centerIn: parent; text: modelData.title; color: on ? page.theme.bright : page.theme.muted; font.pixelSize: 10 }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: page.selectSkin(modelData.source, modelData.name) }
+                    }
+                }
+            }
+            CheckBox { text: "CRT scanlines"; checked: page.theme.scanlines; onToggled: page.setScanlines(checked) }
+            Text {
+                text: "A skin of your own is a file in ~/.config/rusty/themes/<name>.toml: a [colors] table with bg, text and accent at least (panel, panel2, panel3, line, line_bright, muted, bright, accent_soft, gold, alive and red as you like), and an optional [type] table with font and radius. The face applies at the next launch."
+                color: page.theme.foreground; opacity: 0.55; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
+            }
 
             Text { text: "Hotkeys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
             TextField { id: keyFilter; Layout.preferredWidth: 420; placeholderText: "Filter hotkeys…" }

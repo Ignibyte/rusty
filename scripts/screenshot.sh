@@ -15,7 +15,7 @@ shift
 theme=${SHOT_THEME:-$HOME/.config/omarchy/current/theme}
 size=${SHOT_SIZE:-1500x950}
 scenes=("$@")
-[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags" "graph" "localgraph" "left:bookmarks" "search:tag:theme path:concepts" "view:settings")
+[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags" "graph" "localgraph" "left:bookmarks" "search:tag:theme path:concepts" "view:settings" "theme:omarchy" "theme:file:ember")
 root=$(git rev-parse --show-toplevel)
 target=${CARGO_TARGET_DIR:-$root/target}
 [[ -x "$target/debug/rusty" && -x "$target/debug/rusty-mcp" ]] || { echo "build rusty and rusty-mcp first" >&2; exit 1; }
@@ -157,6 +157,17 @@ printf '[window]\nwidth=%s\nheight=%s\nlastTab=0\n' "$w" "$h" > "$scratch/.confi
 cat > "$scratch/workspace.json" <<'JSON'
 {"leftWidth":280,"rightWidth":320,"leftOpen":true,"rightOpen":true,"leftPane":"files","rightPane":"backlinks","expanded":"{\"projects\":true,\"people\":true}","paneProgram":"shell","bookmarks":"[{\"kind\":\"file\",\"path\":\"projects/orbit\",\"title\":\"Orbit\"},{\"kind\":\"folder\",\"path\":\"concepts\",\"title\":\"concepts\"},{\"kind\":\"search\",\"query\":\"tag:theme path:concepts\",\"title\":\"Themes\"},{\"kind\":\"heading\",\"path\":\"projects/orbit\",\"heading\":\"Timeline\",\"title\":\"Orbit › Timeline\"}]"}
 JSON
+mkdir -p "$scratch/.config/rusty/themes"
+cat > "$scratch/.config/rusty/themes/ember.toml" <<'TOML'
+[colors]
+bg = "#12080a"
+text = "#e8c9b8"
+accent = "#ff5c39"
+gold = "#ffb36b"
+alive = "#7ee0c8"
+[type]
+radius = 3
+TOML
 cat > "$scratch/tabs.json" <<'JSON'
 [{"kind":"page","title":"orbit","slug":"projects/orbit","session":"","program":"","cwd":"","pinned":false},
  {"kind":"page","title":"sarah-chen","slug":"people/sarah-chen","session":"","program":"","cwd":"","pinned":true},
@@ -175,7 +186,7 @@ sleep 1.5
 
 for scene in "${scenes[@]}"; do
   cp "$scratch/workspace.json" "$scratch/workspace.json.orig" 2>/dev/null || true
-  name=$(echo "$scene" | tr ':,' '--')
+  name=$(echo "$scene" | tr ':,/' '---')
   file="$out/$name.png"
   env ${SHOT_ENV:-} HOME="$scratch" XDG_CONFIG_HOME="$scratch/.config" XDG_RUNTIME_DIR="$scratch/run" \
     QT_QPA_PLATFORM="${SHOT_PLATFORM:-offscreen}" QT_FORCE_STDERR_LOGGING=1 \

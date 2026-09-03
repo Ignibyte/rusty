@@ -39,6 +39,20 @@ Item {
     property bool applying: false
     property bool addingProperty: false
     readonly property int backlinkCount: links ? links.backlinks.length : 0
+    // The `updated` property's value, for the meta line.
+    readonly property string updatedText: { const p = properties.find(function (x) { return x.key === "updated" }); return p && p.value !== undefined && p.value !== null ? String(p.value) : "" }
+    // How connected the page is: nodes at one, two and three or more links away.
+    property var graphInfo: null
+    function summariseGraph(g) {
+        const adj = {}
+        for (const e of g.edges || []) { (adj[e.from] = adj[e.from] || []).push(e.to); (adj[e.to] = adj[e.to] || []).push(e.from) }
+        const depth = {}; depth[slug] = 0
+        const queue = [slug]
+        while (queue.length > 0) { const n = queue.shift(); for (const m of adj[n] || []) if (depth[m] === undefined) { depth[m] = depth[n] + 1; queue.push(m) } }
+        let direct = 0, related = 0, distant = 0
+        for (const n of g.nodes || []) { const d = depth[n.id]; if (d === 1) direct++; else if (d === 2) related++; else if (d !== 0) distant++ }
+        return { nodes: (g.nodes || []).length, direct: direct, related: related, distant: distant }
+    }
     readonly property string folder: slug.indexOf("/") >= 0 ? slug.slice(0, slug.lastIndexOf("/")) : ""
     readonly property string fileName: slug.slice(slug.lastIndexOf("/") + 1)
     readonly property int contentWidth: Math.max(320, Math.min(flick.width - 64, 720))
@@ -66,7 +80,9 @@ Item {
             accent: theme.accent, code: theme.code, code_bg: theme.codeBg, mono: theme.termFont,
             mark_bg: t.mark || theme.accent, line: theme.line, tag: theme.tag,
             red: t.red, green: t.green, yellow: t.yellow, blue: t.blue, magenta: t.magenta, cyan: t.cyan,
-            headings: [t.h1, t.h2, t.h3, t.h4, t.h5, t.h6], size: 16
+            headings: [t.h1, t.h2, t.h3, t.h4, t.h5, t.h6], size: 15,
+            bright: theme.bright, gold: theme.gold, alive: theme.alive, accent_soft: theme.accentSoft,
+            panel3: theme.panel3, line_bright: theme.lineBright, marks: true, code_head: true
         }
     }
 
@@ -90,6 +106,7 @@ Item {
     function load() {
         if (slug.length === 0) return
         ask("brain_render", { slug: slug, style: style() }, "render")
+        ask("brain_graph", { around: slug, depth: 3 }, "graph")
         ask("brain_get_links", { slug: slug }, "links")
     }
     function reload() { if (!dirty) load() }
@@ -251,6 +268,7 @@ Item {
                 break
             }
             case "links": note.links = JSON.parse(json); break
+            case "graph": note.graphInfo = note.summariseGraph(JSON.parse(json)); break
             case "saved": note.load(); break
             case "toggled": note.load(); break
             case "created": note.open(JSON.parse(json)); break
@@ -279,12 +297,22 @@ Item {
                 HeaderButton { icon: "arrow-left"; enabled: note.historyIndex > 0; tip: "Back"; onClicked: note.goBack() }
                 HeaderButton { icon: "arrow-right"; enabled: note.historyIndex < note.history.length - 1; tip: "Forward"; onClicked: note.goForward() }
                 Item { Layout.fillWidth: true }
-                Text { visible: note.folder.length > 0; text: note.folder.replace(/\//g, "  /  "); color: note.theme.muted; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.maximumWidth: 300 }
-                Text { visible: note.folder.length > 0; text: "/"; color: note.theme.faint; font.pixelSize: 12 }
-                Text { text: note.fileName; color: note.theme.foreground; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.maximumWidth: 360 }
+                Text { visible: note.folder.length > 0; text: note.folder.replace(/\//g, " / "); color: note.theme.muted; font.pixelSize: 10; elide: Text.ElideMiddle; Layout.maximumWidth: 300 }
+                Text { visible: note.folder.length > 0; text: "/"; color: note.theme.muted; font.pixelSize: 10 }
+                Text { text: note.fileName; color: note.theme.accent; font.pixelSize: 10; elide: Text.ElideMiddle; Layout.maximumWidth: 360 }
                 Text { visible: note.dirty; text: "•"; color: note.theme.accent; font.pixelSize: 14 }
                 Item { Layout.fillWidth: true }
-                HeaderButton { icon: note.editing ? "read" : "edit"; tip: note.editing ? "Reading view (Ctrl+E)" : "Edit (Ctrl+E)"; onClicked: note.toggleEditing() }
+                Text {
+                    text: note.editing ? "[ EDIT ]" : "[ READ ]"
+                    color: readHover.hovered ? note.theme.accent : note.theme.muted
+                    font.pixelSize: 10
+                    font.letterSpacing: 1
+                    HoverHandler { id: readHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: note.toggleEditing() }
+                    ToolTip.visible: readHover.hovered
+                    ToolTip.text: note.editing ? "Reading view (Ctrl+E)" : "Edit (Ctrl+E)"
+                    ToolTip.delay: 600
+                }
                 HeaderButton { icon: "more"; tip: "More options"; onClicked: moreMenu.popup() }
             }
             Menu {
@@ -319,6 +347,45 @@ Item {
                 Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter }
             }
 
+            // The mock's legend: how connected this page is; a click opens the local graph.
+            Rectangle {
+                z: 2
+                visible: note.loaded && !note.missing && !note.editing && note.graphInfo !== null && flick.width - note.contentWidth > 440
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 22
+                width: 190
+                implicitHeight: legendCol.implicitHeight + 20
+                color: note.theme.panel
+                opacity: 0.94
+                border.width: 1
+                border.color: note.theme.line
+                ColumnLayout {
+                    id: legendCol
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Local graph"; color: note.theme.gold; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Item { Layout.fillWidth: true }
+                        Text { text: (note.graphInfo ? note.graphInfo.nodes : 0) + " nodes"; color: note.theme.muted; font.pixelSize: 9; font.capitalization: Font.AllUppercase }
+                    }
+                    Repeater {
+                        model: [["direct links", "direct", note.theme.accent], ["related notes", "related", note.theme.alive], ["distant nodes", "distant", note.theme.lineBright]]
+                        delegate: RowLayout {
+                            required property var modelData
+                            spacing: 8
+                            Rectangle { width: 28; height: 1; color: modelData[2] }
+                            Text { text: modelData[0]; color: note.theme.muted; font.pixelSize: 9; Layout.fillWidth: true }
+                            Text { text: String(note.graphInfo ? note.graphInfo[modelData[1]] : 0).padStart(2, "0"); color: note.theme.foreground; font.pixelSize: 9 }
+                        }
+                    }
+                }
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: note.requestLocalGraph(note.slug) }
+            }
+
             Flickable {
                 id: flick
                 anchors.fill: parent
@@ -336,14 +403,29 @@ Item {
                     width: note.contentWidth
                     spacing: 0
 
+                    // The mock's meta line: the alive dot, when the page changed, its backlinks.
+                    RowLayout {
+                        visible: !note.editing
+                        spacing: 10
+                        Text { text: "●"; color: note.theme.alive; font.pixelSize: 9 }
+                        Text { text: "Live note"; color: note.theme.alive; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.leftMargin: -4 }
+                        Text { visible: note.updatedText.length > 0; text: "Modified " + note.updatedText; color: note.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Text { text: "·"; color: note.theme.muted; font.pixelSize: 9 }
+                        Text { text: note.backlinkCount + (note.backlinkCount === 1 ? " backlink" : " backlinks"); color: note.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                    }
+                    Item { visible: !note.editing; height: 16 }
+                    RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text { text: "#"; color: note.theme.accent; font.pixelSize: 28 }
                     // The inline title: Enter renames the file, as in Obsidian.
                     TextInput {
                         id: titleField
                         Layout.fillWidth: true
                         text: note.title
-                        color: note.theme.foreground
-                        font.pixelSize: 30
-                        font.weight: Font.DemiBold
+                        color: note.theme.bright
+                        font.pixelSize: 28
+                        font.weight: Font.Medium
                         selectByMouse: true
                         selectionColor: note.theme.accent
                         selectedTextColor: note.theme.background
@@ -351,6 +433,7 @@ Item {
                         onEditingFinished: if (text !== note.title) note.renameTo(text)
                         Keys.onEscapePressed: { text = note.title; note.forceActiveFocus() }
                         Keys.onReturnPressed: note.forceActiveFocus()
+                    }
                     }
                     Item { height: 14 }
 
@@ -414,13 +497,34 @@ Item {
                                 wrapMode: Text.WordWrap
                                 color: note.theme.foreground
                                 linkColor: note.theme.link
-                                font.pixelSize: 16
-                                lineHeight: 1.35
+                                font.pixelSize: 15
+                                lineHeight: 1.5
                                 onLinkActivated: (link) => note.onLink(link)
                                 HoverHandler { cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
                         Text { visible: note.chunks.length === 0; text: "Empty page"; color: note.theme.faint; font.pixelSize: 14; font.italic: true }
+                    }
+
+                    // The mock's footer: who links here.
+                    RowLayout {
+                        visible: !note.editing && note.backlinkCount > 0
+                        Layout.fillWidth: true
+                        Layout.topMargin: 28
+                        spacing: 13
+                        Text { text: "Linked from"; color: note.theme.accent; font.pixelSize: 10; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                        Repeater {
+                            model: note.links ? note.links.backlinks.slice(0, 6) : []
+                            delegate: Text {
+                                required property var modelData
+                                text: modelData.from_slug ? modelData.from_slug.slice(modelData.from_slug.lastIndexOf("/") + 1) : ""
+                                color: bfHover.hovered ? note.theme.bright : note.theme.alive
+                                font.pixelSize: 10
+                                HoverHandler { id: bfHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: note.open(modelData.from_slug) }
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
                     }
 
                     // Source editor: the whole file, highlighted, autosaved.
