@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:d12ee017418634bd77cf86ac8256e4ee9699017e454535e09e68010d81cf2f00",
+  "pageVersion": "sha256:109481dc7a1ef94b9e029f7402ebaffd09144cb17f61408a69130ce07ee7eb96",
   "claims": [
     {
       "id": "claim_7741605b75254aa6a8c8a6c539a41310",
@@ -125,10 +125,20 @@
           "version": "repo-lines-v1:sha256:dcc79532eca908f04a0ded6f6e07f99e6c118064c3981393b280d8b7908b3f64:eyJzZWxlY3RlZExpbmVDb3VudCI6NzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzMTYwYmJiNmM0ZTM0YzYyMWJiZTdkNmFhMjIzMDJjNDllMWU2YzlmNTQxNGRlNDMzN2UyM2U5Mzc3NTBmNDkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
         }
       ]
+    },
+    {
+      "id": "claim_38f7291f88f344c8acb12f65e68f0455",
+      "statement": "`rusty-mcp.service` is wanted by `default.target`, so it serves whether or not a desktop is up; it restarts two seconds after any exit but an operator's stop (`Restart=always`) and carries `OOMScoreAdjust=100`, the lowest score a user unit can set.",
+      "evidence": [
+        {
+          "resource": "repo://omarchy/rusty-mcp.service#L12-L25",
+          "version": "repo-lines-v1:sha256:e9b5790d07b3f7ddb6adb21ae68c6f82ddd5b50a7aedba4301987a5f7628ea16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmM2M2NmZjMzYmNmYTNiNmEyZDZkMGM5ZGQxOTUyMWRlZGFhMzUxMTQ2YjFhNjQyZDJiZmM5Y2Y1YTFlMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjZDA3MzdjOTE4ZjRhYzIyMTdmZWQzNGQzOTRlZWY4M2ZiN2FlZDVhYTRkZTg0YTg2ZGYxNWU5OTdhMjUxYjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1ZDM2YzhlMDM4NTZhZTc2ZWIzZmQxYjc0MmRlODEzZDdlYmJmODg2Njg1NDU2MGJhOWM3ODIwZTE5NWQ2YWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T05:53:02.624Z"
+    "at": "2026-09-03T19:38:17.213Z"
   }
 }

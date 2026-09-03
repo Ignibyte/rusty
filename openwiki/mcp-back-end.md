@@ -11,10 +11,12 @@ sources:
     resource: repo://crates/rusty-mcp/src/main.rs
   - id: openwiki-source-84acb13abf83511312610cd3
     resource: repo://crates/rusty-mcp/tests/smoke.rs
-generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
+  - id: openwiki-source-f47a49d22d041953f356ca04
+    resource: repo://omarchy/rusty-mcp.service
+generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:53:02.624Z
+    at: 2026-09-03T19:38:17.213Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -23,7 +25,10 @@ verified:
 
 `rusty-mcp` is the only way into the store. Claude Code and Codex spawn it over stdio
 (`.mcp.json`, `.codex/config.toml`); the app talks to one long-running instance over
-Streamable HTTP at `127.0.0.1:4174/mcp`, kept up by the `rusty-mcp.service` user unit.
+Streamable HTTP at `127.0.0.1:4174/mcp`, kept up by the `rusty-mcp.service` user unit,
+which is wanted by `default.target`, restarts two seconds after any exit but a stop, and
+sits at OOM score 100 (see [Development and validation](development-and-validation.md),
+running as services).
 Every tool is a thin wrapper around a manager call in `rusty-core`; the managers own the
 rules.
 

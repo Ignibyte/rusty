@@ -7,9 +7,20 @@ sources:
     resource: repo://.github/workflows/ci.yml
   - id: openwiki-source-4d8ab597958b0e5c2507d7fd
     resource: repo://omarchy/install.sh
+  - id: openwiki-source-6f895b21354ce2eb09c53bef
+    resource: repo://omarchy/rusty-app.service
+  - id: openwiki-source-d69551212a861c7f2b6e6197
+    resource: repo://omarchy/rusty-session.sh
+  - id: openwiki-source-40bfddd6b1c627968cf41f77
+    resource: repo://omarchy/wayland-wm-oom.conf
+  - id: openwiki-source-74bdf832aa1ee5e3f40cd980
+    resource: repo://packaging/PKGBUILD
   - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
     resource: repo://scripts/screenshot.sh
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
+verified:
+  - by: openwiki/0.3.3
+    at: 2026-09-03T19:38:17.213Z
 ---
 
 # Development and validation
@@ -27,9 +38,39 @@ change, and the ways the machine's state is kept out of the record.
 - One cargo command at a time, never killed: a killed or concurrent cargo corrupts the
   incremental cache.
 - `omarchy/install.sh`: release builds of the three binaries into `~/.local/bin`, the
-  desktop entry and icon, the `rusty-mcp` user service (installed, enabled, restarted and
-  probed over HTTP), the MCP config snippets. Idempotent.
-- `packaging/PKGBUILD` (`rusty-git`) builds the same for the AUR, `!lto`.
+  desktop entry and icon (its `Exec` is `rusty-session up`), `rusty-session`, the two
+  user units (installed and enabled; the back end restarted and probed over HTTP; the app
+  started through `rusty-session up` when it was built and a graphical session is
+  active), the MCP config snippets, and pointers to the compositor drop-in and the
+  earlyoom line it does not apply. Idempotent.
+- `packaging/PKGBUILD` (`rusty-git`) builds the same for the AUR, `!lto`, and installs
+  `rusty-session`, both units (paths rewritten to `/usr/bin`) and the drop-in under `/usr`.
+
+## Running as services
+
+- `omarchy/rusty-mcp.service` is wanted by `default.target`, so the back end serves with
+  or without a desktop. `Restart=always` brings it back two seconds after any exit but
+  `systemctl --user stop`; a session teardown and earlyoom both send SIGTERM, which
+  `on-failure` would treat as clean. `OOMScoreAdjust=100` is the lowest a user unit can
+  set (the user manager's own score; its services default to 200).
+- `omarchy/rusty-app.service` is wanted by and ordered after uwsm's
+  `graphical-session.target`, stops with it (`PartOf`), runs in `app-graphical.slice`
+  after `rusty-mcp.service`, restarts after any exit except status 0 (a quit stays quit,
+  a kill or a crash comes back), and logs under the identifier `rusty`. systemd's start
+  limit, five starts in ten seconds, ends a crash loop.
+- `rusty-session`, installed from `omarchy/rusty-session.sh`, is the one entry point the
+  installer, the desktop entry and the key share. `up` starts the back end, imports the
+  display variables into the user manager when a compositor started outside uwsm left
+  them out, refuses a second window while a `rusty` outside the unit is running, and
+  starts the app unit; `down` stops the app unit alone; `status` reads both units, posts
+  an `initialize` to the port and lists the app's processes; `run` is the unit's command,
+  PATH completed with `~/.local/bin` and `~/.cargo/bin` before `exec rusty`, exiting 0
+  when the binary is missing so the unit stays stopped.
+- `omarchy/wayland-wm-oom.conf` is a drop-in for the compositor unit (`OOMScoreAdjust=100`)
+  that the installer points at and never applies, being another program's unit; the
+  earlyoom avoid line, which needs root, is documented in `omarchy/README.md`. No Wayland
+  client outlives its compositor: the next login starts the app unit, and the tmux
+  sessions and the state files under `~/.config/rusty/` reattach.
 
 ## Testing
 
@@ -63,6 +104,8 @@ start on the offscreen platform. The images in `docs/screenshots/` come from it.
 ## Logs
 
 - The back end logs to stderr (`journalctl --user -u rusty-mcp` for the service).
+- The app under its unit: `journalctl --user -u rusty-app`, or `journalctl -t rusty`,
+  the identifier the unit sets.
 - The app's Qt messages go to journald when it is not started from a terminal
   (`journalctl --user -t rusty`); `QT_FORCE_STDERR_LOGGING=1` keeps them on stderr;
   `RUSTY_DEBUG=1` adds a line per tab, title, shot and settings event.
@@ -76,4 +119,6 @@ start on the offscreen platform. The images in `docs/screenshots/` come from it.
 ## Primary sources
 
 - `bin/gate.sh`, `.github/workflows/ci.yml`, `omarchy/install.sh`, `packaging/PKGBUILD`
+- `omarchy/rusty-session.sh`, `omarchy/rusty-app.service`, `omarchy/rusty-mcp.service`,
+  `omarchy/wayland-wm-oom.conf`
 - `crates/rusty-mcp/tests/smoke.rs`, `scripts/screenshot.sh`

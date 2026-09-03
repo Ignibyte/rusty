@@ -1,31 +1,76 @@
 # Omarchy integration
 
-What makes Rusty an Omarchy app rather than a program that happens to run there. The
-installer that ties these together lands with M6; until then each piece is applied by hand.
+What makes Rusty an Omarchy app rather than a program that happens to run there.
+`install.sh` ties it together, and every step in it is idempotent.
 
 | File | Purpose |
 |---|---|
-| `rusty-mcp.service` | `systemd --user` unit running the back end over Streamable HTTP on localhost |
+| `install.sh` | dependencies through `omarchy pkg add`, release builds of the three binaries into `~/.local/bin`, the desktop entry and icon, `rusty-session`, the two user services, and the pointers below |
+| `rusty-session.sh` | installed as `rusty-session`: `up`, `down`, `status`, and `run`, the app unit's command |
+| `rusty-mcp.service` | the back end over Streamable HTTP on localhost, wanted by `default.target`, restarted after any exit but a stop |
+| `rusty-app.service` | the app, wanted by `graphical-session.target`, restarted when it is killed, left alone when it is quit |
+| `wayland-wm-oom.conf` | a drop-in for uwsm's compositor unit so Hyprland is the last of the session to go under memory pressure; pointed at, never applied |
+| `com.ignibyte.rusty.desktop`, `com.ignibyte.rusty.svg` | the launcher entry and icon; `Exec` is `rusty-session up` |
+| `hyprland-bindings.conf` | SUPER+ALT+R: focus the window, or `rusty-session up`; append it to `~/.config/hypr/bindings.conf` |
 | `mcp-config.json` | the `mcpServers` entries for Claude Code and Codex (stdio) and for HTTP clients |
 
-Coming with M2 and M6: the desktop entry and icon, a `bindings.conf` snippet for the launch
-key, the `~/.config/omarchy/hooks/theme-set` hook that re-themes a running Rusty, and
-`install.sh`, which installs dependencies through `omarchy pkg add` and wires all of it.
+Conventions Rusty follows: apps run in their own user units or through `uwsm-app`, the
+theme lives in `~/.config/omarchy/current/theme/`, windows are found and focused with
+`omarchy-launch-or-focus`, and nothing under `~/.local/share/omarchy/` is ever edited.
 
-Conventions Rusty follows: apps launch through `uwsm-app`, the theme lives in
-`~/.config/omarchy/current/theme/` (`colors.toml`, `alacritty.toml`), windows are found and
-focused with `omarchy launch or focus`, and nothing under `~/.local/share/omarchy/` is ever
-edited.
+## The session
 
-## Obsidian on Omarchy
+Rusty comes back on its own. The back end is a user service wanted by `default.target`,
+so it runs whether or not a desktop is up, and `Restart=always` brings it back after any
+exit except `systemctl --user stop`: a session teardown and earlyoom both send SIGTERM,
+which `on-failure` would have treated as clean. The app is a user service wanted by
+`graphical-session.target`, the target uwsm raises at login and lowers at logout, so a
+login starts it, a kill or a crash starts it again two seconds later, and a quit (exit 0)
+leaves it stopped. Five starts inside ten seconds trip systemd's start limit, which ends
+a crash loop.
 
-Omarchy installs Obsidian and ships `~/.config/obsidian/user-flags.conf` with `-disable-gpu`.
-The Arch launcher passes that file to every `obsidian` call, and the CLI reads a single-dash flag
-as a command (`Error: Command "-disable-gpu" not found`). Change it to `--disable-gpu` (same
-Chromium switch) and both the app and the CLI work. Then, with Obsidian closed:
+`rusty-session` is the one path in. `up` starts the back end, copies the display
+variables into the user manager when a compositor started outside uwsm left them out,
+refuses to open a second window when a `rusty` started from a terminal is still running,
+and starts the app unit. `down` stops the app and keeps the back end. `status` reads both
+units, posts an `initialize` to the port, and lists the app's processes. `run` is the
+unit's command: it completes PATH with `~/.local/bin` and `~/.cargo/bin`, where the agent
+CLIs tend to live, and execs `rusty`.
 
 ```bash
-rusty-cli obsidian register   # vault entry + CLI toggle in ~/.config/obsidian/obsidian.json
-rusty-cli obsidian launch     # starts the app straight into the brain vault
-rusty-cli obsidian status
+rusty-session up
+rusty-session status
+journalctl --user -u rusty-app -f      # or: journalctl -t rusty
+journalctl --user -u rusty-mcp -f
 ```
+
+No Wayland client outlives its compositor. When Hyprland dies the app dies with it, and
+what survives is the state: the tmux sessions behind the agent tabs, `tabs.json` and
+`workspace.json` under `~/.config/rusty/`, and the back end. The next login starts the app
+unit, which reattaches all of it.
+
+## Memory pressure
+
+On 2026-09-03 a four-worker mutation audit pushed the dev box past its memory and
+earlyoom killed Hyprland, because every process in a uwsm session, the compositor
+included, sits at an OOM score of 200. Two protections put the compositor last. Neither
+is applied by `install.sh`: one is another program's unit, the other needs root.
+
+1. The compositor drop-in, user level. 100 is the user manager's own score and the lowest
+   a user unit can set; measured on 2026-09-03, a request for less comes out at 100.
+
+   ```bash
+   install -Dm644 omarchy/wayland-wm-oom.conf \
+     ~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/60-oom.conf
+   systemctl --user daemon-reload      # takes effect at the next login
+   ```
+
+2. earlyoom's avoid list, root. In `/etc/default/earlyoom`, add `Hyprland` and
+   `rusty-mcp` to the `--avoid` pattern, then `sudo systemctl restart earlyoom`:
+
+   ```
+   EARLYOOM_ARGS="-r 3600 --avoid '(^|/)(systemd|systemd-logind|dbus-daemon|dbus-broker|Hyprland|rusty-mcp)$'"
+   ```
+
+   earlyoom then kills anything else first. The kernel's own OOM killer still scores by
+   the adjustment, which is what the drop-in is for.

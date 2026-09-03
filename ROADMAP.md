@@ -201,6 +201,11 @@ What using the app every day asks for, added as it comes up.
 - [x] Drag to reorder tasks (a handle on each row) and agent tabs (drag in the rail); built
       2026-09-02, keyboard paths stay; pointer drags await a hands-on check
 
+- [x] Session resilience (TICKET-009, 2026-09-03): the back end restarts after any exit but
+      a stop, the app runs as a user service bound to the graphical session, `rusty-session
+      up|down|status` is the entry point the installer, the desktop entry and the key share,
+      and the compositor drop-in and the earlyoom line ship as pointers
+
 ## M8. Knowledge workspace (Obsidian inside Rusty)
 
 Chad, 2026-09-02: skip the Obsidian API and remake Obsidian inside Rusty; the Replit mock

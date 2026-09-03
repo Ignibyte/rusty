@@ -5,10 +5,12 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+  - id: openwiki-source-d69551212a861c7f2b6e6197
+    resource: repo://omarchy/rusty-session.sh
+generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:10:15.800Z
+    at: 2026-09-03T19:38:17.213Z
 ---
 
 # Rusty engineering quickstart
@@ -30,9 +32,11 @@ box without a setting that says so.
 
 ## Run it
 
-- `rusty` opens the app (`omarchy-launch-or-focus rusty`, or SUPER+ALT+R under Omarchy).
+- `rusty-session up` starts the back end and the app under their user units
+  (`down`, `status`); SUPER+ALT+R under Omarchy runs it. `rusty` alone opens the app tied
+  to the terminal it was typed in.
 - `rusty-mcp` serves agents over stdio; the user service `rusty-mcp.service` serves the
-  app at `http://127.0.0.1:4174/mcp`.
+  app at `http://127.0.0.1:4174/mcp` and comes back on its own after a kill.
 - `rusty-cli --help` lists the terminal commands; `rusty-cli refresh` nudges the watcher
   after a raw write.
 - Data lives in `~/.rusty/`: `rusty.db`, `brain/` (the vault, a git repository),
@@ -45,7 +49,7 @@ cargo build                       # one cargo command at a time, never killed
 bin/gate.sh --fast                # fmt, clippy (-D warnings), tests
 bin/gate.sh --diff                # the delivery gate; green writes .git/rusty-gate-receipt
 bin/gate.sh --verify              # do the receipts match this worktree
-omarchy/install.sh                # release build into ~/.local/bin, service restart
+omarchy/install.sh                # release build into ~/.local/bin, rusty-session, both units
 scripts/screenshot.sh <dir>       # the docs' screenshots, offscreen, scratch vault
 ```
 

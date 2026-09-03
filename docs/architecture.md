@@ -119,6 +119,11 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   of colour roles from a preset, the Omarchy theme or a file under `~/.config/rusty/themes/`;
   `Theme` turns the roles into every token the QML and the renderer bind to, `Desk` reads the
   machine for the top bar, and the application font is the skin's face.
+- Session-bound on 2026-09-03 (TICKET-009): the app runs as `rusty-app.service`, wanted by
+  uwsm's `graphical-session.target`, restarted when it is killed and left alone when it is
+  quit; the back end restarts after any exit but a stop; `rusty-session` is the one entry
+  point the installer, the desktop entry and the key share; the compositor's OOM score is a
+  drop-in the installer points at, at 100, the floor a user unit can reach.
 - Vault rules, applied by `rusty-cli brain migrate`: the timeline is a `## Timeline` section (the
   bare `---` rule is read for compatibility, never written), and wikilinks are vault paths,
   `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).
@@ -156,5 +161,6 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   resolved slug (or the raw target when nothing matches) and the line the link sits on.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   and `brain semantic`.
-- `omarchy/`: installer, user service, desktop entry and icon, key binding snippet, MCP
-  config snippet.
+- `omarchy/`: installer, the `rusty-session` script, the two user services (back end and
+  app), the compositor drop-in, desktop entry and icon, key binding snippet, MCP config
+  snippet.

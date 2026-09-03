@@ -1,0 +1,29 @@
+# Rusty's desktop app as a user service bound to the graphical session: started at login,
+# started again when it is killed, left alone when the user quits.
+#
+#   install -Dm644 omarchy/rusty-app.service ~/.config/systemd/user/rusty-app.service
+#   systemctl --user daemon-reload && systemctl --user enable rusty-app
+#   rusty-session up
+#
+# graphical-session.target is what uwsm brings up at login and takes down at logout, so
+# the app follows the session, and app-graphical.slice is stopped before the compositor.
+# Restart=always with RestartPreventExitStatus=0: a kill (earlyoom, a crash) brings the
+# app back in two seconds, a quit (exit 0) does not; systemd's start limit, five starts
+# in ten seconds, ends a crash loop. The identifier keeps `journalctl -t rusty` working.
+[Unit]
+Description=Rusty desktop app
+PartOf=graphical-session.target
+After=graphical-session.target rusty-mcp.service
+Wants=rusty-mcp.service
+
+[Service]
+Type=simple
+Slice=app-graphical.slice
+ExecStart=%h/.local/bin/rusty-session run
+Restart=always
+RestartPreventExitStatus=0
+RestartSec=2
+SyslogIdentifier=rusty
+
+[Install]
+WantedBy=graphical-session.target

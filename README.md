@@ -21,7 +21,8 @@ first release.
 ## Run it
 
 ```bash
-rusty                    # the app; or `omarchy-launch-or-focus rusty`
+rusty-session up         # the back end, then the app, each under its user service; also down, status
+rusty                    # the app on its own, tied to this terminal
 rusty-mcp                # the back end over stdio (agents); the user service serves HTTP
 rusty-cli brain search "orbit"
 ```
@@ -164,9 +165,13 @@ For the app, or any HTTP client, one shared process on localhost:
 rusty-mcp --http                 # Streamable HTTP at http://127.0.0.1:4174/mcp
 ```
 
-On a machine that will run Rusty for real, `omarchy/install.sh` builds both binaries into
-`~/.local/bin`, and installs and starts the `rusty-mcp` user service. Run it again after
-pulling; every step is idempotent.
+On a machine that will run Rusty for real, `omarchy/install.sh` builds the three binaries
+into `~/.local/bin`, installs `rusty-session` and the two user services, starts the back end
+and the app, and points at the two protections it leaves to you. Run it again after pulling;
+every step is idempotent. The back end restarts after any exit but a stop; the app starts
+with the graphical session, comes back when it is killed, and stays quit when you quit it;
+`rusty-session up` from any terminal is the by-hand recovery. `omarchy/README.md` has the
+details.
 
 ## Semantic search
 

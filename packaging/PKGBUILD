@@ -12,10 +12,8 @@ options=('!lto')
 url="https://github.com/Ignibyte/rusty"
 license=('MIT')
 depends=('qt6-base' 'qt6-declarative' 'qmltermwidget' 'tmux' 'gcc-libs' 'glibc')
+optdepends=('ollama: local embeddings for semantic search')
 makedepends=('git' 'cargo' 'rust' 'clang')
-optdepends=('obsidian: browse the brain vault, link-safe renames'
-            'ollama: local embeddings for semantic search'
-            'libnotify: desktop notifications from agent tabs')
 provides=('rusty')
 conflicts=('rusty')
 source=("rusty::git+https://github.com/Ignibyte/rusty.git")
@@ -54,6 +52,10 @@ package() {
   # The user unit as shipped points at ~/.local/bin; the package puts the binary on PATH.
   sed 's|%h/.local/bin/rusty-mcp|/usr/bin/rusty-mcp|' omarchy/rusty-mcp.service \
     | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/rusty-mcp.service"
+  install -Dm755 omarchy/rusty-session.sh "$pkgdir/usr/bin/rusty-session"
+  sed 's|%h/.local/bin/rusty-session|/usr/bin/rusty-session|' omarchy/rusty-app.service \
+    | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/rusty-app.service"
+  install -Dm644 omarchy/wayland-wm-oom.conf "$pkgdir/usr/share/rusty/wayland-wm-oom.conf"
   install -Dm644 omarchy/hyprland-bindings.conf "$pkgdir/usr/share/rusty/hyprland-bindings.conf"
   install -Dm644 omarchy/mcp-config.json "$pkgdir/usr/share/rusty/mcp-config.json"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
