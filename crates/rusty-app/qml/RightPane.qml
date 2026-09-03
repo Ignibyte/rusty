@@ -12,6 +12,9 @@ Item {
     required property var terminals
     property var note: null
     property var titles: ({})
+    // [{tag, count}] from brain_tags, sorted; rows carry the depth and the last segment.
+    property var tags: []
+    readonly property var tagRows: tags.map(function (t) { return { tag: t.tag, count: t.count, depth: (t.tag.match(/\//g) || []).length, name: t.tag.split("/").pop() } })
     property string current: "backlinks"
     property bool windowActive: true
     property var programs: []
@@ -19,6 +22,7 @@ Item {
     signal openPage(string slug)
     signal createPage(string name)
     signal paneChanged(string name)
+    signal searchTag(string tag)
 
     function titleOf(slug) { return titles[slug] || slug.slice(slug.lastIndexOf("/") + 1) }
     function focusAgent() { if (current === "agent") agentTerm.focusTerminal() }
@@ -36,6 +40,7 @@ Item {
             PaneTab { icon: "link"; name: "backlinks"; tip: "Backlinks" }
             PaneTab { icon: "outgoing"; name: "outgoing"; tip: "Outgoing links" }
             PaneTab { icon: "outline"; name: "outline"; tip: "Outline" }
+            PaneTab { icon: "tag"; name: "tags"; tip: "Tags" }
             PaneTab { icon: "agent"; name: "agent"; tip: "Agent beside the note" }
             Item { Layout.fillWidth: true }
         }
@@ -156,6 +161,49 @@ Item {
                 }
             }
             Text { visible: pane.note !== null && pane.note.outline.length === 0; text: "No headings."; color: pane.theme.faint; font.pixelSize: 12 }
+        }
+
+        // Tags: every tag in the vault as a tree with counts; a click searches by it.
+        ColumnLayout {
+            visible: pane.current === "tags"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: 8
+            spacing: 2
+            RowLayout {
+                spacing: 6
+                Text { text: "Tags"; color: pane.theme.foreground; font.pixelSize: 13 }
+                Rectangle { radius: 8; color: pane.theme.hover; width: tagTotal.implicitWidth + 12; height: 18; Text { id: tagTotal; anchors.centerIn: parent; text: pane.tags.length; color: pane.theme.muted; font.pixelSize: 11 } }
+            }
+            ListView {
+                id: tagList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: pane.tagRows
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                delegate: Rectangle {
+                    required property var modelData
+                    width: tagList.width
+                    height: 26
+                    radius: 4
+                    color: tHover.hovered ? pane.theme.hover : "transparent"
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8 + modelData.depth * 14
+                        anchors.rightMargin: 8
+                        spacing: 6
+                        Text { text: "#" + modelData.name; color: pane.theme.tag; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.count; color: pane.theme.faint; font.pixelSize: 11 }
+                    }
+                    HoverHandler { id: tHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: pane.searchTag(modelData.tag) }
+                    ToolTip.visible: tHover.hovered && modelData.depth > 0
+                    ToolTip.text: "#" + modelData.tag
+                    ToolTip.delay: 600
+                }
+            }
+            Text { visible: pane.tags.length === 0; text: "No tags yet."; color: pane.theme.faint; font.pixelSize: 12 }
         }
 
         // The agent pane: one terminal that stays with the sidebar.

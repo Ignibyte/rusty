@@ -50,7 +50,7 @@ async fn a_real_client_can_list_call_and_read() {
     assert!(server_name.contains("rusty"), "{server_name}");
 
     let tools = client.list_all_tools().await.unwrap();
-    assert!(tools.len() >= 67, "{} tools", tools.len());
+    assert!(tools.len() >= 70, "{} tools", tools.len());
     for name in [
         "list_task_groups",
         "brain_capture",
@@ -186,6 +186,80 @@ async fn a_real_client_can_list_call_and_read() {
         text_of(&unresolved).trim() == "[]",
         "{}",
         text_of(&unresolved)
+    );
+
+    // Tags and properties: an inline tag reaches the tag list and the tag: search; a
+    // property lands in the frontmatter with the body untouched, and leaves again.
+    let tagged = client
+        .call_tool(
+            CallToolRequestParams::new("brain_write_page").with_arguments(args(serde_json::json!({
+                "slug": "concepts/Moved plan",
+                "content": "---\ntitle: Moved plan\ntype: concept\n---\n\nA plan with #smoke/test inside.\n"
+            }))),
+        )
+        .await
+        .unwrap();
+    assert!(!tagged.is_error.unwrap_or(false), "{}", text_of(&tagged));
+    let tags = client
+        .call_tool(CallToolRequestParams::new("brain_tags"))
+        .await
+        .unwrap();
+    let tags_text = text_of(&tags);
+    assert!(
+        tags_text.contains("\"tag\": \"smoke\"") && tags_text.contains("\"tag\": \"smoke/test\""),
+        "{tags_text}"
+    );
+    let by_tag = client
+        .call_tool(
+            CallToolRequestParams::new("brain_search")
+                .with_arguments(args(serde_json::json!({"query": "tag:smoke"}))),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&by_tag).contains("concepts/Moved plan"),
+        "{}",
+        text_of(&by_tag)
+    );
+    let set = client
+        .call_tool(
+            CallToolRequestParams::new("brain_set_property").with_arguments(args(
+                serde_json::json!({
+                    "slug": "concepts/Moved plan", "key": "status", "value": "active"
+                }),
+            )),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&set).contains("\"status\": \"active\""),
+        "{}",
+        text_of(&set)
+    );
+    let after = client
+        .call_tool(
+            CallToolRequestParams::new("brain_read_page")
+                .with_arguments(args(serde_json::json!({"slug": "concepts/Moved plan"}))),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&after).contains("A plan with #smoke/test inside."),
+        "{}",
+        text_of(&after)
+    );
+    let removed = client
+        .call_tool(
+            CallToolRequestParams::new("brain_remove_property").with_arguments(args(
+                serde_json::json!({"slug": "concepts/Moved plan", "key": "status"}),
+            )),
+        )
+        .await
+        .unwrap();
+    assert!(
+        !text_of(&removed).contains("\"status\""),
+        "{}",
+        text_of(&removed)
     );
 
     client.cancel().await.unwrap();

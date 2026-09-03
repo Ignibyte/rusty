@@ -107,6 +107,54 @@ pub fn targets(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Every inline `#tag` in `text`, in order of first appearance, deduplicated without
+/// case: a `#` at the start of a line or after whitespace, `(` or `,`, then letters,
+/// digits, `_`, `-` and `/` with at least one letter; nothing inside code. A trailing
+/// `/` is dropped. Frontmatter tags are not read here.
+pub fn tags(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for (_, line, in_fence) in lines_with_fences(text) {
+        if in_fence {
+            continue;
+        }
+        let mut in_code = false;
+        let mut prev: Option<char> = None;
+        let mut chars = line.char_indices().peekable();
+        while let Some((i, c)) = chars.next() {
+            if c == '`' {
+                in_code = !in_code;
+                prev = Some(c);
+                continue;
+            }
+            if in_code || c != '#' {
+                prev = Some(c);
+                continue;
+            }
+            let boundary = prev.is_none_or(|p| p.is_whitespace() || p == '(' || p == ',');
+            let rest = &line[i + 1..];
+            let len = rest
+                .char_indices()
+                .find(|(_, c)| !(c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '/'))
+                .map(|(i, _)| i)
+                .unwrap_or(rest.len());
+            let tag = rest[..len].trim_end_matches('/');
+            if boundary && !tag.is_empty() && tag.chars().any(char::is_alphabetic) {
+                if seen.insert(tag.to_lowercase()) {
+                    out.push(tag.to_string());
+                }
+                for _ in 0..len {
+                    chars.next();
+                }
+                prev = Some(' ');
+                continue;
+            }
+            prev = Some(c);
+        }
+    }
+    out
+}
+
 /// A link target normalised the way the vault resolves it: no leading `/`, no `.md`.
 pub fn normalise_target(target: &str) -> String {
     let t = target.trim().trim_start_matches('/');
@@ -335,6 +383,13 @@ mod tests {
         let (out, n) = rewrite_targets("[[old/a]] [[older/a]] [[Old/b|B]]", &map);
         assert_eq!(out, "[[new/deep/a]] [[older/a]] [[new/deep/b|B]]");
         assert_eq!(n, 2);
+    }
+
+    #[test]
+    fn inline_tags_follow_obsidian_rules() {
+        let text = "Plan #design/next and #Design (again) #123 a#b `#code`\n```\n#fenced\n```\nhttp://x.y/#frag, #ok/";
+        assert_eq!(tags(text), vec!["design/next", "Design", "ok"]);
+        assert!(tags("no tags # here").is_empty());
     }
 
     #[test]

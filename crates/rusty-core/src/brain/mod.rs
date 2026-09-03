@@ -152,6 +152,15 @@ pub struct RenameReport {
     pub pages_rewritten: usize,
 }
 
+/// A tag with the number of pages carrying it (nested tags count for their parents).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TagCount {
+    /// The tag as first written, without `#`.
+    pub tag: String,
+    /// Pages carrying it or a tag nested under it.
+    pub count: usize,
+}
+
 /// A wikilink whose target is no page.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnresolvedLink {
@@ -326,9 +335,9 @@ impl BrainManager {
             updated_at: now,
         })?;
 
-        // Index aliases and tags from frontmatter
+        // Index aliases and tags (frontmatter and inline)
         self.sync_aliases(&slug, &fm.aliases)?;
-        self.sync_tags(&slug, &fm.tags)?;
+        self.sync_tags(&slug, &fm.tags, &page_content)?;
 
         // Auto-commit
         self.vault
@@ -422,7 +431,7 @@ impl BrainManager {
 
         // Re-sync aliases and tags
         self.sync_aliases(slug, &fm.aliases)?;
-        self.sync_tags(slug, &fm.tags)?;
+        self.sync_tags(slug, &fm.tags, &full_content)?;
 
         // Auto-commit
         self.vault.git_commit(&format!("update: {}", fm.title));
@@ -504,13 +513,187 @@ impl BrainManager {
         Ok(pages)
     }
 
-    /// Full-text search across brain pages using FTS5.
+    /// Full-text search across brain pages using FTS5. `tag:<name>` terms restrict the
+    /// results to pages carrying that tag or one nested under it; a query of only tag
+    /// terms lists those pages newest first.
     pub fn search(
         &self,
         query: &str,
         limit: Option<usize>,
         page_type: Option<&str>,
     ) -> Result<Vec<BrainSearchResult>, String> {
+        let (words, tags) = split_tag_terms(query);
+        if tags.is_empty() {
+            return self.search_text(&words, limit, page_type);
+        }
+        let allowed = self.pages_with_tags(&tags)?;
+        if words.is_empty() {
+            return self.pages_in(&allowed, limit, page_type);
+        }
+        let wide = limit.unwrap_or(10).saturating_mul(10).max(50);
+        let mut hits = self.search_text(&words, Some(wide), page_type)?;
+        hits.retain(|r| allowed.contains(&r.slug));
+        hits.truncate(limit.unwrap_or(10));
+        Ok(hits)
+    }
+
+    /// The slugs carrying every tag in `tags` (or a tag nested under each).
+    fn pages_with_tags(
+        &self,
+        tags: &[String],
+    ) -> Result<std::collections::HashSet<String>, String> {
+        let conn = self.db.conn()?;
+        let mut allowed: Option<std::collections::HashSet<String>> = None;
+        for tag in tags {
+            let lower = tag.to_lowercase();
+            let mut stmt = conn
+                .prepare(
+                    "SELECT DISTINCT slug FROM brain_tags \
+                     WHERE LOWER(tag) = ?1 OR LOWER(tag) LIKE ?1 || '/%'",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let set: std::collections::HashSet<String> = stmt
+                .query_map(rusqlite::params![lower], |row| row.get(0))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            allowed = Some(match allowed {
+                Some(prev) => prev.intersection(&set).cloned().collect(),
+                None => set,
+            });
+        }
+        Ok(allowed.unwrap_or_default())
+    }
+
+    /// Search results for a set of slugs, newest first, with no snippet.
+    fn pages_in(
+        &self,
+        slugs: &std::collections::HashSet<String>,
+        limit: Option<usize>,
+        page_type: Option<&str>,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        let mut pages: Vec<BrainPageSummary> = self
+            .list_pages(page_type, Some(100_000))?
+            .into_iter()
+            .filter(|p| slugs.contains(&p.slug))
+            .collect();
+        pages.truncate(limit.unwrap_or(10));
+        Ok(pages
+            .into_iter()
+            .map(|p| BrainSearchResult {
+                slug: p.slug,
+                page_type: p.page_type,
+                title: p.title,
+                snippet: String::new(),
+                rank: 0.0,
+            })
+            .collect())
+    }
+
+    /// Every tag with its page count, nested tags counted under each parent, sorted.
+    pub fn tags(&self) -> Result<Vec<TagCount>, String> {
+        let rows: Vec<(String, String)> = {
+            let conn = self.db.conn()?;
+            let mut stmt = conn
+                .prepare("SELECT slug, tag FROM brain_tags")
+                .map_err(|e| format!("Query error: {e}"))?;
+            let rows = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|e| format!("Query error: {e}"))?
+                .flatten()
+                .collect();
+            rows
+        };
+        // lowercase tag → (as first written, the slugs)
+        let mut by_tag: std::collections::BTreeMap<
+            String,
+            (String, std::collections::HashSet<String>),
+        > = std::collections::BTreeMap::new();
+        for (slug, tag) in rows {
+            let parts: Vec<&str> = tag.split('/').filter(|p| !p.is_empty()).collect();
+            for depth in 1..=parts.len() {
+                let name = parts[..depth].join("/");
+                let entry = by_tag
+                    .entry(name.to_lowercase())
+                    .or_insert_with(|| (name.clone(), std::collections::HashSet::new()));
+                entry.1.insert(slug.clone());
+            }
+        }
+        Ok(by_tag
+            .into_values()
+            .map(|(tag, slugs)| TagCount {
+                tag,
+                count: slugs.len(),
+            })
+            .collect())
+    }
+
+    /// Set one frontmatter property (a JSON value) on a page; the other keys keep their
+    /// order and the body its bytes. The previous text is kept as a version.
+    pub fn set_property(
+        &self,
+        slug: &str,
+        key: &str,
+        value: serde_json::Value,
+    ) -> Result<BrainPage, String> {
+        let raw = self
+            .vault
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found: {slug}"))?;
+        let next = frontmatter::set_property(&raw, key, value)?;
+        self.write_edited(slug, &raw, &next, &format!("property: {key} on {slug}"))
+    }
+
+    /// Remove one frontmatter property from a page.
+    pub fn remove_property(&self, slug: &str, key: &str) -> Result<BrainPage, String> {
+        let raw = self
+            .vault
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found: {slug}"))?;
+        let next = frontmatter::remove_property(&raw, key)?;
+        self.write_edited(
+            slug,
+            &raw,
+            &next,
+            &format!("property: remove {key} from {slug}"),
+        )
+    }
+
+    /// Write a changed page: version, file, index, commit; unchanged text is a no-op.
+    fn write_edited(
+        &self,
+        slug: &str,
+        raw: &str,
+        next: &str,
+        message: &str,
+    ) -> Result<BrainPage, String> {
+        if next == raw {
+            return self
+                .read_page(slug)?
+                .ok_or_else(|| format!("Page not found: {slug}"));
+        }
+        let mut parsed = parse_lenient(raw);
+        parsed.frontmatter.fill_defaults(slug);
+        self.create_version(slug, raw, &parsed.frontmatter)?;
+        self.vault.write_page(slug, next)?;
+        self.sync_page(slug)?;
+        let page = self
+            .read_page(slug)?
+            .ok_or_else(|| format!("Page not found after write: {slug}"))?;
+        self.vault.git_commit(message);
+        Ok(page)
+    }
+
+    /// The FTS5 half of [`Self::search`], the query as plain words.
+    fn search_text(
+        &self,
+        query: &str,
+        limit: Option<usize>,
+        page_type: Option<&str>,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        if query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
         let conn = self.db.conn()?;
         let lim = limit.unwrap_or(10) as i64;
 
@@ -603,7 +786,7 @@ impl BrainManager {
         })?;
 
         self.sync_aliases(slug, &parsed.frontmatter.aliases)?;
-        self.sync_tags(slug, &parsed.frontmatter.tags)?;
+        self.sync_tags(slug, &parsed.frontmatter.tags, &full_content)?;
 
         Ok(())
     }
@@ -1011,8 +1194,24 @@ impl BrainManager {
         embedder: &dyn Embedder,
     ) -> Result<Vec<BrainSearchResult>, String> {
         let limit = limit.unwrap_or(10).max(1);
-        let fts = self.search(query, Some(limit * 2), page_type)?;
-        let hits = self.semantic().search(embedder, query, limit * 3)?;
+        let (words, tags) = split_tag_terms(query);
+        let allowed = if tags.is_empty() {
+            None
+        } else {
+            Some(self.pages_with_tags(&tags)?)
+        };
+        if words.is_empty() {
+            return match allowed {
+                Some(set) => self.pages_in(&set, Some(limit), page_type),
+                None => Ok(Vec::new()),
+            };
+        }
+        let query = words.as_str();
+        let fts = self.search_text(query, Some(limit * 2), page_type)?;
+        let mut hits = self.semantic().search(embedder, query, limit * 3)?;
+        if let Some(set) = &allowed {
+            hits.retain(|h| set.contains(&h.slug));
+        }
         let mut best_chunk: std::collections::HashMap<String, &semantic::VecHit> =
             std::collections::HashMap::new();
         let mut vec_order: Vec<String> = Vec::new();
@@ -1022,7 +1221,11 @@ impl BrainManager {
                 vec_order.push(hit.slug.clone());
             }
         }
-        let fts_order: Vec<String> = fts.iter().map(|r| r.slug.clone()).collect();
+        let fts_order: Vec<String> = fts
+            .iter()
+            .filter(|r| allowed.as_ref().is_none_or(|set| set.contains(&r.slug)))
+            .map(|r| r.slug.clone())
+            .collect();
         let fused = semantic::fuse(&fts_order, &vec_order);
         let by_slug: std::collections::HashMap<&str, &BrainSearchResult> =
             fts.iter().map(|r| (r.slug.as_str(), r)).collect();
@@ -1887,16 +2090,32 @@ impl BrainManager {
         Ok(())
     }
 
-    /// Sync tags from frontmatter into brain_tags table.
-    fn sync_tags(&self, slug: &str, tags: &[String]) -> Result<(), String> {
+    /// Sync a page's tags into `brain_tags`: the frontmatter list and the inline `#tags`
+    /// of `content`, deduplicated without case, stored as first written.
+    fn sync_tags(&self, slug: &str, tags: &[String], content: &str) -> Result<(), String> {
+        let mut all: Vec<String> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for tag in tags
+            .iter()
+            .map(|t| {
+                t.trim()
+                    .trim_start_matches('#')
+                    .trim_end_matches('/')
+                    .to_string()
+            })
+            .chain(links::tags(content))
+        {
+            if !tag.is_empty() && seen.insert(tag.to_lowercase()) {
+                all.push(tag);
+            }
+        }
         let conn = self.db.conn()?;
         conn.execute(
             "DELETE FROM brain_tags WHERE slug = ?1",
             rusqlite::params![slug],
         )
         .map_err(|e| format!("Failed to clear tags: {e}"))?;
-
-        for tag in tags {
+        for tag in all {
             conn.execute(
                 "INSERT OR IGNORE INTO brain_tags (slug, tag) VALUES (?1, ?2)",
                 rusqlite::params![slug, tag],
@@ -2092,6 +2311,24 @@ fn index_links(conn: &rusqlite::Connection, slug: &str, content: &str) -> Result
         .map_err(|e| format!("Failed to insert wiki link: {e}"))?;
     }
     Ok(())
+}
+
+/// Split a query into its plain words and its `tag:` terms (`tag:a/b`, `tag:#a`).
+fn split_tag_terms(query: &str) -> (String, Vec<String>) {
+    let mut words = Vec::new();
+    let mut tags = Vec::new();
+    for token in query.split_whitespace() {
+        match token.strip_prefix("tag:") {
+            Some(tag) => {
+                let tag = tag.trim_start_matches('#').trim_end_matches('/');
+                if !tag.is_empty() {
+                    tags.push(tag.to_string());
+                }
+            }
+            None => words.push(token),
+        }
+    }
+    (words.join(" "), tags)
 }
 
 /// Row mapper for link rows selected as `from, to, type, context, resolved`.
@@ -2293,6 +2530,80 @@ mod tests {
             .unwrap()
             .iter()
             .any(|r| r.slug == "projects/orbit"));
+
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn tags_index_search_and_properties() {
+        let (dir, bm) = test_brain("tags");
+        bm.create_page("project", "Orbit", "Ship it #launch/soon and #Rust.")
+            .unwrap();
+        bm.write_raw(
+            "concepts/tagged",
+            "---\ntitle: Tagged\ntype: concept\ntags:\n  - rust\n  - launch\n---\n\nInline #ops here.\n",
+        )
+        .unwrap();
+        bm.create_page("person", "Plain", "No tags at all.")
+            .unwrap();
+
+        let tags = bm.tags().unwrap();
+        let counts: Vec<(&str, usize)> = tags.iter().map(|t| (t.tag.as_str(), t.count)).collect();
+        assert_eq!(
+            counts,
+            vec![("launch", 2), ("launch/soon", 1), ("ops", 1), ("Rust", 2)]
+        );
+
+        let hits = bm.search("tag:launch", None, None).unwrap();
+        let slugs: Vec<&str> = hits.iter().map(|h| h.slug.as_str()).collect();
+        assert_eq!(slugs.len(), 2);
+        assert!(slugs.contains(&"projects/orbit") && slugs.contains(&"concepts/tagged"));
+        let hits = bm.search("tag:#launch/soon", None, None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].slug, "projects/orbit");
+        let hits = bm.search("inline tag:rust", None, None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].slug, "concepts/tagged");
+        assert!(bm.search("tag:nothing", None, None).unwrap().is_empty());
+        assert_eq!(bm.search("tag:rust tag:ops", None, None).unwrap().len(), 1);
+        assert_eq!(
+            split_tag_terms("  a tag:x b tag:#y/ "),
+            ("a b".to_string(), vec!["x".to_string(), "y".to_string()])
+        );
+
+        let page = bm
+            .set_property("projects/orbit", "status", serde_json::json!("active"))
+            .unwrap();
+        assert_eq!(
+            page.frontmatter.extra["status"],
+            serde_json::json!("active")
+        );
+        let raw = fs::read_to_string(dir.join("projects/orbit.md")).unwrap();
+        assert!(raw.contains("status: active"), "{raw}");
+        assert!(raw.contains("Ship it #launch/soon and #Rust."));
+        let props = bm
+            .render_page("projects/orbit", &Style::default())
+            .unwrap()
+            .unwrap()
+            .properties;
+        let keys: Vec<&str> = props.iter().map(|p| p.key.as_str()).collect();
+        assert_eq!(keys.last().copied(), Some("status"));
+        let page = bm
+            .set_property(
+                "projects/orbit",
+                "tags",
+                serde_json::json!(["Rust", "next"]),
+            )
+            .unwrap();
+        assert_eq!(page.frontmatter.tags, vec!["Rust", "next"]);
+        assert!(bm.tags().unwrap().iter().any(|t| t.tag == "next"));
+        bm.remove_property("projects/orbit", "status").unwrap();
+        assert!(!fs::read_to_string(dir.join("projects/orbit.md"))
+            .unwrap()
+            .contains("status:"));
+        assert!(bm
+            .set_property("nope/page", "k", serde_json::json!(1))
+            .is_err());
 
         cleanup(&dir);
     }

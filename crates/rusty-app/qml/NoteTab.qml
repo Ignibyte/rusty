@@ -37,6 +37,7 @@ Item {
     property int historyIndex: -1
     property var pending: ({})
     property bool applying: false
+    property bool addingProperty: false
     readonly property int backlinkCount: links ? links.backlinks.length : 0
     readonly property string folder: slug.indexOf("/") >= 0 ? slug.slice(0, slug.lastIndexOf("/")) : ""
     readonly property string fileName: slug.slice(slug.lastIndexOf("/") + 1)
@@ -104,6 +105,33 @@ Item {
         ask("brain_rename", { from: slug, to: (folder.length > 0 ? folder + "/" : "") + clean }, "renamed")
     }
     function createFromLink(name) { ask("brain_new_page", { folder: "", name: name }, "created") }
+
+    // Properties edit the frontmatter through the back end; the page re-renders after.
+    function setProperty(key, value) { ask("brain_set_property", { slug: slug, key: key, value: value }, "property") }
+    function removeProperty(key) { ask("brain_remove_property", { slug: slug, key: key }, "property") }
+    function startAddProperty() { if (editing) toggleEditing(); addingProperty = true }
+    function addProperty(key, type) {
+        const k = key.trim()
+        if (k.length === 0) return
+        let value = ""
+        if (type === "List") value = []
+        else if (type === "Number") value = 0
+        else if (type === "Checkbox") value = false
+        else if (type === "Date") value = new Date().toISOString().slice(0, 10)
+        addingProperty = false
+        setProperty(k, value)
+    }
+    // Lists arrive from JSON as sequence types, not JS arrays.
+    function isList(v) { return v !== null && typeof v === "object" && typeof v.length === "number" }
+    function listOf(v) { const out = []; if (isList(v)) for (let i = 0; i < v.length; i++) out.push(String(v[i])); return out }
+    function kindOf(v) {
+        if (isList(v)) return "list"
+        if (typeof v === "number") return "number"
+        if (typeof v === "boolean") return "bool"
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return "date"
+        if (typeof v === "object" && v !== null) return "object"
+        return "text"
+    }
 
     // Links the renderer wrote carry the rusty: scheme.
     function onLink(link) {
@@ -215,6 +243,7 @@ Item {
             case "saved": note.load(); break
             case "toggled": note.load(); break
             case "created": note.open(JSON.parse(json)); break
+            case "property": note.load(); break
             case "renamed": { const r = JSON.parse(json); note.slug = r.to; note.history[note.historyIndex] = r.to; note.load(); break }
             }
         }
@@ -312,61 +341,46 @@ Item {
                     }
                     Item { height: 14 }
 
-                    // Properties, as Obsidian shows frontmatter in reading view.
+                    // Properties, editable in place as Obsidian's are: a value edits by its
+                    // type, a row can go, "Add property" adds a key of a chosen type.
                     ColumnLayout {
                         Layout.fillWidth: true
-                        visible: !note.editing && note.properties.length > 0
+                        visible: !note.editing
                         spacing: 2
                         RowLayout {
                             spacing: 6
+                            visible: note.properties.length > 0
                             Text { text: "Properties"; color: note.theme.muted; font.pixelSize: 13 }
                             Text { text: note.properties.length; color: note.theme.faint; font.pixelSize: 12 }
                         }
                         Repeater {
                             model: note.properties
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 8
-                                // Lists arrive from JSON as sequence types, not JS arrays.
-                                function isList(v) { return v !== null && typeof v === "object" && typeof v.length === "number" }
-                                function kindIcon(v) {
-                                    if (isList(v)) return "list"
-                                    if (typeof v === "number") return "hash"
-                                    if (typeof v === "boolean") return "check-square"
-                                    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return "calendar"
-                                    return "text"
-                                }
-                                Icon { name: parent.kindIcon(modelData.value); color: note.theme.faint; size: 15; Layout.alignment: Qt.AlignTop; Layout.topMargin: 5 }
-                                Text { text: modelData.key; color: note.theme.muted; font.pixelSize: 14; Layout.preferredWidth: 130; Layout.alignment: Qt.AlignTop; Layout.topMargin: 3; elide: Text.ElideRight }
-                                Flow {
-                                    Layout.fillWidth: true
-                                    spacing: 6
-                                    visible: parent.isList(modelData.value)
-                                    Repeater {
-                                        model: parent.parent.isList(modelData.value) ? modelData.value : []
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            radius: 10
-                                            color: note.theme.hover
-                                            width: chip.implicitWidth + 16
-                                            height: 22
-                                            Text { id: chip; anchors.centerIn: parent; text: String(modelData); color: note.theme.foreground; font.pixelSize: 12 }
-                                        }
-                                    }
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: 3
-                                    visible: !parent.isList(modelData.value)
-                                    text: typeof modelData.value === "object" && modelData.value !== null ? JSON.stringify(modelData.value) : String(modelData.value)
-                                    color: note.theme.foreground
-                                    font.pixelSize: 14
-                                    wrapMode: Text.Wrap
-                                }
-                            }
+                            delegate: PropertyRow {}
                         }
-                        Item { height: 16 }
+                        RowLayout {
+                            visible: note.addingProperty
+                            spacing: 6
+                            TextField {
+                                id: newKey
+                                Layout.preferredWidth: 160
+                                placeholderText: "Property name"
+                                font.pixelSize: 13
+                                onAccepted: note.addProperty(text, newType.currentText)
+                                Keys.onEscapePressed: note.addingProperty = false
+                                onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
+                            }
+                            ComboBox { id: newType; model: ["Text", "List", "Number", "Checkbox", "Date"]; Layout.preferredWidth: 120; font.pixelSize: 13 }
+                            Button { text: "Add"; onClicked: note.addProperty(newKey.text, newType.currentText) }
+                        }
+                        Text {
+                            visible: !note.addingProperty
+                            text: "+ Add property"
+                            color: addHover.hovered ? note.theme.foreground : note.theme.faint
+                            font.pixelSize: 13
+                            HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: note.startAddProperty() }
+                        }
+                        Item { height: 12 }
                     }
 
                     // Reading view: one rich-text block per top-level section, so the
@@ -426,6 +440,98 @@ Item {
                     Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: 12 }
                 }
             }
+        }
+    }
+
+    // One property: an icon for its type, the key, and a value editor by type.
+    component PropertyRow: RowLayout {
+        id: prow
+        required property var modelData
+        readonly property string key: modelData.key
+        readonly property var value: modelData.value
+        readonly property string kind: note.kindOf(modelData.value)
+        Layout.fillWidth: true
+        spacing: 8
+        Icon {
+            name: prow.kind === "list" ? "list" : prow.kind === "number" ? "hash" : prow.kind === "bool" ? "check-square" : prow.kind === "date" ? "calendar" : "text"
+            color: note.theme.faint
+            size: 15
+            Layout.alignment: Qt.AlignTop
+            Layout.topMargin: 6
+        }
+        Text { text: prow.key; color: note.theme.muted; font.pixelSize: 14; Layout.preferredWidth: 130; Layout.alignment: Qt.AlignTop; Layout.topMargin: 4; elide: Text.ElideRight }
+        // List: chips, each removable; tags are also links to their search.
+        Flow {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: prow.kind === "list"
+            Repeater {
+                model: prow.kind === "list" ? note.listOf(prow.value) : []
+                delegate: Rectangle {
+                    id: chip
+                    required property int index
+                    required property string modelData
+                    radius: 10
+                    color: chipHover.hovered ? note.theme.active : note.theme.hover
+                    width: chipText.implicitWidth + 30
+                    height: 22
+                    Text { id: chipText; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 8; text: chip.modelData; color: prow.key === "tags" ? note.theme.tag : note.theme.foreground; font.pixelSize: 12 }
+                    Icon { anchors.right: parent.right; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; name: "close"; color: note.theme.faint; size: 11; TapHandler { onTapped: { const l = note.listOf(prow.value); l.splice(chip.index, 1); note.setProperty(prow.key, l) } } }
+                    HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: if (prow.key === "tags") note.openTag(chip.modelData.replace(/^#/, "")) }
+                }
+            }
+            TextField {
+                id: chipAdd
+                width: Math.max(60, implicitWidth)
+                height: 22
+                font.pixelSize: 12
+                placeholderText: "add"
+                background: Rectangle { color: chipAdd.activeFocus ? note.theme.hover : "transparent"; radius: 10; border.color: note.theme.line; border.width: chipAdd.activeFocus ? 1 : 0 }
+                onAccepted: { const v = text.trim(); if (v.length > 0) { const l = note.listOf(prow.value); l.push(v); text = ""; note.setProperty(prow.key, l) } }
+            }
+        }
+        CheckBox {
+            visible: prow.kind === "bool"
+            checked: prow.kind === "bool" ? prow.value : false
+            onToggled: note.setProperty(prow.key, checked)
+        }
+        TextField {
+            id: valueField
+            visible: prow.kind === "text" || prow.kind === "date" || prow.kind === "number"
+            Layout.fillWidth: true
+            font.pixelSize: 14
+            color: note.theme.foreground
+            text: prow.kind === "text" || prow.kind === "date" || prow.kind === "number" ? String(prow.value) : ""
+            placeholderText: prow.kind === "date" ? "YYYY-MM-DD" : "Empty"
+            background: Rectangle { color: valueField.activeFocus || valueHover.hovered ? note.theme.hover : "transparent"; radius: 4 }
+            HoverHandler { id: valueHover }
+            onEditingFinished: {
+                const t = text.trim()
+                if (t === String(prow.value)) return
+                if (prow.kind === "number") { const n = Number(t); if (!isNaN(n)) note.setProperty(prow.key, n) }
+                else note.setProperty(prow.key, t)
+            }
+        }
+        Text {
+            visible: prow.kind === "object"
+            Layout.fillWidth: true
+            text: JSON.stringify(prow.value)
+            color: note.theme.foreground
+            font.pixelSize: 13
+            wrapMode: Text.Wrap
+        }
+        Rectangle {
+            width: 20; height: 20; radius: 4
+            color: rmHover.hovered ? note.theme.hover : "transparent"
+            Layout.alignment: Qt.AlignTop
+            Layout.topMargin: 4
+            Icon { anchors.centerIn: parent; name: "close"; color: note.theme.faint; size: 12 }
+            HoverHandler { id: rmHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: note.removeProperty(prow.key) }
+            ToolTip.visible: rmHover.hovered
+            ToolTip.text: "Remove property"
+            ToolTip.delay: 600
         }
     }
 

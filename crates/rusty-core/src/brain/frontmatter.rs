@@ -289,6 +289,64 @@ pub fn render_page(
     ))
 }
 
+/// The frontmatter of a raw page as an ordered YAML mapping (empty when there is none
+/// or it cannot be read), the body after the closing fence, and whether fences existed.
+fn mapping_and_body(raw: &str) -> Result<(serde_yaml::Mapping, &str, bool), String> {
+    match split_raw(raw) {
+        Ok((prefix, body)) => {
+            let text = yaml_of(prefix);
+            if text.trim().is_empty() {
+                return Ok((serde_yaml::Mapping::new(), body, true));
+            }
+            let mapping: serde_yaml::Mapping = serde_yaml::from_str(text)
+                .map_err(|e| format!("Failed to parse frontmatter: {e}"))?;
+            Ok((mapping, body, true))
+        }
+        Err(_) => Ok((serde_yaml::Mapping::new(), raw, false)),
+    }
+}
+
+/// The raw page for a mapping and a body: the fences and the YAML, then the body byte
+/// for byte; no frontmatter at all when the mapping is empty.
+fn assemble(mapping: &serde_yaml::Mapping, body: &str, had_fences: bool) -> Result<String, String> {
+    if mapping.is_empty() {
+        return Ok(body.trim_start_matches('\n').to_string());
+    }
+    let yaml =
+        serde_yaml::to_string(mapping).map_err(|e| format!("Failed to serialize YAML: {e}"))?;
+    let yaml = yaml
+        .trim_end()
+        .trim_start_matches("---")
+        .trim_start_matches('\n');
+    let separator = if had_fences || body.starts_with('\n') || body.is_empty() {
+        ""
+    } else {
+        "\n"
+    };
+    Ok(format!("---\n{yaml}\n---\n{separator}{body}"))
+}
+
+/// Set one frontmatter key to a JSON value (text, number, checkbox, date as text, or a
+/// list), keeping the other keys in their order and the body byte for byte. A page
+/// without frontmatter gains it.
+pub fn set_property(raw: &str, key: &str, value: serde_json::Value) -> Result<String, String> {
+    let key = key.trim();
+    if key.is_empty() {
+        return Err("A property needs a key".to_string());
+    }
+    let (mut mapping, body, had_fences) = mapping_and_body(raw)?;
+    let value = serde_yaml::to_value(value).map_err(|e| format!("Bad property value: {e}"))?;
+    mapping.insert(serde_yaml::Value::String(key.to_string()), value);
+    assemble(&mapping, body, had_fences)
+}
+
+/// Remove one frontmatter key, keeping the rest in order and the body byte for byte.
+pub fn remove_property(raw: &str, key: &str) -> Result<String, String> {
+    let (mut mapping, body, had_fences) = mapping_and_body(raw)?;
+    mapping.shift_remove(serde_yaml::Value::String(key.trim().to_string()));
+    assemble(&mapping, body, had_fences)
+}
+
 /// Get today's date as an ISO 8601 string (YYYY-MM-DD).
 pub(crate) fn today_iso() -> String {
     let now = std::time::SystemTime::now()
@@ -468,6 +526,37 @@ mod tests {
         let parsed = parse_lenient(raw);
         assert!(parsed.frontmatter.title.is_empty());
         assert!(parsed.compiled_truth.contains("Body."));
+    }
+
+    #[test]
+    fn property_edits_keep_order_and_body() {
+        let raw = "---\ntitle: T\ntype: note\nrole: CTO\ntags:\n  - a\n---\n\nBody with  odd   spacing.\n\n## Timeline\n\n- **2026-09-03** — x\n";
+        let set = set_property(raw, "role", serde_json::json!("CEO")).unwrap();
+        let keys: Vec<String> = properties_of(&set).into_iter().map(|(k, _)| k).collect();
+        assert_eq!(keys, vec!["title", "type", "role", "tags"]);
+        assert!(
+            set.ends_with(
+                "\n---\n\nBody with  odd   spacing.\n\n## Timeline\n\n- **2026-09-03** — x\n"
+            ),
+            "{set}"
+        );
+        let added = set_property(&set, "done", serde_json::json!(true)).unwrap();
+        assert!(properties_of(&added)
+            .iter()
+            .any(|(k, v)| k == "done" && v == &serde_json::json!(true)));
+        let listed = set_property(&added, "tags", serde_json::json!(["a", "b/c"])).unwrap();
+        assert_eq!(properties_of(&listed)[3].1, serde_json::json!(["a", "b/c"]));
+        let removed = remove_property(&listed, "role").unwrap();
+        let keys: Vec<String> = properties_of(&removed)
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect();
+        assert_eq!(keys, vec!["title", "type", "tags", "done"]);
+        assert!(set_property(raw, " ", serde_json::json!(1)).is_err());
+        // A page without frontmatter gains it; removing the last key drops it again.
+        let bare = set_property("Just text.\n", "status", serde_json::json!("open")).unwrap();
+        assert_eq!(bare, "---\nstatus: open\n---\n\nJust text.\n");
+        assert_eq!(remove_property(&bare, "status").unwrap(), "Just text.\n");
     }
 
     #[test]

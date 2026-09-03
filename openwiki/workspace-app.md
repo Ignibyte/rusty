@@ -9,16 +9,18 @@ sources:
     resource: repo://crates/rusty-app/qml/Main.qml
   - id: openwiki-source-d678395ec2ca71c73018a3fd
     resource: repo://crates/rusty-app/qml/NoteTab.qml
+  - id: openwiki-source-6790183f51655ba192900138
+    resource: repo://crates/rusty-app/qml/RightPane.qml
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
   - id: openwiki-source-040df95238fa90bd4e7ad29b
     resource: repo://crates/rusty-app/src/omarchy.rs
   - id: openwiki-source-720644bc52136dc05589b8d5
     resource: repo://crates/rusty-app/src/terminals.rs
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T05:10:15.800Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -57,7 +59,8 @@ every view backed by the MCP server that agents share.
 - Layout: a ribbon (new note, daily note, palette, Tasks, Memory, Skills, Secrets, one
   button per agent CLI on `PATH`, Settings), a left sidebar (files, search), the main
   area (tab strip and a stack of `TabHost`s), a right sidebar (backlinks with context,
-  outgoing links, outline, an agent pane), a status bar with the counts.
+  outgoing links, outline, tags as a tree with counts, an agent pane), a status bar
+  with the counts.
 - Tabs: one `ListModel` of `{kind, title, slug, session, program, cwd, pinned}`; kinds
   are `page`, `terminal` and the built-in views. Tabs persist across runs; a file from
   before the workspace loads as terminals. Opening a page from the explorer, search, a
@@ -65,7 +68,13 @@ every view backed by the MCP server that agents share.
 - A page tab (`NoteTab`) asks `brain_render` with the theme's style and
   `brain_get_links`, shows the inline title (Enter renames through `brain_rename`), the
   properties, then the reading view as one rich-text block per top-level section, or
-  the source in a `TextArea` with the highlighter. Edits autosave after 1.5 s and on
+  the source in a `TextArea` with the highlighter. The properties block is the editor:
+  each value edits by its type (a text or date field, a number, a checkbox, list chips
+  with add and remove; tag chips also open a `tag:` search), a row can be removed, and
+  "Add property" adds a key of a chosen type, all through `brain_set_property` and
+  `brain_remove_property`; the page re-renders on the change notification. A `#tag` in
+  the reading view, a chip, or a row of the Tags pane puts `tag:<name>` into the search
+  pane. Edits autosave after 1.5 s and on
   Ctrl+S through `brain_write_page`; a `dataChanged` reloads only when the editor is
   clean. Each tab keeps its own history.
 - Terminals (`AgentTerminal`): `qmltermwidget` running `tmux new-session -A -s

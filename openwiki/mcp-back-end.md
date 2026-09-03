@@ -7,10 +7,10 @@ sources:
     resource: repo://crates/rusty-mcp/src/main.rs
   - id: openwiki-source-84acb13abf83511312610cd3
     resource: repo://crates/rusty-mcp/tests/smoke.rs
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T05:10:15.800Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -42,7 +42,9 @@ the way an agent would.
 - Workspace: `brain_tree`, `brain_render` (rich text plus outline, links, unresolved
   targets, counts, properties, raw), `brain_write_page` (the whole file),
   `brain_new_page`, `brain_new_folder`, `brain_delete_folder`, `brain_rename`,
-  `brain_unresolved`.
+  `brain_unresolved`, `brain_tags` (every tag with its count), `brain_set_property` and
+  `brain_remove_property` (one frontmatter key, typed, the body untouched).
+  `brain_search` understands `tag:<name>` terms.
 - Skills: list, view, create, update, scan, approve, reject, delete.
 - Secrets: list names, set, delete; a value is never returned.
 - Settings: get, set, list with credential-looking values masked.

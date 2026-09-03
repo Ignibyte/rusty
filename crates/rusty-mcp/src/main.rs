@@ -500,6 +500,27 @@ pub struct RenameParams {
     pub to: String,
 }
 
+/// Parameters for `brain_set_property`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct SetPropertyParams {
+    /// The page slug, folder included.
+    pub slug: String,
+    /// The frontmatter key.
+    pub key: String,
+    /// The value: text, a number, true or false, a `YYYY-MM-DD` date as text, or a list
+    /// of strings.
+    pub value: serde_json::Value,
+}
+
+/// Parameters for `brain_remove_property`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct RemovePropertyParams {
+    /// The page slug, folder included.
+    pub slug: String,
+    /// The frontmatter key to remove.
+    pub key: String,
+}
+
 /// The MCP server: the tool router, a shared [`Core`], and the connected peers.
 #[derive(Clone)]
 pub struct Rusty {
@@ -656,7 +677,7 @@ impl Rusty {
     }
 
     #[tool(
-        description = "Full-text search across the brain vault; results are slugs with snippets"
+        description = "Search the brain vault: full text (and vectors when a provider is set); `tag:<name>` terms keep only pages carrying that tag or one nested under it, and a query of tag terms alone lists those pages"
     )]
     async fn brain_search(
         &self,
@@ -1019,6 +1040,37 @@ impl Rusty {
     #[tool(description = "Every wikilink in the vault whose target is no page, with its line")]
     fn brain_unresolved(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.unresolved())
+    }
+
+    #[tool(
+        description = "Every tag in the vault (frontmatter and inline #tags) with its page count; a nested tag a/b counts under a too. Search by tag with `tag:<name>` in brain_search"
+    )]
+    fn brain_tags(&self) -> Result<CallToolResult, McpError> {
+        json_result(self.core.brain_manager.tags())
+    }
+
+    #[tool(
+        description = "Set one frontmatter property on a brain page (text, number, true/false, a YYYY-MM-DD date as text, or a list of strings); other keys keep their order and the body is untouched"
+    )]
+    fn brain_set_property(
+        &self,
+        Parameters(p): Parameters<SetPropertyParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(
+            self.core
+                .brain_manager
+                .set_property(&p.slug, &p.key, p.value),
+        )
+    }
+
+    #[tool(
+        description = "Remove one frontmatter property from a brain page; the body is untouched"
+    )]
+    fn brain_remove_property(
+        &self,
+        Parameters(p): Parameters<RemovePropertyParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(self.core.brain_manager.remove_property(&p.slug, &p.key))
     }
 
     #[tool(description = "List long-term memories, optionally by category")]
@@ -1692,6 +1744,9 @@ mod tests {
         "brain_delete_folder",
         "brain_rename",
         "brain_unresolved",
+        "brain_tags",
+        "brain_set_property",
+        "brain_remove_property",
     ];
 
     #[test]

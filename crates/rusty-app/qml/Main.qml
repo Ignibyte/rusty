@@ -103,6 +103,7 @@ ApplicationWindow {
 
     property var tree: null
     property var pageList: []
+    property var tags: []
     property var titles: ({})
     property var agents: []
     property var currentNote: null
@@ -124,6 +125,7 @@ ApplicationWindow {
     function refreshData() {
         ask("brain_tree", {}, "tree")
         ask("brain_list_pages", { limit: 100000 }, "pages")
+        ask("brain_tags", {}, "tags")
     }
 
     // ── Tabs ──────────────────────────────────────────────────────────────
@@ -258,6 +260,7 @@ ApplicationWindow {
             win.notice = ""
             switch (kind) {
             case "tree": win.tree = JSON.parse(json); break
+            case "tags": win.tags = JSON.parse(json); break
             case "pages": {
                 const list = JSON.parse(json)
                 win.pageList = list
@@ -373,6 +376,8 @@ ApplicationWindow {
             { name: "Backlinks: Show backlinks", keys: "", run: function () { win.showRight("backlinks") } },
             { name: "Outgoing links: Show outgoing links", keys: "", run: function () { win.showRight("outgoing") } },
             { name: "Outline: Show outline", keys: "", run: function () { win.showRight("outline") } },
+            { name: "Tags: Show tags", keys: "", run: function () { win.showRight("tags") } },
+            { name: "Properties: Add a property to this page", keys: "", enabled: win.currentNote !== null, run: function () { win.currentNote.startAddProperty() } },
             { name: "Agent: Show the agent pane", keys: "", run: function () { win.showRight("agent") } },
             { name: "Graph view: Open graph view (coming with TICKET-004)", keys: "Ctrl+G", enabled: false, run: function () {} },
             { name: "Tasks: Open tasks", keys: "", run: function () { win.openView("tasks") } },
@@ -515,7 +520,7 @@ ApplicationWindow {
                 isCurrent: host.isCurrent
                 Component.onCompleted: open(host.slug)
                 onNavigated: (s, t) => win.tabNavigated(host.index, s, t)
-                onOpenTag: (tag) => win.searchFor("#" + tag)
+                onOpenTag: (tag) => win.searchFor("tag:" + tag)
                 onRequestMove: (s) => explorer.moveDialogFor(s)
                 onRequestDelete: (s) => explorer.deleteDialogFor(s)
             }
@@ -850,9 +855,11 @@ ApplicationWindow {
                     terminals: win.terminals
                     note: win.currentNote
                     titles: win.titles
+                    tags: win.tags
                     windowActive: win.active
                     onOpenPage: (slug) => win.openPage(slug, false)
                     onCreatePage: (name) => win.createPage(name)
+                    onSearchTag: (tag) => win.searchFor("tag:" + tag)
                     onPaneChanged: (name) => ui.rightPane = name
                     onProgramChanged: ui.paneProgram = program
                 }

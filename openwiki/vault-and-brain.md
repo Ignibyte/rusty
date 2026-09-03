@@ -13,10 +13,10 @@ sources:
     resource: repo://crates/rusty-core/src/brain/semantic.rs
   - id: openwiki-source-79e92c26a49d3b5ce7f4c00a
     resource: repo://crates/rusty-core/src/brain/vault.rs
-generated: {by: "claude-code", at: "2026-09-03T04:50:24.252Z"}
+generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T04:50:24.252Z
+    at: 2026-09-03T05:10:15.800Z
 ---
 
 # Vault and brain: files as the truth, SQLite as the index
@@ -37,7 +37,8 @@ in the database can be rebuilt from the folder.
 - `frontmatter.rs`: the page format: YAML frontmatter, the compiled truth, the
   `## Timeline` section; lenient parsing; ordered properties.
 - `links.rs`: the one wikilink scanner (`scan`, `targets`, `rewrite_targets`) shared by
-  the indexer, the renderer, the migration and the move rewrite.
+  the indexer, the renderer, the migration and the move rewrite, and the inline tag
+  scanner (`tags`).
 - `mod.rs`: `BrainManager`, the manager over both: create, read, update, whole-file
   write, rename, folders, timeline, capture, daily pages, sync, search, migration.
 - `semantic.rs`: chunking, the `Embedder` trait and providers, the `sqlite-vec` index,
@@ -62,6 +63,14 @@ in the database can be rebuilt from the folder.
 - Deletes are soft: a page or folder moves to `archive/<name>_<timestamp>`.
 - Rusty's writers always write frontmatter; a whole-file write (`write_raw`) writes
   exactly the text it was given after snapshotting the previous version.
+- Tags come from two places and land in one index: the frontmatter `tags` list and
+  inline `#tags` in the body (a `#` at a boundary, then letters, digits, `_`, `-` and
+  `/`, at least one letter, never inside code), compared without case and stored as
+  first written. A nested tag `a/b` counts under `a` as well.
+- A property edit (`set_property`, `remove_property`) rewrites only the frontmatter
+  mapping, keys in their order, and writes the body back byte for byte; values are text,
+  numbers, booleans, dates as `YYYY-MM-DD` text, or lists of strings. A page without
+  frontmatter gains it; removing the last key drops it.
 
 ## Runtime flow
 
@@ -84,7 +93,11 @@ in the database can be rebuilt from the folder.
   else a unique file name anywhere; else a unique title or alias) or the raw target, plus
   the line it sits on as context. `unresolved()` lists rows whose target is no page.
 - Search: `search` is FTS5 (`porter unicode61`); `search_hybrid` fuses it with vector
-  neighbours by reciprocal rank when an embedder is configured.
+  neighbours by reciprocal rank when an embedder is configured. `tag:<name>` terms in
+  either restrict the result to pages carrying that tag or one nested under it; a query
+  of tag terms alone lists those pages newest first.
+- Tags: `tags()` groups the index by tag with a page count, parents counting their
+  nested tags too, for the app's Tags pane and for agents.
 
 ## Semantic search and what leaves the machine
 

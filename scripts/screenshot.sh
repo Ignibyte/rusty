@@ -15,7 +15,7 @@ shift
 theme=${SHOT_THEME:-$HOME/.config/omarchy/current/theme}
 size=${SHOT_SIZE:-1500x950}
 scenes=("$@")
-[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline")
+[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags")
 root=$(git rev-parse --show-toplevel)
 target=${CARGO_TARGET_DIR:-$root/target}
 [[ -x "$target/debug/rusty" && -x "$target/debug/rusty-mcp" ]] || { echo "build rusty and rusty-mcp first" >&2; exit 1; }
@@ -87,9 +87,11 @@ title: Sarah Chen
 type: person
 role: CTO
 company: Halo Labs
+tags:
+  - person/engineering
 ---
 
-Sarah runs engineering at Halo Labs and reviews [[projects/orbit]] every other week.
+Sarah runs engineering at Halo Labs and reviews [[projects/orbit]] every other week. #follow-up
 
 ## Key context
 

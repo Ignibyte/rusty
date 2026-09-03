@@ -216,7 +216,8 @@ workflow in `CONSTITUTION.md`.
       and folder operations in the core with eight new tools, quick switcher, command palette,
       Obsidian's keys, theme tokens from the Omarchy theme's `obsidian.css`; the Brain and
       Notes tabs are gone. Screenshots come from `scripts/screenshot.sh` against a scratch vault
-- [ ] TICKET-003 Tags (inline and frontmatter) and a properties editor
+- [x] TICKET-003 Tags (inline and frontmatter, one index, a Tags pane with counts, `tag:` in
+      search) and a properties editor typed as Obsidian types them (2026-09-03)
 - [ ] TICKET-004 Global and local graph views with filters, groups and forces
 - [ ] TICKET-005 Search operators, bookmarks, hotkeys table
 - [ ] TICKET-006 Retire the Obsidian bridge once the tiers above are in daily use
