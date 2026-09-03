@@ -27,6 +27,33 @@ Item {
     property var favorites: []
     signal openFavorite(var bookmark)
     signal removeFavorite(var bookmark)
+    // Folder roots on the machine (TICKET-016): the window owns the list, the disk is
+    // read through `folders`, and a listing is cached until Refresh or a root change.
+    required property var folders
+    property var roots: []
+    property var agents: []
+    property var agentNames: ({})
+    property var listing: ({})
+    signal openFile(string path)
+    signal openAgentAt(string program, string cwd)
+    signal addRootRequested()
+    signal removeRoot(string path)
+    function isDirRow(r) { return r !== null && r !== undefined && (r.kind === "folder" || r.kind === "dir" || r.kind === "root") }
+    function entriesOf(dir) {
+        if (listing[dir] === undefined) { const l = listing; try { l[dir] = JSON.parse(folders.list(dir)) } catch (e) { l[dir] = [] } listing = l }
+        return listing[dir]
+    }
+    function walkDisk(dir, depth, out) {
+        for (const e of entriesOf(dir)) {
+            out.push({ name: e.name, path: e.path, kind: e.kind === "folder" ? "dir" : "disk", depth: depth })
+            if (e.kind === "folder" && expanded[e.path]) walkDisk(e.path, depth + 1, out)
+        }
+    }
+    function refreshDisk() { listing = ({}); rebuild() }
+    onRootsChanged: refreshDisk()
+    function expandPath(path) { if (!expanded[path]) toggle(path) }
+    function copyText(t) { copier.text = t; copier.selectAll(); copier.copy(); copier.text = "" }
+    TextEdit { id: copier; visible: false; width: 1; height: 1 }
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -35,6 +62,11 @@ Item {
     function rebuild() {
         const out = []
         if (tree) walk(tree.children, 0, out)
+        if (roots.length > 0) out.push({ name: "Folders", path: "", kind: "section", depth: 0 })
+        for (const r of roots) {
+            out.push({ name: r.name, path: r.path, kind: "root", depth: 0 })
+            if (expanded[r.path]) walkDisk(r.path, 1, out)
+        }
         rows = out
     }
     function walk(children, depth, out) {
@@ -124,6 +156,7 @@ Item {
             NavButton { icon: "new-note"; tip: "New note"; onClicked: explorer.newNote(explorer.currentFolder) }
             NavButton { icon: "new-folder"; tip: "New folder"; onClicked: folderDialog.openFor(explorer.currentFolder) }
             NavButton { icon: "collapse"; tip: "Collapse all"; onClicked: explorer.collapseAll() }
+            NavButton { icon: "plus"; tip: "Add a folder from the machine"; onClicked: explorer.addRootRequested() }
             Item { Layout.fillWidth: true }
         }
 
@@ -176,9 +209,9 @@ Item {
             spacing: 0
             keyNavigationEnabled: true
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-            Keys.onReturnPressed: { const r = explorer.rowAt(currentIndex); if (r) { if (r.kind === "page") explorer.openPage(r.path); else if (r.kind === "folder") explorer.toggle(r.path) } }
-            Keys.onRightPressed: { const r = explorer.rowAt(currentIndex); if (r && r.kind === "folder" && !explorer.expanded[r.path]) explorer.toggle(r.path) }
-            Keys.onLeftPressed: { const r = explorer.rowAt(currentIndex); if (r && r.kind === "folder" && explorer.expanded[r.path]) explorer.toggle(r.path) }
+            Keys.onReturnPressed: { const r = explorer.rowAt(currentIndex); if (r) { if (r.kind === "page") explorer.openPage(r.path); else if (r.kind === "disk") explorer.openFile(r.path); else if (explorer.isDirRow(r)) explorer.toggle(r.path) } }
+            Keys.onRightPressed: { const r = explorer.rowAt(currentIndex); if (explorer.isDirRow(r) && !explorer.expanded[r.path]) explorer.toggle(r.path) }
+            Keys.onLeftPressed: { const r = explorer.rowAt(currentIndex); if (explorer.isDirRow(r) && explorer.expanded[r.path]) explorer.toggle(r.path) }
             delegate: Item {
                 id: row
                 required property int index
@@ -186,7 +219,9 @@ Item {
                 width: list.width
                 height: 24
                 readonly property bool active: modelData.kind === "page" && modelData.path === explorer.currentSlug
-                readonly property bool isRenaming: explorer.renaming === modelData.path
+                readonly property bool isRenaming: explorer.renaming.length > 0 && explorer.renaming === modelData.path
+                readonly property bool isDir: explorer.isDirRow(modelData)
+                readonly property bool isSection: modelData.kind === "section"
                 Rectangle {
                     anchors.fill: parent
                     radius: explorer.theme.radius
@@ -212,15 +247,16 @@ Item {
                     anchors.rightMargin: 10
                     spacing: 4
                     Icon {
-                        visible: row.modelData.kind === "folder"
+                        visible: row.isDir
                         name: explorer.expanded[row.modelData.path] ? "chevron-down" : "chevron-right"
                         color: explorer.theme.accentSoft
                         size: 12
                     }
-                    Text { visible: row.modelData.kind === "folder"; text: "▰"; color: explorer.theme.gold; font.pixelSize: Math.round(9 * explorer.theme.scale) }
-                    Text { visible: row.modelData.kind !== "folder"; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); Layout.preferredWidth: 12 }
+                    Text { visible: row.isDir; text: "▰"; color: row.modelData.kind === "root" ? explorer.theme.accent : explorer.theme.gold; font.pixelSize: Math.round(9 * explorer.theme.scale) }
+                    Text { visible: row.isSection; text: row.modelData.name; color: explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.fillWidth: true; Layout.topMargin: 6 }
+                    Text { visible: !row.isDir && !row.isSection; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); Layout.preferredWidth: 12 }
                     Text {
-                        visible: !row.isRenaming
+                        visible: !row.isRenaming && !row.isSection
                         Layout.fillWidth: true
                         text: row.modelData.name
                         color: row.active ? explorer.theme.bright : explorer.theme.muted
@@ -240,7 +276,7 @@ Item {
                     }
                     Text { visible: row.modelData.kind === "folder" && row.modelData.pages !== undefined; text: String(row.modelData.pages).padStart(2, "0"); color: explorer.theme.faint; font.pixelSize: Math.round(10 * explorer.theme.scale) }
                     Text {
-                        visible: row.modelData.kind === "file"
+                        visible: row.modelData.kind === "file" || row.modelData.kind === "disk"
                         text: row.modelData.name.indexOf(".") >= 0 ? row.modelData.name.slice(row.modelData.name.lastIndexOf(".") + 1).toUpperCase() : ""
                         color: explorer.theme.faint
                         font.pixelSize: Math.round(9 * explorer.theme.scale)
@@ -253,12 +289,18 @@ Item {
                     onTapped: {
                         list.currentIndex = row.index
                         if (row.modelData.kind === "page") explorer.openPage(row.modelData.path)
-                        else if (row.modelData.kind === "folder") explorer.toggle(row.modelData.path)
+                        else if (row.modelData.kind === "disk") explorer.openFile(row.modelData.path)
+                        else if (row.isDir) explorer.toggle(row.modelData.path)
                     }
                 }
                 TapHandler {
                     acceptedButtons: Qt.RightButton
-                    onTapped: { list.currentIndex = row.index; rowMenu.row = row.modelData; rowMenu.popup() }
+                    onTapped: {
+                        list.currentIndex = row.index
+                        if (row.isSection) return
+                        if (row.modelData.kind === "root" || row.modelData.kind === "dir" || row.modelData.kind === "disk") { diskMenu.row = row.modelData; diskMenu.popup() }
+                        else { rowMenu.row = row.modelData; rowMenu.popup() }
+                    }
                 }
             }
         }
@@ -276,6 +318,33 @@ Item {
         MenuItem { text: "Bookmark…"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: explorer.requestBookmark(rowMenu.row) }
         MenuSeparator {}
         MenuItem { text: "Delete"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: deleteDialog.openFor(rowMenu.row) }
+    }
+
+    // The menu of a folder root, a folder under it, or a file on disk.
+    Menu {
+        id: diskMenu
+        property var row: null
+        readonly property bool dirRow: row !== null && (row.kind === "dir" || row.kind === "root")
+        readonly property string dir: row === null ? "" : (dirRow ? row.path : row.path.slice(0, row.path.lastIndexOf("/")))
+        Instantiator {
+            model: explorer.agents
+            delegate: MenuItem {
+                required property string modelData
+                text: "Open " + (explorer.agentNames[modelData] || modelData) + " here"
+                onTriggered: explorer.openAgentAt(modelData, diskMenu.dir)
+            }
+            onObjectAdded: (i, o) => diskMenu.insertItem(i, o)
+            onObjectRemoved: (i, o) => diskMenu.removeItem(o)
+        }
+        MenuItem { text: "Open a shell here"; onTriggered: explorer.openAgentAt("shell", diskMenu.dir) }
+        MenuSeparator {}
+        MenuItem { text: "Open"; visible: diskMenu.row !== null && diskMenu.row.kind === "disk"; height: visible ? implicitHeight : 0; onTriggered: explorer.openFile(diskMenu.row.path) }
+        MenuItem { text: "Open outside"; visible: diskMenu.row !== null && diskMenu.row.kind === "disk"; height: visible ? implicitHeight : 0; onTriggered: explorer.folders.openExternally(diskMenu.row.path) }
+        MenuItem { text: "Copy path"; onTriggered: explorer.copyText(diskMenu.row.path) }
+        MenuItem { text: "Reveal in the file manager"; onTriggered: explorer.folders.openExternally(diskMenu.dir) }
+        MenuSeparator {}
+        MenuItem { text: "Refresh"; onTriggered: explorer.refreshDisk() }
+        MenuItem { text: "Remove this root"; visible: diskMenu.row !== null && diskMenu.row.kind === "root"; height: visible ? implicitHeight : 0; onTriggered: explorer.removeRoot(diskMenu.row.path) }
     }
 
     Dialog {

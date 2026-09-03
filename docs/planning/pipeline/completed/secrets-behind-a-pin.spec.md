@@ -1,7 +1,7 @@
 ---
 title: Secrets behind a PIN
 pipeline_id: 3b0bcb0e-430a-4733-ac06-1f7ff3b35104
-status: Phase 5 — Complete: PASS (delivered 2026-09-03)
+status: Phase 5 — Complete PASS
 ticket: TICKET-015
 ticket_doc: docs/planning/tickets/open/TICKET-015-secrets-behind-a-pin.md
 aar: docs/planning/knowledge/aar/AAR-015-secrets-behind-a-pin.md

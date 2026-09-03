@@ -163,6 +163,13 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   move rewrites `[[links]]` and `](links.md)` in every page except inside fenced code, and
   the index rows follow; deletes are soft (`archive/`). Link rows in `brain_links` hold the
   resolved slug (or the raw target when nothing matches) and the line the link sits on.
+- Folders (2026-09-03, TICKET-016, part one): the explorer lists folders from the machine
+  below the vault as roots kept per machine in the workspace state (`roots`), read through
+  a small `Folders` type in the app (list, kind, text, base name, open outside), never
+  through the back end; files open read-only in a `file` tab (markdown rendered by
+  `brain_render` given the text, text with line numbers, images fitted), and a folder's
+  menu opens an agent or a shell there. The vault's links, graph and search do not see the
+  roots. File operations and git decorations are TICKET-019 and TICKET-020.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   `brain semantic`, and `notes adopt` (2026-09-03, TICKET-014: the notes folder lives in
   the vault under `notes/`, and the one-shot moves an older `~/.rusty/notes` in).

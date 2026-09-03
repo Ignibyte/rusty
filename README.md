@@ -202,6 +202,19 @@ the `notes_path` setting names. An older install kept notes in `~/.rusty/notes`;
 when a name already exists in the vault, deletes nothing, leaves a README behind that
 says where the notes went, and points `notes_path` at the new folder.
 
+## Folders
+
+The left pane can hold folders from the machine below the vault tree. "Add a folder" (the
+plus in the pane's header, or the palette) opens a picker; the roots are remembered per
+machine in the workspace state and removed from their own menu. Folders fold like the
+vault's. A click on a file opens it read-only: markdown rendered as a page is, with a
+Source toggle; text in a monospace viewer with line numbers; an image fitted to the tab;
+anything else through the desktop's handler. A right-click on a folder offers one entry
+per agent on the machine that opens a terminal tab with that folder as its working
+directory, a shell there, copy path, reveal in the file manager, and Refresh (roots have
+no watcher yet). Links, backlinks, graph and search stay vault-only. File operations and
+git decorations are the next two parts.
+
 ## Secrets
 
 Keys for providers and services live in `~/.rusty/.secret`, mode 600. The Secrets tab

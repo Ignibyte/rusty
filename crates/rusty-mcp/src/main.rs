@@ -468,8 +468,11 @@ pub struct SemanticStatus {
 /// Parameters for `brain_render`.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct RenderParams {
-    /// The page slug, folder included.
+    /// The page slug, folder included; may be empty when `markdown` is given.
     pub slug: String,
+    /// Render this text instead of a page (a file outside the vault).
+    #[serde(default)]
+    pub markdown: Option<String>,
     /// Colours and fonts for the HTML, any subset of the renderer's style keys
     /// (`text`, `muted`, `link`, `unresolved`, `accent`, `code`, `code_bg`, `mono`,
     /// `mark_bg`, `line`, `tag`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`,
@@ -963,6 +966,11 @@ impl Rusty {
                 .map_err(|e| McpError::invalid_params(format!("style: {e}"), None))?,
             None => rusty_core::brain::render::Style::default(),
         };
+        if let Some(markdown) = p.markdown {
+            return json_result(Ok::<_, String>(
+                self.core.brain_manager.render_text(&markdown, &style),
+            ));
+        }
         json_result(self.core.brain_manager.render_page(&p.slug, &style))
     }
 

@@ -14,6 +14,7 @@ fn main() {
                 "qml/Main.qml",
                 "qml/Icon.qml",
                 "qml/Explorer.qml",
+                "qml/FileTab.qml",
                 "qml/SearchPane.qml",
                 "qml/NoteTab.qml",
                 "qml/RightPane.qml",
@@ -34,6 +35,7 @@ fn main() {
     .files([
         "src/theme.rs",
         "src/desk.rs",
+        "src/folders.rs",
         "src/terminals.rs",
         "src/backend.rs",
         "src/markdown.rs",

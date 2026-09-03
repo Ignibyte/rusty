@@ -21,10 +21,10 @@ sources:
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-03T22:26:22.287Z"}
+generated: {by: "claude-code", at: "2026-09-03T23:11:49.896Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T22:26:22.287Z
+    at: 2026-09-03T23:11:49.896Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -81,6 +81,9 @@ the way an agent would.
   the screen: the secrets file's format and permissions do not change, because the back
   end reads it headless for the embeddings key.
 - Settings: get, set, list with credential-looking values masked.
+- Text that is not a page: `brain_render` given `markdown` renders that text with the
+  page renderer (links resolve against the vault as in a page; the slug may be empty),
+  which is how the app shows a markdown file from a folder root.
 
 The Obsidian bridge (six `obsidian_*` tools over Obsidian's CLI) was retired on
 2026-09-03; `brain_get_links`, `brain_unresolved` and `brain_rename` cover what it did,

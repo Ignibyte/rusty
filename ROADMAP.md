@@ -252,6 +252,10 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-015 Secrets behind a PIN (2026-09-03): the back end keeps an argon2id PIN and a
       five-minute unlock token, six tools (status, set, unlock, lock, reveal, update), the tab
       reveals one value at a time, edits in place and copies; `secret_list` stays name-only
+- [x] TICKET-016 Folders, part one (2026-09-03): folders from the machine as roots below the vault,
+      remembered per machine; markdown, text and images viewed in a tab; an agent or a shell opened
+      in a folder from its menu. Parts two (file operations) and three (git decorations) are
+      TICKET-019 and TICKET-020
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

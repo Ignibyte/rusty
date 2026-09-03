@@ -1,9 +1,10 @@
 ---
 title: TICKET-016-folders
-status: open
+status: done
 ticket_number: 016
 type: feature
 created: 2026-09-03
+closed: 2026-09-03
 intake:
 pipeline_spec: docs/planning/pipeline/active/folders.spec.md
 ---
@@ -44,4 +45,8 @@ Chad asked for a full one.
 - Pipeline spec: docs/planning/pipeline/active/folders.spec.md
 - Related docs: `crates/rusty-app/qml/Explorer.qml`, `AgentTerminal.qml`, `crates/rusty-app/src/terminals.rs` (the workspace state).
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:40: "we should look at building a full blown file explorer as well".
-- Follow-ups opened: parts two and three, at design.
+- Delivered on 2026-09-03 (part one: REQ-001, REQ-002, REQ-003, REQ-006). Sealed by
+  Chad at 17:20 through the rustal session ("lets run them all including 010").
+- Follow-ups opened: TICKET-019 (file operations, REQ-004) and TICKET-020 (git
+  decorations, REQ-005), minted at design; a large folder lists synchronously, for
+  part two to page.

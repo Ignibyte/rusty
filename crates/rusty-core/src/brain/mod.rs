@@ -2066,6 +2066,27 @@ impl BrainManager {
         }))
     }
 
+    /// Render markdown that is not a page (a file from a folder root) with the page
+    /// renderer; links resolve against the vault as they would in a page. The slug is
+    /// empty and the title is whatever the text's frontmatter says.
+    pub fn render_text(&self, markdown: &str, style: &Style) -> RenderedPage {
+        let parsed = parse_lenient(markdown);
+        let resolver = DbResolver { brain: self };
+        let rendered = render::render(render::body_of(markdown), style, &resolver, None);
+        let properties = properties_of(markdown)
+            .into_iter()
+            .map(|(key, value)| Property { key, value })
+            .collect();
+        RenderedPage {
+            slug: String::new(),
+            title: parsed.frontmatter.title,
+            page_type: parsed.frontmatter.page_type,
+            properties,
+            raw: markdown.to_string(),
+            rendered,
+        }
+    }
+
     /// Replace a page's whole file, frontmatter and timeline included, the way an
     /// editor saves. The previous text is kept as a version; an unchanged file is not
     /// written or committed.
@@ -4065,5 +4086,19 @@ mod tests {
             .collect();
         assert_eq!(slugs, vec!["concepts/kept"]);
         cleanup(&dir);
+    }
+
+    #[test]
+    fn render_text_renders_markdown_that_is_not_a_page() {
+        let (dir, bm) = test_brain("render_text");
+        let rendered = bm.render_text(
+            "# Hello\n\nSome *text* and [[projects/orbit]].\n",
+            &render::Style::default(),
+        );
+        assert_eq!(rendered.slug, "");
+        assert!(rendered.raw.starts_with("# Hello"));
+        let json = serde_json::to_string(&rendered.rendered).unwrap();
+        assert!(json.contains("Hello") && json.contains("text"), "{json}");
+        let _ = fs::remove_dir_all(dir);
     }
 }

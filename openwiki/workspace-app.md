@@ -9,6 +9,8 @@ sources:
     resource: repo://crates/rusty-app/qml/BookmarksPane.qml
   - id: openwiki-source-4345f12b3a27e0b9f51220b5
     resource: repo://crates/rusty-app/qml/Explorer.qml
+  - id: openwiki-source-9b55c0d3f46c1b691eb75ceb
+    resource: repo://crates/rusty-app/qml/FileTab.qml
   - id: openwiki-source-3b43dd803d4036a4a5fbc4bc
     resource: repo://crates/rusty-app/qml/GraphView.qml
   - id: openwiki-source-01a38728b296862b2b3bc449
@@ -31,6 +33,8 @@ sources:
     resource: repo://crates/rusty-app/src/backend.rs
   - id: openwiki-source-c20a2a4e587e9ab45705b8d4
     resource: repo://crates/rusty-app/src/desk.rs
+  - id: openwiki-source-6dd37e4946f07f310a54638b
+    resource: repo://crates/rusty-app/src/folders.rs
   - id: openwiki-source-c8c0347aa7a687c601520d1a
     resource: repo://crates/rusty-app/src/main.rs
   - id: openwiki-source-c3978cc62c783d6d3ec4b39d
@@ -39,10 +43,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T22:26:22.287Z"}
+generated: {by: "claude-code", at: "2026-09-03T23:11:49.896Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T22:26:22.287Z
+    at: 2026-09-03T23:11:49.896Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -175,6 +179,22 @@ block. The page relocks on the expiry the unlock answered, when the window loses
 Lock, and whenever a reveal or update fails, and it polls the status every few seconds
 while a lockout runs. `pin_timeout_minutes` is among the known settings.
 
+Folder roots (`Explorer.qml`, `FileTab.qml`, `src/folders.rs`) put folders from the
+machine below the vault tree. "Add a folder" (the plus in the pane's header, or the
+palette) opens a folder picker; the roots live under `roots` in the workspace state, per
+machine, and a root's menu removes it. The disk is read by the app's `Folders` type: a
+listing cached until Refresh (folders first, names without case, dotfiles skipped), a kind
+by extension and then a sniff of the first eight kilobytes (`markdown`, `image`, `text`,
+`other`), text up to a megabyte, and `xdg-open` for the rest. The disk rows join the
+explorer's one list with their own kinds (`section`, `root`, `dir`, `disk`), so keys and
+the current row work as they do for the vault. A click on a file opens a read-only `file`
+tab: markdown rendered by `brain_render` given the text (a Source toggle shows the
+numbered text), text as numbered monospace lines, an image fitted; any other kind goes to
+the desktop. A folder's menu offers one entry per installed agent and a shell, each
+`openTerminal` with that folder as the working directory, copy path, reveal in the file
+manager, and Refresh. Links, backlinks, graph and search never see a root. File operations
+and git decorations are TICKET-019 and TICKET-020.
+
 ## Invariants
 
 - The app holds no store; every view calls tools and renders JSON.
@@ -187,6 +207,8 @@ while a lockout runs. `pin_timeout_minutes` is among the known settings.
   owns, not in QtCore `Settings` (which rewrote string properties with their defaults).
 - The app touches nothing under `~/.rusty` itself: the PIN, its hash and the secrets
   file are the back end's; a value reaches the page only through a tool answer.
+- The disk is not the store: a folder root is read by the app alone, part one writes
+  nothing under it, and no root reaches a brain tool.
 
 ## Failure modes
 

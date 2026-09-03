@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:0f12020ac26b212650d97eaa4f5ddfd76367f88e96d2bff21a44e314f80e8390",
+  "pageVersion": "sha256:fa023edfdb76b7130022c283bd48c89201984a5263b2f71c5ff52cf327e692b7",
   "claims": [
     {
       "id": "claim_7741605b75254aa6a8c8a6c539a41310",
@@ -179,10 +179,28 @@
           "version": "repo-lines-v1:sha256:9e9b88327ffc29f72014be4105b22c3390cf4090e18d8d76f3ddb38d092f494f:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTRmMTBjNmNjNDcwMDQ5YTMyODdmZDA3MGM0YjY4OGJmYWVmOTJiMGZlMjkyZGMwN2Y2ZTcxNzhmZmJlNmJjNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2QwYzZkYWNhNzYyMTZjMjU0YjlkOWEwOTQ2NmQ5ZWZlMGM3OWRlY2VjODQ0ODhlMzYyMDY5M2Y3ZDZjYTc0MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjk2YWFhMWY5OWUzMDA5OWZkNGFmMWU1MjdjNjQxOTQ2Y2VkOTA4NjQ4MzkzZDYwMDA3MDJlZWZhYmExMDkzMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGU1MTU5ZWRlMWJiOGUzYWI3MmQ0ZTUwYzA4MzQ1ZTg5ZGI0ZjRjOWRkOGY1NjZiZDM0YmU1ZDFlMGM0ZjdiOCJ9"
         }
       ]
+    },
+    {
+      "id": "claim_6d09d066b537463daf44e067f0bb716c",
+      "statement": "`brain_render` given `markdown` renders that text with the page renderer instead of a page (links resolve against the vault as in a page, the slug may be empty), which is how a markdown file from a folder root is shown; without it the tool renders the page named by `slug`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L470-L482",
+          "version": "repo-lines-v1:sha256:9500899fea7046a84892bd022300b03ce1ce3cac7c5ae53714327753adb133ee:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjN2IyMjg3N2ViYjNkODgyODM3MGZhMmMxOTBmNGY1YTdkYmRhNzRkMmIyYjc4NzZiMWIzNzZjNThkNzdiZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJkZWQyZWFkZDVjNzNmZGU3NGQ1ZDM3ZmFjM2IzMjdkMGU2NWI5NTVjNjM3YTIwMDQwYWFkMDJmOWQyYWM5MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzOWYyNzkyYWQyODM4Yjk1ZGFiZjE2NzU2Njg1ZWRmMjE2NDM2MjAzNGI1YWI0OTM1NzdjZWYwOTdmNzZkOWQifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L960-L975",
+          "version": "repo-lines-v1:sha256:a7f8f0fef71f1d6a436595d376cf8ad7fcc7eabebcfec6e5607ee7651228e9d7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4NWQxMGY5MWJiZDc0YjNmNDhlNjUzYTVmYjIwNjJmYTI2OGQxNjIyZDE4M2NkZTE1N2Q5NjkxNGExOTI1ZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNkYWQ1MWJkMDgwYWZmMmI2NWEyNzhmODJhNTUwZmNhYjU4NDYzYjBhZmIwZWFiZWQ5ZDM4Yzk0NjU5NTQ1MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJlY2UyNzE1MTdiNDRhODUyN2RmMTQzMjliOTQ1YWNlN2M2MDIyN2VmMmQ0MTQwODY1OGNhNzFlMDRmYmMzMzQifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/mod.rs#L2072-L2090",
+          "version": "repo-lines-v1:sha256:adb08b368ee378658f11fe85bb6550b7cff760ae238fd8ce683bb2d9c65c13f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ3NzgyYzlkMTE4OWQxZTFhY2QyYmMzMWI1NGE1YTg3ODNkYjY5NDk1OTlhMDVhM2MzNmEwOGMxMWE4MmQwY2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExZmZlNzIxODhhNTM2MWE1MWZiNjZiYjRlMWU3MzMwMTZhNGRjMWI0M2UzZGU2YTU0M2ZhYWQ3NGMzZWU0YjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2MGIyYTE1ZGQzMTA1MjAwMDdkMTUxZjUyMjVjMTVlOGI1ZTQ1ZDM2NDQ0NjYwM2I2OGFiZGM5ZTg3OWQ2YWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3ZTk2NWZmZjI1MzFmYWY4NjdjYzBhYWEyYWI5ZGEyMjVlMWYyZTRjZGMyMDRmNDdjOTkwMzkxNWQ3Y2MxZGIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T22:26:22.287Z"
+    "at": "2026-09-03T23:11:49.896Z"
   }
 }

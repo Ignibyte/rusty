@@ -65,6 +65,7 @@ ApplicationWindow {
         property string paneProgram: ""
         property string graph: "{}"
         property string bookmarks: "[]"
+        property string roots: "[]"
         property string theme: ""
         property int textSize: 0
         property bool loaded: false
@@ -96,6 +97,7 @@ ApplicationWindow {
                 if (typeof s.paneProgram === "string") ui.paneProgram = s.paneProgram
                 if (typeof s.graph === "string") ui.graph = s.graph
                 if (typeof s.bookmarks === "string") ui.bookmarks = s.bookmarks
+                if (typeof s.roots === "string") ui.roots = s.roots
                 if (typeof s.theme === "string") ui.theme = s.theme
                 if (typeof s.textSize === "number" && s.textSize > 0) { theme.setTextSize(s.textSize); ui.textSize = theme.baseSize }
             } catch (e) {}
@@ -104,7 +106,7 @@ ApplicationWindow {
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, theme: ui.theme, textSize: ui.textSize }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -115,6 +117,14 @@ ApplicationWindow {
 
     // The machine, for the top bar.
     Desk { id: desk }
+    // Folders on the machine, for the explorer's roots and the file tabs (TICKET-016).
+    Folders { id: diskFolders }
+    FolderDialog {
+        id: rootDialog
+        title: "Add a folder"
+        currentFolder: "file://" + diskFolders.home
+        onAccepted: win.addRoot(String(selectedFolder))
+    }
     Timer { interval: 2000; repeat: true; running: true; onTriggered: desk.refresh() }
 
     property var tree: null
@@ -133,6 +143,25 @@ ApplicationWindow {
     property string lastPageSlug: ""
     readonly property var graphSettings: { try { return JSON.parse(ui.graph || "{}") } catch (e) { return ({}) } }
     function saveGraphSettings(s) { ui.graph = JSON.stringify(s) }
+    // Folder roots: `[{path, name}]` under `roots` in the state, per machine.
+    readonly property var rootList: { try { return JSON.parse(ui.roots || "[]") } catch (e) { return [] } }
+    function addRoot(chosen) {
+        const p = String(chosen).replace(/^file:\/\//, "").replace(/\/+$/, "")
+        if (!p.startsWith("/")) return
+        const list = rootList.filter(function (r) { return r.path !== p })
+        list.push({ path: p, name: diskFolders.baseName(p) })
+        ui.roots = JSON.stringify(list)
+    }
+    function removeRoot(path) { ui.roots = JSON.stringify(rootList.filter(function (r) { return r.path !== path })) }
+    // A file from a root: a tab for markdown, text and images; the desktop for the rest.
+    function openFile(path) {
+        const existing = findTab(function (t) { return t.kind === "file" && t.slug === path })
+        if (existing >= 0) { stack.currentIndex = existing; return }
+        if (diskFolders.kindOf(path) === "other") { diskFolders.openExternally(path); return }
+        tabs.append({ kind: "file", title: diskFolders.baseName(path), slug: path, session: "", program: "", cwd: "", pinned: false, unread: false, termTitle: "" })
+        stack.currentIndex = tabs.count - 1
+        saveTabs()
+    }
     // The skin: a preset, the Omarchy theme, or a file; kept in the state and handed
     // to the Rust theme, which repaints every token.
     function selectTheme(source, name) { ui.theme = JSON.stringify({ source: source, name: name, scanlines: theme.scanlines }); theme.select(ui.theme) }
@@ -387,6 +416,8 @@ ApplicationWindow {
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
                 else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
+                else if (p.startsWith("root:")) { win.addRoot(p.slice(5)); explorer.expandPath(p.slice(5)) }
+                else if (p.startsWith("file:")) win.openFile(p.slice(5))
                 else if (p.startsWith("view:")) win.openView(p.slice(5))
                 else if (p.startsWith("theme:")) { const parts = p.slice(6).split(":"); win.selectTheme(parts[0], parts[1] || "") }
                 else if (p === "graph") win.openGraph(false)
@@ -453,6 +484,7 @@ ApplicationWindow {
             { name: "Search: Search in all files", keys: "Ctrl+Shift+F", run: function () { win.showLeft("search") } },
             { name: "Bookmarks: Show bookmarks", keys: "", run: function () { win.showLeft("bookmarks") } },
             { name: "Favorites: Add or remove the current file", keys: "Ctrl+D", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
+            { name: "Folders: Add a folder from the machine", keys: "", enabled: true, run: function () { rootDialog.open() } },
             { name: "Bookmarks: Bookmark the current search", keys: "", enabled: searchPane.query.trim().length > 0, run: function () { win.addBookmark({ kind: "search", query: searchPane.query.trim(), title: searchPane.query.trim() }) } },
             { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
             { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },
@@ -591,6 +623,7 @@ ApplicationWindow {
             id: loader
             anchors.fill: parent
             sourceComponent: host.kind === "page" ? pageComp
+                           : host.kind === "file" ? fileComp
                            : host.kind === "terminal" ? termComp
                            : host.kind === "tasks" ? tasksComp
                            : host.kind === "memory" ? memoryComp
@@ -615,6 +648,10 @@ ApplicationWindow {
                 bookmarked: win.isBookmarkedPath(slug)
                 onRequestBookmark: (s, t) => win.addBookmark({ kind: "file", path: s, title: t })
             }
+        }
+        Component {
+            id: fileComp
+            FileTab { backend: win.backend; theme: win.theme; folders: diskFolders; path: host.slug }
         }
         Component {
             id: termComp
@@ -809,6 +846,14 @@ ApplicationWindow {
                             theme: win.theme
                             tree: win.tree
                             favorites: win.bookmarkList.filter(function (b) { return b.kind === "file" || b.kind === "folder" })
+                            folders: diskFolders
+                            roots: win.rootList
+                            agents: win.agents
+                            agentNames: win.agentNames
+                            onOpenFile: (p) => win.openFile(p)
+                            onOpenAgentAt: (program, dir) => win.openTerminal(program, "", "", dir)
+                            onAddRootRequested: rootDialog.open()
+                            onRemoveRoot: (p) => win.removeRoot(p)
                             onOpenFavorite: (b) => win.openBookmark(b)
                             onRemoveFavorite: (b) => win.addBookmark(b)
                             onOpenPage: (slug) => win.openPage(slug, false)

@@ -10,6 +10,7 @@
 
 mod backend;
 mod desk;
+mod folders;
 mod markdown;
 mod omarchy;
 mod skin;
