@@ -221,6 +221,19 @@ async fn a_real_client_can_list_call_and_read() {
         "{}",
         text_of(&by_tag)
     );
+    let by_pattern = client
+        .call_tool(
+            CallToolRequestParams::new("brain_search").with_arguments(args(
+                serde_json::json!({"query": "path:concepts pl.n", "regex": true}),
+            )),
+        )
+        .await
+        .unwrap();
+    assert!(
+        text_of(&by_pattern).contains("concepts/Moved plan"),
+        "{}",
+        text_of(&by_pattern)
+    );
     let set = client
         .call_tool(
             CallToolRequestParams::new("brain_set_property").with_arguments(args(

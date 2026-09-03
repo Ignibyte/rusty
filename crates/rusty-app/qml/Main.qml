@@ -64,6 +64,7 @@ ApplicationWindow {
         property string expanded: "{}"
         property string paneProgram: ""
         property string graph: "{}"
+        property string bookmarks: "[]"
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
@@ -75,6 +76,7 @@ ApplicationWindow {
         onExpandedChanged: save()
         onPaneProgramChanged: save()
         onGraphChanged: save()
+        onBookmarksChanged: save()
         // Written with the `ui.` prefix throughout: an unqualified `rightPane` here would
         // find the sidebar item of that id before this object's property.
         function load() {
@@ -89,13 +91,14 @@ ApplicationWindow {
                 if (typeof s.expanded === "string") ui.expanded = s.expanded
                 if (typeof s.paneProgram === "string") ui.paneProgram = s.paneProgram
                 if (typeof s.graph === "string") ui.graph = s.graph
+                if (typeof s.bookmarks === "string") ui.bookmarks = s.bookmarks
             } catch (e) {}
             ui.loaded = true
         }
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -120,6 +123,30 @@ ApplicationWindow {
     property string lastPageSlug: ""
     readonly property var graphSettings: { try { return JSON.parse(ui.graph || "{}") } catch (e) { return ({}) } }
     function saveGraphSettings(s) { ui.graph = JSON.stringify(s) }
+    // Bookmarks: files, folders, searches and headings, kept in the workspace state as
+    // one JSON array. Adding one that exists removes it, so every entry point toggles.
+    readonly property var bookmarkList: { try { return JSON.parse(ui.bookmarks) } catch (e) { return [] } }
+    function bookmarkKey(b) { return b.kind + ":" + (b.kind === "search" ? b.query : b.kind === "heading" ? b.path + "#" + b.heading : b.path) }
+    function bookmarkIndex(b) { const k = bookmarkKey(b); return bookmarkList.findIndex(function (x) { return bookmarkKey(x) === k }) }
+    function isBookmarkedPath(slug) { return bookmarkList.some(function (x) { return x.kind === "file" && x.path === slug }) }
+    function addBookmark(b) {
+        const list = bookmarkList.slice()
+        const i = bookmarkIndex(b)
+        if (i >= 0) { list.splice(i, 1); win.notice = "bookmark removed" } else { list.push(b); win.notice = "bookmarked " + b.title }
+        ui.bookmarks = JSON.stringify(list)
+    }
+    function removeBookmark(i) { const list = bookmarkList.slice(); list.splice(i, 1); ui.bookmarks = JSON.stringify(list) }
+    function retitleBookmark(i, title) { const list = bookmarkList.slice(); list[i].title = title; ui.bookmarks = JSON.stringify(list) }
+    function bookmarkCurrentPage() { if (currentNote) addBookmark({ kind: "file", path: currentNote.slug, title: currentNote.title }) }
+    function openBookmark(b) {
+        if (b.kind === "file") openPage(b.path, false)
+        else if (b.kind === "folder") { showLeft("files"); explorer.revealFolder(b.path) }
+        else if (b.kind === "search") searchFor(b.query)
+        else if (b.kind === "heading") {
+            openPage(b.path, false)
+            Qt.callLater(function () { if (currentNote && currentNote.slug === b.path) currentNote.scrollToHeadingText(b.heading) })
+        }
+    }
     readonly property var tokens: JSON.parse(theme.tokens || "{}")
     function agentLabel(p) { return agentNames[p] || p }
     function agentGlyph(p) { return agentGlyphs[p] || "▸" }
@@ -272,7 +299,7 @@ ApplicationWindow {
         ask("brain_add_timeline", { slug: currentNote.slug, summary: text.trim() }, "appended")
     }
     function searchFor(q) { ui.leftOpen = true; ui.leftPane = "search"; searchPane.searchFor(q) }
-    function showLeft(pane) { ui.leftOpen = true; ui.leftPane = pane; if (pane === "search") searchPane.focusEntry(); else explorerList.forceActiveFocus() }
+    function showLeft(pane) { ui.leftOpen = true; ui.leftPane = pane; if (pane === "search") searchPane.focusEntry(); else if (pane === "files") explorerList.forceActiveFocus() }
     function showRight(pane) { ui.rightOpen = true; ui.rightPane = pane; rightPane.current = pane; if (pane === "agent") rightPane.focusAgent() }
 
     Connections {
@@ -341,6 +368,7 @@ ApplicationWindow {
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
                 else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
+                else if (p.startsWith("view:")) win.openView(p.slice(5))
                 else if (p === "graph") win.openGraph(false)
                 else if (p === "localgraph") win.openGraph(true)
                 else if (p.startsWith("tab:")) stack.currentIndex = parseInt(p.slice(4))
@@ -396,6 +424,9 @@ ApplicationWindow {
             { name: "Files: Delete current file", keys: "", enabled: win.currentNote !== null, run: function () { explorer.deleteDialogFor(win.currentNote.slug) } },
             { name: "Files: Create new folder", keys: "", run: function () { win.showLeft("files"); explorer.newFolderAtRoot() } },
             { name: "Search: Search in all files", keys: "Ctrl+Shift+F", run: function () { win.showLeft("search") } },
+            { name: "Bookmarks: Show bookmarks", keys: "", run: function () { win.showLeft("bookmarks") } },
+            { name: "Bookmarks: Bookmark the current file", keys: "", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
+            { name: "Bookmarks: Bookmark the current search", keys: "", enabled: searchPane.query.trim().length > 0, run: function () { win.addBookmark({ kind: "search", query: searchPane.query.trim(), title: searchPane.query.trim() }) } },
             { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
             { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },
             { name: "Timeline: Append an entry to this page's timeline", keys: "", enabled: win.currentNote !== null, run: function () { promptDialog.openFor("Append to the timeline of " + win.currentNote.title, "", function (text) { win.appendTimeline(text) }) } },
@@ -554,6 +585,8 @@ ApplicationWindow {
                 onRequestMove: (s) => explorer.moveDialogFor(s)
                 onRequestDelete: (s) => explorer.deleteDialogFor(s)
                 onRequestLocalGraph: (s) => win.openGraph(true)
+                bookmarked: win.isBookmarkedPath(slug)
+                onRequestBookmark: (s, t) => win.addBookmark({ kind: "file", path: s, title: t })
             }
         }
         Component {
@@ -587,7 +620,7 @@ ApplicationWindow {
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
         Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
-        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals } }
+        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList() } }
     }
 
     component RibbonButton: Rectangle {
@@ -715,14 +748,14 @@ ApplicationWindow {
                         Item { width: 6 }
                         SideTab { icon: "files"; tip: "Files"; active: ui.leftPane === "files"; onClicked: win.showLeft("files") }
                         SideTab { icon: "search"; tip: "Search (Ctrl+Shift+F)"; active: ui.leftPane === "search"; onClicked: win.showLeft("search") }
-                        SideTab { icon: "bookmark"; tip: "Bookmarks (TICKET-005)"; opacity: 0.35 }
+                        SideTab { icon: "bookmark"; tip: "Bookmarks"; active: ui.leftPane === "bookmarks"; onClicked: win.showLeft("bookmarks") }
                         Item { Layout.fillWidth: true }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6; Layout.topMargin: 5 }
                     StackLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        currentIndex: ui.leftPane === "search" ? 1 : 0
+                        currentIndex: ui.leftPane === "search" ? 1 : ui.leftPane === "bookmarks" ? 2 : 0
                         Explorer {
                             id: explorer
                             backend: win.backend
@@ -731,6 +764,7 @@ ApplicationWindow {
                             onOpenPage: (slug) => win.openPage(slug, false)
                             onCreated: (slug) => { win.openPage(slug, false); Qt.callLater(function () { if (win.currentNote && win.currentNote.slug === slug) win.currentNote.editTitle() }) }
                             onExpandedEdited: ui.expanded = JSON.stringify(expanded)
+                            onRequestBookmark: (row) => win.addBookmark({ kind: row.kind === "folder" ? "folder" : "file", path: row.path, title: win.baseName(row.path) })
                             function newFolderAtRoot() { folderDialogRoot.openFor("") }
                             Dialog {
                                 id: folderDialogRoot
@@ -744,7 +778,21 @@ ApplicationWindow {
                                 TextField { id: rootFolderName; width: 320; placeholderText: "Folder name"; onAccepted: folderDialogRoot.accept() }
                             }
                         }
-                        SearchPane { id: searchPane; backend: win.backend; theme: win.theme; onOpenPage: (slug) => win.openPage(slug, false) }
+                        SearchPane {
+                            id: searchPane
+                            backend: win.backend
+                            theme: win.theme
+                            onOpenPage: (slug) => win.openPage(slug, false)
+                            onBookmarkSearch: (q) => win.addBookmark({ kind: "search", query: q, title: q })
+                        }
+                        BookmarksPane {
+                            id: bookmarksPane
+                            theme: win.theme
+                            bookmarks: win.bookmarkList
+                            onOpenBookmark: (b) => win.openBookmark(b)
+                            onRemoveBookmark: (i) => win.removeBookmark(i)
+                            onRetitleBookmark: (i, t) => win.retitleBookmark(i, t)
+                        }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.line; opacity: 0.6 }
                     RowLayout {
@@ -904,6 +952,7 @@ ApplicationWindow {
                     onOpenPage: (slug) => win.openPage(slug, false)
                     onCreatePage: (name) => win.createPage(name)
                     onSearchTag: (tag) => win.searchFor("tag:" + tag)
+                    onBookmarkHeading: (text) => { if (win.currentNote) win.addBookmark({ kind: "heading", path: win.currentNote.slug, heading: text, title: win.currentNote.title + " › " + text }) }
                     onPaneChanged: (name) => ui.rightPane = name
                     onProgramChanged: ui.paneProgram = program
                 }

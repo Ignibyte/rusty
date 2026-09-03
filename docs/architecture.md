@@ -132,7 +132,7 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   `src/markdown.rs`) and `Tools` (`grabWindow`, for offscreen screenshots). QML pages parse
   the tool JSON themselves and match replies to their own request ids.
 - The workspace (2026-09-02, TICKET-002): `qml/Main.qml` lays the window out as Obsidian
-  does (ribbon, left sidebar with `Explorer` and `SearchPane`, tab strip and a stack of
+  does (ribbon, left sidebar with `Explorer`, `SearchPane` and `BookmarksPane`, tab strip and a stack of
   `TabHost`s, right sidebar `RightPane`, status bar) with `QuickSwitcher` and
   `CommandPalette` overlays. Every tab is one kind: `page` (`NoteTab`: view header, inline
   title, properties, the reading view as rich-text blocks split at top-level headings, the

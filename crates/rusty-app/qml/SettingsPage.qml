@@ -12,6 +12,18 @@ Item {
 
     property var settings: []
     property string notice: ""
+    // The palette's command list, rendered as the Hotkeys table with the terminal keys.
+    property var commands: []
+    readonly property var terminalKeys: [
+        { name: "Terminal: Close terminal tab", keys: "Ctrl+Shift+W" },
+        { name: "Terminal: Previous or next tab while a terminal has focus", keys: "Ctrl+PgUp / Ctrl+PgDn" },
+        { name: "Terminal: Move the tab left or right", keys: "Ctrl+Shift+PgUp / Ctrl+Shift+PgDn" }
+    ]
+    function hotkeyRows(filter) {
+        const q = filter.trim().toLowerCase()
+        const rows = commands.map(function (c) { return { name: c.name, keys: c.keys || "" } }).concat(terminalKeys)
+        return q.length === 0 ? rows : rows.filter(function (r) { return r.name.toLowerCase().indexOf(q) >= 0 || r.keys.toLowerCase().indexOf(q) >= 0 })
+    }
 
     // Every setting the back end reads, with what it means and what it defaults to.
     readonly property var known: [
@@ -67,11 +79,30 @@ Item {
                 color: page.theme.foreground; opacity: 0.75; font.pixelSize: 13
                 wrapMode: Text.WrapAnywhere; Layout.fillWidth: true
             }
-            Text {
-                text: "Click an agent in the top bar to open it in a new tab · Ctrl+Shift+T custom terminal · Ctrl+Shift+W close tab · F2 rename · Ctrl+PgUp/PgDn or Ctrl+(Shift+)Tab switch tabs · Ctrl+Shift+PgUp/PgDn move a tab · drag a tab or a task's handle to reorder"
-                color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12
-            }
+            Text { text: "Click an agent in the top bar to open it in a new tab · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12 }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
+
+            Text { text: "Hotkeys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
+            TextField { id: keyFilter; Layout.preferredWidth: 420; placeholderText: "Filter hotkeys…" }
+            Repeater {
+                model: page.hotkeyRows(keyFilter.text)
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Text { text: modelData.name; color: page.theme.foreground; font.pixelSize: 13; elide: Text.ElideRight; Layout.preferredWidth: 440 }
+                    Rectangle {
+                        visible: modelData.keys.length > 0
+                        radius: 4
+                        color: page.theme.surface
+                        border.color: page.theme.line
+                        implicitWidth: keyText.implicitWidth + 14
+                        implicitHeight: 22
+                        Text { id: keyText; anchors.centerIn: parent; text: modelData.keys; color: page.theme.foreground; font.pixelSize: 12; font.family: page.theme.termFont }
+                    }
+                    Text { visible: modelData.keys.length === 0; text: "Blank"; color: page.theme.faint; font.pixelSize: 12 }
+                }
+            }
 
             Text { text: "Settings rusty-mcp reads"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
             Text { visible: !page.backend.connected; text: page.backend.status; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 13 }

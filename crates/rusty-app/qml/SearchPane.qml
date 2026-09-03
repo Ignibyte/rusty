@@ -4,7 +4,9 @@ import QtQuick.Layouts
 import dev.ignibyte.rusty
 
 // Search across the vault (full text, and vectors when a provider is set), results
-// with the matching snippet. Enter opens the chosen result; arrows move.
+// with the matching snippet. Enter opens the chosen result; arrows move. The query
+// takes Obsidian's operators (path:, file:, tag:, type:); the two chips beside the
+// field switch match case and regular expressions, the third bookmarks the search.
 Item {
     id: pane
     required property var backend
@@ -13,7 +15,32 @@ Item {
     property int hit: -1
     property string notice: ""
     property var pending: ({})
+    property bool matchCase: false
+    property bool useRegex: false
+    readonly property string query: field.text
     signal openPage(string slug)
+    signal bookmarkSearch(string query)
+
+    component ModeChip: Rectangle {
+        id: chip
+        property string label: ""
+        property string icon: ""
+        property string tip: ""
+        property bool active: false
+        signal clicked()
+        width: 26
+        height: 26
+        radius: 5
+        color: chip.active ? pane.theme.active : (chipHover.hovered ? pane.theme.hover : "transparent")
+        opacity: enabled ? 1 : 0.4
+        Text { visible: chip.label.length > 0; anchors.centerIn: parent; text: chip.label; color: chip.active ? pane.theme.foreground : pane.theme.muted; font.pixelSize: 12; font.family: pane.theme.termFont }
+        Icon { visible: chip.icon.length > 0; anchors.centerIn: parent; name: chip.icon; color: pane.theme.muted; size: 14 }
+        HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: if (chip.enabled) chip.clicked() }
+        ToolTip.visible: chipHover.hovered && chip.tip.length > 0
+        ToolTip.text: chip.tip
+        ToolTip.delay: 600
+    }
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -21,7 +48,7 @@ Item {
     }
     function search(q) {
         if (q.trim().length === 0) { results = []; hit = -1; return }
-        ask("brain_search", { query: q.trim(), limit: 60 }, "search")
+        ask("brain_search", { query: q.trim(), limit: 60, case_sensitive: matchCase, regex: useRegex }, "search")
     }
     function searchFor(q) { field.text = q; search(q); field.forceActiveFocus() }
     function focusEntry() { field.forceActiveFocus(); field.selectAll() }
@@ -50,16 +77,31 @@ Item {
         anchors.fill: parent
         anchors.margins: 8
         spacing: 6
-        TextField {
-            id: field
+        RowLayout {
             Layout.fillWidth: true
-            placeholderText: "Search…"
-            font.pixelSize: 13
-            onTextChanged: debounce.restart()
-            onAccepted: pane.openHit(pane.hit >= 0 ? pane.hit : 0)
-            Keys.onEscapePressed: text = ""
-            Keys.onDownPressed: if (pane.results.length > 0) pane.hit = Math.min(pane.hit + 1, pane.results.length - 1)
-            Keys.onUpPressed: if (pane.results.length > 0) pane.hit = Math.max(pane.hit - 1, 0)
+            spacing: 4
+            TextField {
+                id: field
+                Layout.fillWidth: true
+                placeholderText: "Search…"
+                font.pixelSize: 13
+                onTextChanged: debounce.restart()
+                onAccepted: pane.openHit(pane.hit >= 0 ? pane.hit : 0)
+                Keys.onEscapePressed: text = ""
+                Keys.onDownPressed: if (pane.results.length > 0) pane.hit = Math.min(pane.hit + 1, pane.results.length - 1)
+                Keys.onUpPressed: if (pane.results.length > 0) pane.hit = Math.max(pane.hit - 1, 0)
+            }
+            ModeChip { label: "Aa"; tip: "Match case"; active: pane.matchCase; onClicked: { pane.matchCase = !pane.matchCase; pane.search(field.text) } }
+            ModeChip { label: ".*"; tip: "Regular expression"; active: pane.useRegex; onClicked: { pane.useRegex = !pane.useRegex; pane.search(field.text) } }
+            ModeChip { icon: "bookmark"; tip: "Bookmark this search"; enabled: field.text.trim().length > 0; onClicked: pane.bookmarkSearch(field.text.trim()) }
+        }
+        Text {
+            visible: field.text.trim().length === 0
+            text: "Narrow with path: file: tag: type:  ·  quotes keep spaces  ·  a leading - excludes"
+            color: pane.theme.faint
+            font.pixelSize: 11
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
         Text {
             visible: field.text.trim().length > 0

@@ -48,6 +48,10 @@ Item {
     signal requestMove(string slug)
     signal requestDelete(string slug)
     signal requestLocalGraph(string slug)
+    signal requestBookmark(string slug, string title)
+    property bool bookmarked: false
+    // A heading a bookmark asked for before the page had rendered.
+    property string pendingHeading: ""
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -177,6 +181,11 @@ Item {
         ask("brain_write_page", { slug: slug, content: content }, "toggled")
     }
 
+    // A bookmark asks for a heading by its text; the scroll waits for the outline.
+    function scrollToHeadingText(text) {
+        const i = outline.findIndex(function (h) { return h.text === text })
+        if (i >= 0) { pendingHeading = ""; scrollToHeading(i) } else pendingHeading = text
+    }
     // The outline pane asks for a heading: scroll the reading view or move the cursor.
     function scrollToHeading(i) {
         if (i < 0 || i >= outline.length) return
@@ -227,6 +236,7 @@ Item {
                 note.pageType = data.page_type
                 note.properties = data.properties
                 note.outline = data.outline
+                if (note.pendingHeading.length > 0) Qt.callLater(function () { note.scrollToHeadingText(note.pendingHeading) })
                 note.unresolved = data.unresolved
                 note.words = data.words
                 note.characters = data.characters
@@ -283,6 +293,7 @@ Item {
                 MenuItem { text: "Rename…"; onTriggered: note.editTitle() }
                 MenuItem { text: "Move file to…"; onTriggered: note.requestMove(note.slug) }
                 MenuItem { text: "Open local graph"; onTriggered: note.requestLocalGraph(note.slug) }
+                MenuItem { text: note.bookmarked ? "Remove bookmark" : "Bookmark…"; onTriggered: note.requestBookmark(note.slug, note.title) }
                 MenuSeparator {}
                 MenuItem { text: "Delete file"; onTriggered: note.requestDelete(note.slug) }
             }

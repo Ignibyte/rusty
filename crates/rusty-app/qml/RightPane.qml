@@ -23,6 +23,7 @@ Item {
     signal createPage(string name)
     signal paneChanged(string name)
     signal searchTag(string tag)
+    signal bookmarkHeading(string text)
 
     function titleOf(slug) { return titles[slug] || slug.slice(slug.lastIndexOf("/") + 1) }
     function focusAgent() { if (current === "agent") agentTerm.focusTerminal() }
@@ -158,9 +159,15 @@ Item {
                     }
                     HoverHandler { id: hHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: if (pane.note) pane.note.scrollToHeading(index) }
+                    TapHandler { acceptedButtons: Qt.RightButton; onTapped: { headingMenu.heading = modelData.text; headingMenu.popup() } }
                 }
             }
             Text { visible: pane.note !== null && pane.note.outline.length === 0; text: "No headings."; color: pane.theme.faint; font.pixelSize: 12 }
+            Menu {
+                id: headingMenu
+                property string heading: ""
+                MenuItem { text: "Bookmark heading"; onTriggered: pane.bookmarkHeading(headingMenu.heading) }
+            }
         }
 
         // Tags: every tag in the vault as a tree with counts; a click searches by it.

@@ -69,6 +69,18 @@ neighbourhood to a chosen depth and follows the page you open.
 
 ![The graph view](docs/screenshots/graph-view.png)
 
+Search narrows the way Obsidian's does. `path:`, `file:`, `tag:` and `type:` terms sit
+in the query with the words (a value in quotes may hold spaces, a leading `-` excludes,
+and operator terms alone list the matching pages); the two chips beside the field switch
+match case and regular expressions; the third bookmarks the search. `brain_search` takes
+the same query and the two modes as `case_sensitive` and `regex`, so an agent narrows a
+search the way the pane does. The Bookmarks tab of the left sidebar keeps files,
+folders, searches and headings, added from a page's menu, the explorer, the search pane,
+the outline or the palette; a click opens the target. Settings lists every command with
+its key in a Hotkeys table with a filter.
+
+![Bookmarks](docs/screenshots/bookmarks.png)
+
 Keys follow Obsidian: Ctrl+O quick switcher (type a name that does not exist and Enter
 creates it), Ctrl+P command palette (every command with its key), Ctrl+N new note, Ctrl+E
 reading or source, Ctrl+W close tab, Ctrl+Tab and Ctrl+Shift+Tab (or Ctrl+PgUp/PgDn) switch

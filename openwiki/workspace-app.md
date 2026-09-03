@@ -5,6 +5,10 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-a2d65a21b1f78042c4d974ff
     resource: repo://crates/rusty-app/qml/AgentTerminal.qml
+  - id: openwiki-source-1762a766e47a090b0ce4e932
+    resource: repo://crates/rusty-app/qml/BookmarksPane.qml
+  - id: openwiki-source-4345f12b3a27e0b9f51220b5
+    resource: repo://crates/rusty-app/qml/Explorer.qml
   - id: openwiki-source-3b43dd803d4036a4a5fbc4bc
     resource: repo://crates/rusty-app/qml/GraphView.qml
   - id: openwiki-source-01a38728b296862b2b3bc449
@@ -13,6 +17,10 @@ sources:
     resource: repo://crates/rusty-app/qml/NoteTab.qml
   - id: openwiki-source-6790183f51655ba192900138
     resource: repo://crates/rusty-app/qml/RightPane.qml
+  - id: openwiki-source-5a3d0a4f21f2ef012ca2b079
+    resource: repo://crates/rusty-app/qml/SearchPane.qml
+  - id: openwiki-source-157820f2258f93d1ba08859f
+    resource: repo://crates/rusty-app/qml/SettingsPage.qml
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
   - id: openwiki-source-040df95238fa90bd4e7ad29b
@@ -22,7 +30,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:22:20.038Z
+    at: 2026-09-03T05:46:21.914Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -54,12 +62,13 @@ every view backed by the MCP server that agents share.
 - `qml/Main.qml`: the layout and the tab model; `Explorer.qml`, `SearchPane.qml`,
   `NoteTab.qml`, `RightPane.qml`, `AgentTerminal.qml`, `QuickSwitcher.qml`,
   `CommandPalette.qml`, `Icon.qml`; the built-in views `TasksPage.qml`,
-  `MemoryPage.qml`, `SkillsPage.qml`, `SecretsPage.qml`, `SettingsPage.qml`.
+  `MemoryPage.qml`, `SkillsPage.qml`, `SecretsPage.qml`, `SettingsPage.qml`;
+  `BookmarksPane.qml` and `GraphView.qml`.
 
 ## Runtime flow
 
 - Layout: a ribbon (new note, daily note, palette, Tasks, Memory, Skills, Secrets, one
-  button per agent CLI on `PATH`, Settings), a left sidebar (files, search), the main
+  button per agent CLI on `PATH`, Settings), a left sidebar (files, search, bookmarks), the main
   area (tab strip and a stack of `TabHost`s), a right sidebar (backlinks with context,
   outgoing links, outline, tags as a tree with counts, an agent pane), a status bar
   with the counts.
@@ -93,6 +102,15 @@ every view backed by the MCP server that agents share.
   colour from the theme's palette, first match wins), Display and Forces, remembered in
   the workspace state under `graph`. A local graph is the same view with `around` set
   and follows the last page that was current.
+- Search (`SearchPane`): the query goes to `brain_search` as typed, operators included;
+  the `Aa` and `.*` chips send `case_sensitive` and `regex`; the bookmark chip keeps the
+  search. Bookmarks (`BookmarksPane`): one JSON array under `bookmarks` in the workspace
+  state, entries of kind `file`, `folder`, `search` or `heading` with a title; added, or
+  removed when present, from the page menu, the explorer's row menu, the search pane,
+  the outline's row menu and the palette; a click opens the page, reveals the folder,
+  runs the search, or opens the page and scrolls to the heading once it has rendered.
+  Settings renders the palette's command list as the Hotkeys table, the terminal keys
+  added, with a filter field.
 - Keys are Obsidian's (Ctrl+O, Ctrl+P, Ctrl+N, Ctrl+E, Ctrl+W, Ctrl+Tab, Ctrl+Shift+F,
   Ctrl+,, Ctrl+G, Alt+Left/Right, F2) and are disabled while a terminal has focus; the
   four terminal keys (Ctrl+Shift+T, Ctrl+Shift+W, Ctrl+PgUp/PgDn) stay global.
@@ -116,6 +134,8 @@ every view backed by the MCP server that agents share.
 - Qt's messages go to journald when stderr is not a tty: `journalctl --user -t rusty`
   or `QT_FORCE_STDERR_LOGGING=1`; `RUSTY_DEBUG=1` adds a line per event.
 - Anchors inside a page do not scroll yet; live preview is not built.
+- A bookmark keeps the path it was made with: a renamed or deleted page leaves it
+  pointing at a page that is no longer there, and the user removes it.
 
 ## Extension points
 

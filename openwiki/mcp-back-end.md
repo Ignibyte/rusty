@@ -12,7 +12,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:22:20.038Z
+    at: 2026-09-03T05:46:21.914Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -48,7 +48,9 @@ the way an agent would.
   `brain_remove_property` (one frontmatter key, typed, the body untouched), and
   `brain_graph` (page nodes with title, type, folder and tags, edges from resolved
   links; tags and unresolved targets as nodes on request; `around` and `depth` for one
-  page's neighbourhood). `brain_search` understands `tag:<name>` terms.
+  page's neighbourhood). `brain_search` takes the operators of `parse_query`
+  (`tag:`, `path:`, `file:`, `type:`, `-` excluding) in the query and the two text modes
+  as `case_sensitive` and `regex`.
 - Skills: list, view, create, update, scan, approve, reject, delete.
 - Secrets: list names, set, delete; a value is never returned.
 - Settings: get, set, list with credential-looking values masked.

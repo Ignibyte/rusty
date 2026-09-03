@@ -22,6 +22,7 @@ Item {
     signal openPage(string slug)
     signal created(string slug)
     signal expandedEdited()
+    signal requestBookmark(var row)
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -51,6 +52,18 @@ Item {
         expandedEdited()
         const i = rows.findIndex(function (r) { return r.path === slug })
         if (i >= 0) list.positionViewAtIndex(i, ListView.Contain)
+    }
+    // A bookmarked folder: open it and its parents, and bring its row into view.
+    function revealFolder(path) {
+        const parts = path.split("/")
+        const e = expanded
+        let p = ""
+        for (let i = 0; i < parts.length; i++) { p = p.length > 0 ? p + "/" + parts[i] : parts[i]; e[p] = true }
+        expanded = e
+        rebuild()
+        expandedEdited()
+        const i = rows.findIndex(function (r) { return r.path === path })
+        if (i >= 0) { list.currentIndex = i; list.positionViewAtIndex(i, ListView.Contain) }
     }
     function folders() {
         const out = [""]
@@ -216,6 +229,7 @@ Item {
         MenuSeparator {}
         MenuItem { text: "Rename…"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: explorer.renaming = rowMenu.row.path }
         MenuItem { text: "Move to…"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: moveDialog.openFor(rowMenu.row) }
+        MenuItem { text: "Bookmark…"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: explorer.requestBookmark(rowMenu.row) }
         MenuSeparator {}
         MenuItem { text: "Delete"; enabled: rowMenu.row !== null && rowMenu.row.kind !== "file"; onTriggered: deleteDialog.openFor(rowMenu.row) }
     }

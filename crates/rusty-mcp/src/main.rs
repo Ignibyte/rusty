@@ -83,6 +83,10 @@ pub struct BrainSearchParams {
     pub limit: Option<usize>,
     /// Restrict to a page type such as `project`, `concept`, `person`.
     pub page_type: Option<String>,
+    /// Keep only pages whose text holds the words as typed, case included (a text search).
+    pub case_sensitive: Option<bool>,
+    /// Treat the words as a regular expression over the page text (a text search).
+    pub regex: Option<bool>,
 }
 
 /// A brain page slug, folder included, such as `projects/rusty`.
@@ -692,24 +696,25 @@ impl Rusty {
     }
 
     #[tool(
-        description = "Search the brain vault: full text (and vectors when a provider is set); `tag:<name>` terms keep only pages carrying that tag or one nested under it, and a query of tag terms alone lists those pages"
+        description = "Search the brain vault: full text (and vectors when a provider is set). Operators narrow it: `tag:<name>` (the tag or one nested under it), `path:<part>` (the slug), `file:<part>` (the file name), `type:<type>`; a value in quotes may hold spaces, a leading `-` excludes, and operator terms alone list the matching pages. `case_sensitive` matches the words as typed and `regex` treats them as a pattern; both are text searches"
     )]
     async fn brain_search(
         &self,
         Parameters(p): Parameters<BrainSearchParams>,
     ) -> Result<CallToolResult, McpError> {
         let core = Arc::clone(&self.core);
-        let limit = p.limit.or(Some(10));
+        let options = rusty_core::brain::SearchOptions {
+            limit: p.limit.or(Some(10)),
+            page_type: p.page_type.clone(),
+            case_sensitive: p.case_sensitive.unwrap_or(false),
+            regex: p.regex.unwrap_or(false),
+        };
         let results = tokio::task::spawn_blocking(move || match core.embedder() {
-            Some(embedder) => core.brain_manager.search_hybrid(
-                &p.query,
-                limit,
-                p.page_type.as_deref(),
-                embedder.as_ref(),
-            ),
-            None => core
-                .brain_manager
-                .search(&p.query, limit, p.page_type.as_deref()),
+            Some(embedder) => {
+                core.brain_manager
+                    .search_hybrid_with(&p.query, &options, embedder.as_ref())
+            }
+            None => core.brain_manager.search_with(&p.query, &options),
         })
         .await
         .map_err(|e| e.to_string())

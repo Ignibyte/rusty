@@ -220,7 +220,9 @@ workflow in `CONSTITUTION.md`.
       search) and a properties editor typed as Obsidian types them (2026-09-03)
 - [x] TICKET-004 Global and local graph views on a canvas: forces, filters, colour groups,
       display settings, hover and click, a depth for the local graph (2026-09-03)
-- [ ] TICKET-005 Search operators, bookmarks, hotkeys table
+- [x] TICKET-005 Search operators (`path:`, `file:`, `tag:`, `type:`, exclusion, match case,
+      regex, in the pane and in `brain_search`), a Bookmarks tab (files, folders, searches,
+      headings) and a Hotkeys table in Settings (2026-09-03)
 - [ ] TICKET-006 Retire the Obsidian bridge once the tiers above are in daily use
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping

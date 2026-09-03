@@ -16,7 +16,7 @@ sources:
 generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:10:15.800Z
+    at: 2026-09-03T05:46:21.914Z
 ---
 
 # Vault and brain: files as the truth, SQLite as the index
@@ -92,10 +92,16 @@ in the database can be rebuilt from the folder.
 - Links: each row in `brain_links` holds the resolved slug (exact, case-insensitive;
   else a unique file name anywhere; else a unique title or alias) or the raw target, plus
   the line it sits on as context. `unresolved()` lists rows whose target is no page.
-- Search: `search` is FTS5 (`porter unicode61`); `search_hybrid` fuses it with vector
-  neighbours by reciprocal rank when an embedder is configured. `tag:<name>` terms in
-  either restrict the result to pages carrying that tag or one nested under it; a query
-  of tag terms alone lists those pages newest first.
+- Search: `parse_query` takes a query apart (`tag:`, `path:`, `file:` and `type:`
+  terms, a value in quotes keeping its spaces, a leading `-` excluding; the words keep
+  their quotes for FTS5 phrases). `search_with` narrows the pages by the operators
+  (`tag:` through `brain_tags`, the rest over the indexed page rows), then matches the
+  words through FTS5 (`porter unicode61`), or as typed when `case_sensitive`, or as a
+  pattern over the indexed title and text when `regex` (ranked by match count, a
+  snippet around the first match); operator terms alone list the admitted pages newest
+  first. `search_hybrid_with` fuses FTS5 with vector hits through reciprocal rank
+  fusion, applies the same operators to both halves, and hands the two text modes to
+  `search_with`. `search` and `search_hybrid` are the same with the default options.
 - Tags: `tags()` groups the index by tag with a page count, parents counting their
   nested tags too, for the app's Tags pane and for agents.
 

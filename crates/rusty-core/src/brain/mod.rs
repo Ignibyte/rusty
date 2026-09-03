@@ -76,6 +76,56 @@ pub struct BrainSearchResult {
     pub rank: f64,
 }
 
+/// How a search runs, beyond the query text.
+#[derive(Debug, Clone, Default)]
+pub struct SearchOptions {
+    /// Maximum results (10 when unset).
+    pub limit: Option<usize>,
+    /// Restrict to one page type.
+    pub page_type: Option<String>,
+    /// Keep only pages whose text holds the words as typed, case included.
+    pub case_sensitive: bool,
+    /// Treat the words as a regular expression over the page text.
+    pub regex: bool,
+}
+
+/// A query taken apart: the words, and the operator terms that admit or exclude pages.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ParsedQuery {
+    /// What is left once the operator terms are removed, joined by single spaces.
+    pub words: String,
+    /// `tag:` terms: a page carries every one, or a tag nested under it.
+    pub tags: Vec<String>,
+    /// `-tag:` terms: a page carrying any is out.
+    pub not_tags: Vec<String>,
+    /// `path:` terms: the slug contains every one.
+    pub paths: Vec<String>,
+    /// `-path:` terms: the slug contains none.
+    pub not_paths: Vec<String>,
+    /// `file:` terms: the file name (the slug's last segment) contains every one.
+    pub files: Vec<String>,
+    /// `-file:` terms: the file name contains none.
+    pub not_files: Vec<String>,
+    /// `type:` terms: the page type is one of them.
+    pub types: Vec<String>,
+    /// `-type:` terms: the page type is none of them.
+    pub not_types: Vec<String>,
+}
+
+impl ParsedQuery {
+    /// Whether any operator term is present.
+    pub fn has_operators(&self) -> bool {
+        !(self.tags.is_empty()
+            && self.not_tags.is_empty()
+            && self.paths.is_empty()
+            && self.not_paths.is_empty()
+            && self.files.is_empty()
+            && self.not_files.is_empty()
+            && self.types.is_empty()
+            && self.not_types.is_empty())
+    }
+}
+
 /// A timeline entry for a brain page.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TimelineEntry {
@@ -565,28 +615,206 @@ impl BrainManager {
         Ok(pages)
     }
 
-    /// Full-text search across brain pages using FTS5. `tag:<name>` terms restrict the
-    /// results to pages carrying that tag or one nested under it; a query of only tag
-    /// terms lists those pages newest first.
+    /// Full-text search across brain pages using FTS5, with the operators of
+    /// [`parse_query`] (`tag:`, `path:`, `file:`, `type:`, a leading `-` excluding); a
+    /// query of operator terms alone lists the pages they admit, newest first.
     pub fn search(
         &self,
         query: &str,
         limit: Option<usize>,
         page_type: Option<&str>,
     ) -> Result<Vec<BrainSearchResult>, String> {
-        let (words, tags) = split_tag_terms(query);
-        if tags.is_empty() {
-            return self.search_text(&words, limit, page_type);
+        self.search_with(
+            query,
+            &SearchOptions {
+                limit,
+                page_type: page_type.map(str::to_string),
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Search with operators and modes: the operator terms of [`parse_query`] narrow
+    /// the pages; the words match through FTS5, as typed when `case_sensitive`, or as a
+    /// pattern over the page text when `regex`. Operator terms alone list the pages
+    /// they admit, newest first.
+    pub fn search_with(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        let q = parse_query(query);
+        let limit = options.limit.unwrap_or(10);
+        let page_type = options.page_type.as_deref();
+        let allowed = self.allowed_pages(&q)?;
+        if q.words.is_empty() {
+            return match allowed {
+                Some(set) => self.pages_in(&set, Some(limit), page_type),
+                None => Ok(Vec::new()),
+            };
         }
-        let allowed = self.pages_with_tags(&tags)?;
-        if words.is_empty() {
-            return self.pages_in(&allowed, limit, page_type);
+        if options.regex {
+            return self.search_regex(&q.words, allowed.as_ref(), options);
         }
-        let wide = limit.unwrap_or(10).saturating_mul(10).max(50);
-        let mut hits = self.search_text(&words, Some(wide), page_type)?;
-        hits.retain(|r| allowed.contains(&r.slug));
-        hits.truncate(limit.unwrap_or(10));
+        let wide = if allowed.is_some() || options.case_sensitive {
+            limit.saturating_mul(10).max(50)
+        } else {
+            limit
+        };
+        let mut hits = self.search_text(&q.words, Some(wide), page_type)?;
+        if let Some(set) = &allowed {
+            hits.retain(|r| set.contains(&r.slug));
+        }
+        if options.case_sensitive {
+            hits = self.keep_case(hits, &q.words)?;
+        }
+        hits.truncate(limit);
         Ok(hits)
+    }
+
+    /// The slugs the operator terms admit, `None` when the query has none.
+    fn allowed_pages(
+        &self,
+        q: &ParsedQuery,
+    ) -> Result<Option<std::collections::HashSet<String>>, String> {
+        if !q.has_operators() {
+            return Ok(None);
+        }
+        let lower = |v: &[String]| -> Vec<String> { v.iter().map(|s| s.to_lowercase()).collect() };
+        let (paths, not_paths) = (lower(&q.paths), lower(&q.not_paths));
+        let (files, not_files) = (lower(&q.files), lower(&q.not_files));
+        let (types, not_types) = (lower(&q.types), lower(&q.not_types));
+        let mut set: std::collections::HashSet<String> = self
+            .list_pages(None, Some(100_000))?
+            .into_iter()
+            .filter(|p| {
+                let slug = p.slug.to_lowercase();
+                let name = slug.rsplit('/').next().unwrap_or_default().to_string();
+                let kind = p.page_type.to_lowercase();
+                paths.iter().all(|x| slug.contains(x.as_str()))
+                    && !not_paths.iter().any(|x| slug.contains(x.as_str()))
+                    && files.iter().all(|x| name.contains(x.as_str()))
+                    && !not_files.iter().any(|x| name.contains(x.as_str()))
+                    && (types.is_empty() || types.contains(&kind))
+                    && !not_types.contains(&kind)
+            })
+            .map(|p| p.slug)
+            .collect();
+        if !q.tags.is_empty() {
+            let tagged = self.pages_with_tags(&q.tags)?;
+            set.retain(|s| tagged.contains(s));
+        }
+        for tag in &q.not_tags {
+            let tagged = self.pages_with_tags(std::slice::from_ref(tag))?;
+            set.retain(|s| !tagged.contains(s));
+        }
+        Ok(Some(set))
+    }
+
+    /// The hits whose title or text holds every word as typed; the snippet is rebuilt
+    /// around the first word's first occurrence.
+    fn keep_case(
+        &self,
+        hits: Vec<BrainSearchResult>,
+        words: &str,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        use rusqlite::OptionalExtension;
+        let needles: Vec<String> = query_tokens(words)
+            .into_iter()
+            .map(|t| t.trim_matches('"').trim_end_matches('*').to_string())
+            .filter(|t| !t.is_empty())
+            .collect();
+        let conn = self.db.conn()?;
+        let mut out = Vec::new();
+        for mut hit in hits {
+            let row: Option<(String, String)> = conn
+                .query_row(
+                    "SELECT title, content FROM brain_fts WHERE slug = ?1",
+                    rusqlite::params![hit.slug],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()
+                .map_err(|e| format!("Query error: {e}"))?;
+            let Some((title, content)) = row else {
+                continue;
+            };
+            let text = format!("{title}\n{content}");
+            if !needles.iter().all(|n| text.contains(n.as_str())) {
+                continue;
+            }
+            if let Some(range) = needles
+                .first()
+                .and_then(|n| text.find(n.as_str()).map(|i| i..i + n.len()))
+            {
+                hit.snippet = snippet_around(&text, range);
+            }
+            out.push(hit);
+        }
+        Ok(out)
+    }
+
+    /// Pages whose title or text matches the pattern, ranked by the number of matches,
+    /// with a snippet around the first.
+    fn search_regex(
+        &self,
+        pattern: &str,
+        allowed: Option<&std::collections::HashSet<String>>,
+        options: &SearchOptions,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        type TextRow = (String, String, String, String);
+        let re = regex::RegexBuilder::new(pattern)
+            .case_insensitive(!options.case_sensitive)
+            .size_limit(1 << 20)
+            .build()
+            .map_err(|e| format!("Bad pattern: {e}"))?;
+        let mut rows: Vec<TextRow> = Vec::new();
+        {
+            let conn = self.db.conn()?;
+            let mut stmt = conn
+                .prepare(
+                    "SELECT f.slug, f.page_type, p.title, f.content FROM brain_fts f \
+                     JOIN brain_pages p ON p.slug = f.slug ORDER BY p.updated_at DESC",
+                )
+                .map_err(|e| format!("Query error: {e}"))?;
+            let found = stmt
+                .query_map([], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                })
+                .map_err(|e| format!("Query error: {e}"))?;
+            for row in found.flatten() {
+                rows.push(row);
+            }
+        }
+        let mut out = Vec::new();
+        for (slug, page_type, title, content) in rows {
+            if options.page_type.as_deref().is_some_and(|t| t != page_type)
+                || allowed.is_some_and(|set| !set.contains(&slug))
+            {
+                continue;
+            }
+            let text = format!("{title}\n{content}");
+            let mut count = 0usize;
+            let mut first = None;
+            for m in re.find_iter(&text) {
+                count += 1;
+                if first.is_none() {
+                    first = Some(m.range());
+                }
+            }
+            let Some(range) = first else {
+                continue;
+            };
+            out.push(BrainSearchResult {
+                slug,
+                page_type,
+                title,
+                snippet: snippet_around(&text, range),
+                rank: -(count as f64),
+            });
+        }
+        out.sort_by(|a, b| a.rank.total_cmp(&b.rank));
+        out.truncate(options.limit.unwrap_or(10));
+        Ok(out)
     }
 
     /// The slugs carrying every tag in `tags` (or a tag nested under each).
@@ -1401,20 +1629,39 @@ impl BrainManager {
         page_type: Option<&str>,
         embedder: &dyn Embedder,
     ) -> Result<Vec<BrainSearchResult>, String> {
-        let limit = limit.unwrap_or(10).max(1);
-        let (words, tags) = split_tag_terms(query);
-        let allowed = if tags.is_empty() {
-            None
-        } else {
-            Some(self.pages_with_tags(&tags)?)
-        };
-        if words.is_empty() {
+        self.search_hybrid_with(
+            query,
+            &SearchOptions {
+                limit,
+                page_type: page_type.map(str::to_string),
+                ..Default::default()
+            },
+            embedder,
+        )
+    }
+
+    /// Hybrid search with the operators of [`parse_query`]; match case and regex are
+    /// text searches, so those modes go to [`Self::search_with`].
+    pub fn search_hybrid_with(
+        &self,
+        query: &str,
+        options: &SearchOptions,
+        embedder: &dyn Embedder,
+    ) -> Result<Vec<BrainSearchResult>, String> {
+        if options.regex || options.case_sensitive {
+            return self.search_with(query, options);
+        }
+        let limit = options.limit.unwrap_or(10).max(1);
+        let page_type = options.page_type.as_deref();
+        let q = parse_query(query);
+        let allowed = self.allowed_pages(&q)?;
+        if q.words.is_empty() {
             return match allowed {
                 Some(set) => self.pages_in(&set, Some(limit), page_type),
                 None => Ok(Vec::new()),
             };
         }
-        let query = words.as_str();
+        let query = q.words.as_str();
         let fts = self.search_text(query, Some(limit * 2), page_type)?;
         let mut hits = self.semantic().search(embedder, query, limit * 3)?;
         if let Some(set) = &allowed {
@@ -2522,21 +2769,97 @@ fn index_links(conn: &rusqlite::Connection, slug: &str, content: &str) -> Result
 }
 
 /// Split a query into its plain words and its `tag:` terms (`tag:a/b`, `tag:#a`).
-fn split_tag_terms(query: &str) -> (String, Vec<String>) {
-    let mut words = Vec::new();
-    let mut tags = Vec::new();
-    for token in query.split_whitespace() {
-        match token.strip_prefix("tag:") {
-            Some(tag) => {
-                let tag = tag.trim_start_matches('#').trim_end_matches('/');
-                if !tag.is_empty() {
-                    tags.push(tag.to_string());
-                }
+/// Take a query apart: `tag:`, `path:`, `file:` and `type:` terms (a value in quotes
+/// may hold spaces; a leading `-` excludes) and the words that remain, which keep their
+/// quotes for FTS5 phrases. A term with another prefix, such as a URL, stays a word.
+pub fn parse_query(query: &str) -> ParsedQuery {
+    let mut out = ParsedQuery::default();
+    let mut words: Vec<String> = Vec::new();
+    for token in query_tokens(query) {
+        let (negated, body) = match token.strip_prefix('-') {
+            Some(rest) if rest.contains(':') => (true, rest),
+            _ => (false, token.as_str()),
+        };
+        let Some((op, raw)) = body.split_once(':') else {
+            words.push(token.clone());
+            continue;
+        };
+        let list = match (op, negated) {
+            ("tag", false) => &mut out.tags,
+            ("tag", true) => &mut out.not_tags,
+            ("path", false) => &mut out.paths,
+            ("path", true) => &mut out.not_paths,
+            ("file", false) => &mut out.files,
+            ("file", true) => &mut out.not_files,
+            ("type", false) => &mut out.types,
+            ("type", true) => &mut out.not_types,
+            _ => {
+                words.push(token.clone());
+                continue;
             }
-            None => words.push(token),
+        };
+        let value = raw.trim_matches('"').trim();
+        let value = if op == "tag" {
+            value.trim_start_matches('#').trim_end_matches('/')
+        } else {
+            value
+        };
+        if !value.is_empty() {
+            list.push(value.to_string());
         }
     }
-    (words.join(" "), tags)
+    out.words = words.join(" ");
+    out
+}
+
+/// Split on whitespace outside double quotes; the quotes stay in the token.
+fn query_tokens(query: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+    for c in query.chars() {
+        if c == '"' {
+            quoted = !quoted;
+            current.push(c);
+        } else if c.is_whitespace() && !quoted {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push(c);
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+    tokens
+}
+
+/// A stretch of text around `range`, the match wrapped in `<b>`, line breaks as
+/// spaces, an ellipsis where it is cut.
+fn snippet_around(text: &str, range: std::ops::Range<usize>) -> String {
+    let mut start = range.start.saturating_sub(60);
+    while !text.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = (range.end + 100).min(text.len());
+    while !text.is_char_boundary(end) {
+        end += 1;
+    }
+    let flat = |s: &str| s.replace(['\n', '\r'], " ");
+    let mut out = String::new();
+    if start > 0 {
+        out.push_str("...");
+    }
+    out.push_str(&flat(&text[start..range.start]));
+    out.push_str("<b>");
+    out.push_str(&flat(&text[range.start..range.end]));
+    out.push_str("</b>");
+    out.push_str(&flat(&text[range.end..end]));
+    if end < text.len() {
+        out.push_str("...");
+    }
+    out
 }
 
 /// Row mapper for link rows selected as `from, to, type, context, resolved`.
@@ -2775,8 +3098,12 @@ mod tests {
         assert!(bm.search("tag:nothing", None, None).unwrap().is_empty());
         assert_eq!(bm.search("tag:rust tag:ops", None, None).unwrap().len(), 1);
         assert_eq!(
-            split_tag_terms("  a tag:x b tag:#y/ "),
-            ("a b".to_string(), vec!["x".to_string(), "y".to_string()])
+            parse_query("  a tag:x b tag:#y/ "),
+            ParsedQuery {
+                words: "a b".to_string(),
+                tags: vec!["x".to_string(), "y".to_string()],
+                ..Default::default()
+            }
         );
 
         let page = bm
@@ -2814,6 +3141,73 @@ mod tests {
             .is_err());
 
         cleanup(&dir);
+    }
+
+    #[test]
+    fn search_operators_and_modes() {
+        let (_dir, bm) = test_brain("operators");
+        bm.create_page("project", "Orbit", "Orbit ships in autumn. #launch")
+            .unwrap();
+        bm.create_page("person", "Sarah Chen", "Sarah runs the orbit launch.")
+            .unwrap();
+        bm.create_page("concept", "Theme One", "An orbit theme, the first of four.")
+            .unwrap();
+
+        let slugs = |hits: Vec<BrainSearchResult>| -> Vec<String> {
+            hits.into_iter().map(|h| h.slug).collect()
+        };
+        let plain = |q: &str| slugs(bm.search(q, None, None).unwrap());
+        assert_eq!(plain("path:projects"), vec!["projects/orbit"]);
+        assert_eq!(plain("type:person"), vec!["people/sarah-chen"]);
+        assert_eq!(plain("file:theme"), vec!["concepts/theme-one"]);
+        assert_eq!(plain("orbit -path:projects").len(), 2);
+        assert_eq!(plain("orbit tag:launch"), vec!["projects/orbit"]);
+        assert_eq!(plain("orbit -tag:launch").len(), 2);
+        assert_eq!(
+            plain("orbit type:concept path:\"concepts\""),
+            vec!["concepts/theme-one"]
+        );
+        assert!(plain("orbit type:nothing").is_empty());
+
+        let parsed = parse_query("  a tag:x b -path:\"p q\" file:f type:t -tag:#y/ ");
+        assert_eq!(parsed.words, "a b");
+        assert_eq!(parsed.tags, vec!["x"]);
+        assert_eq!(parsed.not_tags, vec!["y"]);
+        assert_eq!(parsed.not_paths, vec!["p q"]);
+        assert_eq!(parsed.files, vec!["f"]);
+        assert_eq!(parsed.types, vec!["t"]);
+        assert_eq!(
+            parse_query("\"a phrase\" http://x").words,
+            "\"a phrase\" http://x"
+        );
+
+        let cased = SearchOptions {
+            case_sensitive: true,
+            ..Default::default()
+        };
+        let hits = bm.search_with("Orbit", &cased).unwrap();
+        assert_eq!(slugs(hits.clone()), vec!["projects/orbit"]);
+        assert!(
+            hits[0].snippet.contains("<b>Orbit</b>"),
+            "{}",
+            hits[0].snippet
+        );
+        assert_eq!(bm.search_with("orbit", &cased).unwrap().len(), 2);
+
+        let re = SearchOptions {
+            regex: true,
+            ..Default::default()
+        };
+        let hits = bm.search_with(r"the\w+ one", &re).unwrap();
+        assert_eq!(slugs(hits.clone()), vec!["concepts/theme-one"]);
+        assert!(
+            hits[0].snippet.contains("<b>Theme One</b>"),
+            "{}",
+            hits[0].snippet
+        );
+        let hits = bm.search_with(r"orbit\b type:person", &re).unwrap();
+        assert_eq!(slugs(hits), vec!["people/sarah-chen"]);
+        assert!(bm.search_with("(", &re).is_err());
     }
 
     #[test]

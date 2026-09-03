@@ -15,7 +15,7 @@ shift
 theme=${SHOT_THEME:-$HOME/.config/omarchy/current/theme}
 size=${SHOT_SIZE:-1500x950}
 scenes=("$@")
-[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags" "graph" "localgraph")
+[[ ${#scenes[@]} -gt 0 ]] || scenes=("reading" "edit" "switcher" "palette" "right:agent" "left:search,right:outline" "right:tags" "graph" "localgraph" "left:bookmarks" "search:tag:theme path:concepts" "view:settings")
 root=$(git rev-parse --show-toplevel)
 target=${CARGO_TARGET_DIR:-$root/target}
 [[ -x "$target/debug/rusty" && -x "$target/debug/rusty-mcp" ]] || { echo "build rusty and rusty-mcp first" >&2; exit 1; }
@@ -155,7 +155,7 @@ printf '{}' > "$vault/projects/data.json"
 IFS=x read -r w h <<< "$size"
 printf '[window]\nwidth=%s\nheight=%s\nlastTab=0\n' "$w" "$h" > "$scratch/.config/Ignibyte/rusty.conf"
 cat > "$scratch/workspace.json" <<'JSON'
-{"leftWidth":280,"rightWidth":320,"leftOpen":true,"rightOpen":true,"leftPane":"files","rightPane":"backlinks","expanded":"{\"projects\":true,\"people\":true}","paneProgram":"shell"}
+{"leftWidth":280,"rightWidth":320,"leftOpen":true,"rightOpen":true,"leftPane":"files","rightPane":"backlinks","expanded":"{\"projects\":true,\"people\":true}","paneProgram":"shell","bookmarks":"[{\"kind\":\"file\",\"path\":\"projects/orbit\",\"title\":\"Orbit\"},{\"kind\":\"folder\",\"path\":\"concepts\",\"title\":\"concepts\"},{\"kind\":\"search\",\"query\":\"tag:theme path:concepts\",\"title\":\"Themes\"},{\"kind\":\"heading\",\"path\":\"projects/orbit\",\"heading\":\"Timeline\",\"title\":\"Orbit › Timeline\"}]"}
 JSON
 cat > "$scratch/tabs.json" <<'JSON'
 [{"kind":"page","title":"orbit","slug":"projects/orbit","session":"","program":"","cwd":"","pinned":false},
