@@ -24,13 +24,13 @@ Rectangle {
     signal agentRequested(string program)
     signal agentPaneRequested(string program)
 
-    implicitHeight: 33
+    implicitHeight: Math.round(33 * bar.theme.scale)
     color: bar.theme.panel2
     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: bar.theme.line }
 
     component Micro: Text {
         color: bar.theme.muted
-        font.pixelSize: 10
+        font.pixelSize: Math.round(10 * bar.theme.scale)
         font.letterSpacing: 1.2
         font.capitalization: Font.AllUppercase
     }
@@ -45,8 +45,8 @@ Rectangle {
         signal clicked()
         signal rightClicked()
         readonly property bool lit: bbHover.hovered
-        width: Math.max(20, content.implicitWidth + 10)
-        height: 19
+        width: Math.max(Math.round(20 * bar.theme.scale), content.implicitWidth + 10)
+        height: Math.round(19 * bar.theme.scale)
         Rectangle {
             anchors.fill: parent
             radius: 3
@@ -59,7 +59,7 @@ Rectangle {
             anchors.centerIn: parent
             spacing: 4
             Icon { visible: bb.icon.length > 0; anchors.verticalCenter: parent.verticalCenter; name: bb.icon; color: bb.lit ? bar.theme.accent : bar.theme.muted; size: 12 }
-            Text { visible: bb.glyph.length > 0; anchors.verticalCenter: parent.verticalCenter; text: bb.glyph; color: bb.lit ? bar.theme.accent : bar.theme.muted; font.pixelSize: 12 }
+            Text { visible: bb.glyph.length > 0; anchors.verticalCenter: parent.verticalCenter; text: bb.glyph; color: bb.lit ? bar.theme.accent : bar.theme.muted; font.pixelSize: Math.round(12 * bar.theme.scale) }
         }
         HoverHandler { id: bbHover; cursorShape: Qt.PointingHandCursor; enabled: bar.theme.shotPath.length === 0 }
         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: bb.clicked() }
@@ -76,7 +76,7 @@ Rectangle {
         spacing: 14
 
         // Brand.
-        Text { text: "▰"; color: bar.theme.gold; font.pixelSize: 10 }
+        Text { text: "▰"; color: bar.theme.gold; font.pixelSize: Math.round(10 * bar.theme.scale) }
         Micro { text: "Omarchy // Rusty"; color: bar.theme.accent; font.bold: true; font.letterSpacing: 1.6; Layout.leftMargin: -9 }
 
         // The command layer, then the agents: click for a new tab, right-click for the
@@ -99,7 +99,7 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         // The vault.
-        Text { text: "●"; color: bar.backend.connected ? bar.theme.alive : bar.theme.red; font.pixelSize: 12 }
+        Text { text: "●"; color: bar.backend.connected ? bar.theme.alive : bar.theme.red; font.pixelSize: Math.round(12 * bar.theme.scale) }
         Micro {
             text: (bar.backend.connected ? "Vault online" : "Vault offline") + " // " + (bar.pages > 0 ? bar.pages + " pages" : "local-first knowledge system")
             Layout.leftMargin: -6
@@ -114,7 +114,7 @@ Rectangle {
         Text {
             text: "⏻"
             color: powerHover.hovered ? bar.theme.accent : bar.theme.muted
-            font.pixelSize: 12
+            font.pixelSize: Math.round(12 * bar.theme.scale)
             HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: bar.quit() }
             ToolTip.visible: powerHover.hovered

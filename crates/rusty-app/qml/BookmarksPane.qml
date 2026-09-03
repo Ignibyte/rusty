@@ -28,13 +28,13 @@ Item {
         Text {
             text: pane.bookmarks.length === 0 ? "No bookmarks" : pane.bookmarks.length + (pane.bookmarks.length === 1 ? " bookmark" : " bookmarks")
             color: pane.theme.faint
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * pane.theme.scale)
         }
         Text {
             visible: pane.bookmarks.length === 0
             text: "Bookmark a page from its menu, a folder from the file explorer, a search from the search pane, a heading from the outline."
             color: pane.theme.faint
-            font.pixelSize: 12
+            font.pixelSize: Math.round(12 * pane.theme.scale)
             wrapMode: Text.Wrap
             Layout.fillWidth: true
         }
@@ -60,8 +60,8 @@ Item {
                     anchors.rightMargin: 6
                     spacing: 8
                     Icon { name: pane.iconFor(row.modelData.kind); color: pane.theme.muted; size: 14 }
-                    Text { text: row.modelData.title; color: pane.theme.foreground; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                    Text { text: pane.detailOf(row.modelData); color: pane.theme.faint; font.pixelSize: 11; elide: Text.ElideMiddle; Layout.maximumWidth: row.width * 0.45 }
+                    Text { text: row.modelData.title; color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: pane.detailOf(row.modelData); color: pane.theme.faint; font.pixelSize: Math.round(11 * pane.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: row.width * 0.45 }
                 }
                 HoverHandler { id: rowHover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { acceptedButtons: Qt.LeftButton; onTapped: pane.openBookmark(row.modelData) }

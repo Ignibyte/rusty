@@ -118,7 +118,10 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - Skinned on 2026-09-03 (TICKET-008): the look is data in `crates/rusty-app/src/skin.rs`, a set
   of colour roles from a preset, the Omarchy theme or a file under `~/.config/rusty/themes/`;
   `Theme` turns the roles into every token the QML and the renderer bind to, `Desk` reads the
-  machine for the top bar, and the application font is the skin's face.
+  machine for the top bar, and the application font is the skin's face. Since TICKET-012
+  the theme also carries a base text size (`baseSize`, 12 to 18, default 14) and its
+  `scale` over the drawn body size of 12; every QML label and the reading view's render
+  style derive from it, the terminals keep the Alacritty font.
 - Session-bound on 2026-09-03 (TICKET-009): the app runs as `rusty-app.service`, wanted by
   uwsm's `graphical-session.target`, restarted when it is killed and left alone when it is
   quit; the back end restarts after any exit but a stop; `rusty-session` is the one entry

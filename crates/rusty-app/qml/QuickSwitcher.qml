@@ -69,7 +69,7 @@ Popup {
             Layout.fillWidth: true
             Layout.margins: 8
             placeholderText: "Find or create a note…"
-            font.pixelSize: 15
+            font.pixelSize: Math.round(15 * pop.theme.scale)
             onTextChanged: pop.refilter()
             onAccepted: pop.choose(false)
             Keys.onDownPressed: if (pop.matches.length > 0) pop.selected = Math.min(pop.selected + 1, pop.matches.length - 1)
@@ -96,8 +96,8 @@ Popup {
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
                     spacing: 10
-                    Text { text: modelData.title; color: pop.theme.foreground; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
-                    Text { text: modelData.slug; color: pop.theme.faint; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.maximumWidth: 260 }
+                    Text { text: modelData.title; color: pop.theme.foreground; font.pixelSize: Math.round(14 * pop.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: modelData.slug; color: pop.theme.faint; font.pixelSize: Math.round(12 * pop.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: 260 }
                 }
                 HoverHandler { onHoveredChanged: if (hovered) pop.selected = index }
                 TapHandler { onTapped: { pop.selected = index; pop.choose(false) } }
@@ -114,14 +114,14 @@ Popup {
                 anchors.leftMargin: 14
                 text: (pop.matches.length === 0 ? "Enter" : "Shift+Enter") + " to create \"" + field.text.trim() + "\""
                 color: pop.theme.muted
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * pop.theme.scale)
             }
         }
         Text {
             visible: pop.matches.length === 0 && field.text.trim().length === 0
             text: "No pages yet"
             color: pop.theme.faint
-            font.pixelSize: 12
+            font.pixelSize: Math.round(12 * pop.theme.scale)
             Layout.margins: 12
         }
     }

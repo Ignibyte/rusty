@@ -174,33 +174,33 @@ Item {
                         color: explorer.theme.accentSoft
                         size: 12
                     }
-                    Text { visible: row.modelData.kind === "folder"; text: "▰"; color: explorer.theme.gold; font.pixelSize: 9 }
-                    Text { visible: row.modelData.kind !== "folder"; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: 10; Layout.preferredWidth: 12 }
+                    Text { visible: row.modelData.kind === "folder"; text: "▰"; color: explorer.theme.gold; font.pixelSize: Math.round(9 * explorer.theme.scale) }
+                    Text { visible: row.modelData.kind !== "folder"; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); Layout.preferredWidth: 12 }
                     Text {
                         visible: !row.isRenaming
                         Layout.fillWidth: true
                         text: row.modelData.name
                         color: row.active ? explorer.theme.bright : explorer.theme.muted
-                        font.pixelSize: 12
+                        font.pixelSize: Math.round(12 * explorer.theme.scale)
                         elide: Text.ElideRight
                     }
                     TextField {
                         id: renameField
                         visible: row.isRenaming
                         Layout.fillWidth: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.round(13 * explorer.theme.scale)
                         text: row.modelData.name
                         onVisibleChanged: if (visible) { forceActiveFocus(); selectAll() }
                         onAccepted: { explorer.rename(row.modelData, text); explorer.renaming = "" }
                         Keys.onEscapePressed: explorer.renaming = ""
                         onActiveFocusChanged: if (!activeFocus && row.isRenaming) explorer.renaming = ""
                     }
-                    Text { visible: row.modelData.kind === "folder" && row.modelData.pages !== undefined; text: String(row.modelData.pages).padStart(2, "0"); color: explorer.theme.faint; font.pixelSize: 10 }
+                    Text { visible: row.modelData.kind === "folder" && row.modelData.pages !== undefined; text: String(row.modelData.pages).padStart(2, "0"); color: explorer.theme.faint; font.pixelSize: Math.round(10 * explorer.theme.scale) }
                     Text {
                         visible: row.modelData.kind === "file"
                         text: row.modelData.name.indexOf(".") >= 0 ? row.modelData.name.slice(row.modelData.name.lastIndexOf(".") + 1).toUpperCase() : ""
                         color: explorer.theme.faint
-                        font.pixelSize: 9
+                        font.pixelSize: Math.round(9 * explorer.theme.scale)
                         font.letterSpacing: 0.5
                     }
                 }
@@ -219,7 +219,7 @@ Item {
                 }
             }
         }
-        Text { visible: explorer.notice.length > 0; text: explorer.notice; color: explorer.theme.muted; font.pixelSize: 11; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.margins: 8 }
+        Text { visible: explorer.notice.length > 0; text: explorer.notice; color: explorer.theme.muted; font.pixelSize: Math.round(11 * explorer.theme.scale); wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.margins: 8 }
     }
 
     Menu {

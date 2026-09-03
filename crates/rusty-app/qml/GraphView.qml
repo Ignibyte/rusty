@@ -424,7 +424,7 @@ Item {
         radius: 6
         color: view.theme.surface
         border.color: view.theme.line
-        Text { id: hoverText; anchors.centerIn: parent; text: view.hovered >= 0 && view.hovered < view.nodes.length ? view.nodes[view.hovered].title : ""; color: view.theme.foreground; font.pixelSize: 12 }
+        Text { id: hoverText; anchors.centerIn: parent; text: view.hovered >= 0 && view.hovered < view.nodes.length ? view.nodes[view.hovered].title : ""; color: view.theme.foreground; font.pixelSize: Math.round(12 * view.theme.scale) }
     }
 
     // Top-left: what this is, and the count.
@@ -432,10 +432,10 @@ Item {
         x: 12; y: 10
         text: (view.around.length > 0 ? "Local graph · " + view.around : "Graph view") + "  ·  " + view.nodes.filter(function (n) { return n.visible }).length + " nodes"
         color: view.theme.faint
-        font.pixelSize: 11
+        font.pixelSize: Math.round(11 * view.theme.scale)
     }
-    Text { anchors.centerIn: parent; visible: view.loaded && view.nodes.length === 0; text: view.around.length > 0 ? "No links around this page yet" : "No pages yet"; color: view.theme.faint; font.pixelSize: 14 }
-    Text { x: 12; y: 28; visible: view.notice.length > 0; text: view.notice; color: view.theme.muted; font.pixelSize: 11 }
+    Text { anchors.centerIn: parent; visible: view.loaded && view.nodes.length === 0; text: view.around.length > 0 ? "No links around this page yet" : "No pages yet"; color: view.theme.faint; font.pixelSize: Math.round(14 * view.theme.scale) }
+    Text { x: 12; y: 28; visible: view.notice.length > 0; text: view.notice; color: view.theme.muted; font.pixelSize: Math.round(11 * view.theme.scale) }
 
     // The settings panel, as Obsidian's: four foldable sections at the top right.
     Rectangle {
@@ -480,15 +480,15 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 4
-                        TextField { Layout.fillWidth: true; placeholderText: "Search files…"; font.pixelSize: 12; text: view.filter; onTextChanged: view.filter = text }
-                        CheckBox { text: "Tags"; font.pixelSize: 12; checked: view.showTags; onToggled: view.showTags = checked }
-                        CheckBox { text: "Existing files only"; font.pixelSize: 12; checked: !view.showUnresolved; onToggled: view.showUnresolved = !checked }
-                        CheckBox { text: "Orphans"; font.pixelSize: 12; checked: view.showOrphans; onToggled: view.showOrphans = checked }
+                        TextField { Layout.fillWidth: true; placeholderText: "Search files…"; font.pixelSize: Math.round(12 * view.theme.scale); text: view.filter; onTextChanged: view.filter = text }
+                        CheckBox { text: "Tags"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.showTags; onToggled: view.showTags = checked }
+                        CheckBox { text: "Existing files only"; font.pixelSize: Math.round(12 * view.theme.scale); checked: !view.showUnresolved; onToggled: view.showUnresolved = !checked }
+                        CheckBox { text: "Orphans"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.showOrphans; onToggled: view.showOrphans = checked }
                         RowLayout {
                             visible: view.around.length > 0
-                            Text { text: "Depth"; color: view.theme.muted; font.pixelSize: 12; Layout.preferredWidth: 90 }
+                            Text { text: "Depth"; color: view.theme.muted; font.pixelSize: Math.round(12 * view.theme.scale); Layout.preferredWidth: 90 }
                             Slider { Layout.fillWidth: true; from: 1; to: 4; stepSize: 1; value: view.depth; onMoved: view.depth = Math.round(value) }
-                            Text { text: view.depth; color: view.theme.faint; font.pixelSize: 11 }
+                            Text { text: view.depth; color: view.theme.faint; font.pixelSize: Math.round(11 * view.theme.scale) }
                         }
                     }
                 }
@@ -514,14 +514,14 @@ Item {
                                     ToolTip.text: "Next colour"
                                     HoverHandler { id: swatchHover }
                                 }
-                                TextField { Layout.fillWidth: true; font.pixelSize: 12; text: modelData.query; placeholderText: "tag:x path:y type:z or text"; onEditingFinished: { if (text !== modelData.query) { const g = view.groups.slice(); g[index] = { query: text, colour: modelData.colour }; view.groups = g } } }
+                                TextField { Layout.fillWidth: true; font.pixelSize: Math.round(12 * view.theme.scale); text: modelData.query; placeholderText: "tag:x path:y type:z or text"; onEditingFinished: { if (text !== modelData.query) { const g = view.groups.slice(); g[index] = { query: text, colour: modelData.colour }; view.groups = g } } }
                                 PanelButton { icon: "close"; tip: "Remove group"; onClicked: { const g = view.groups.slice(); g.splice(index, 1); view.groups = g } }
                             }
                         }
                         Text {
                             text: "+ New group"
                             color: newGroupHover.hovered ? view.theme.foreground : view.theme.muted
-                            font.pixelSize: 12
+                            font.pixelSize: Math.round(12 * view.theme.scale)
                             HoverHandler { id: newGroupHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: { const g = view.groups.slice(); g.push({ query: "", colour: view.palette[(g.length + 1) % view.palette.length] }); view.groups = g } }
                         }
@@ -532,7 +532,7 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        CheckBox { text: "Arrows"; font.pixelSize: 12; checked: view.arrows; onToggled: view.arrows = checked }
+                        CheckBox { text: "Arrows"; font.pixelSize: Math.round(12 * view.theme.scale); checked: view.arrows; onToggled: view.arrows = checked }
                         SettingSlider { label: "Text fade threshold"; from: 0; to: 1; value: view.textFade; onMoved: (v) => view.textFade = v }
                         SettingSlider { label: "Node size"; from: 0.3; to: 3; value: view.nodeSize; onMoved: (v) => view.nodeSize = v }
                         SettingSlider { label: "Link thickness"; from: 0.2; to: 4; value: view.linkThickness; onMoved: (v) => view.linkThickness = v }
@@ -568,7 +568,7 @@ Item {
             RowLayout {
                 anchors.fill: parent; anchors.leftMargin: 4; anchors.rightMargin: 4
                 Icon { name: section.open ? "chevron-down" : "chevron-right"; color: view.theme.faint; size: 14 }
-                Text { text: section.title; color: view.theme.foreground; font.pixelSize: 13; Layout.fillWidth: true }
+                Text { text: section.title; color: view.theme.foreground; font.pixelSize: Math.round(13 * view.theme.scale); Layout.fillWidth: true }
             }
             HoverHandler { id: secHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { onTapped: section.open = !section.open }
@@ -593,7 +593,7 @@ Item {
         signal moved(real v)
         Layout.fillWidth: true
         spacing: 6
-        Text { text: ss.label; color: view.theme.muted; font.pixelSize: 12; Layout.preferredWidth: 110; elide: Text.ElideRight }
+        Text { text: ss.label; color: view.theme.muted; font.pixelSize: Math.round(12 * view.theme.scale); Layout.preferredWidth: 110; elide: Text.ElideRight }
         Slider { Layout.fillWidth: true; from: ss.from; to: ss.to; value: ss.value; onMoved: ss.moved(value) }
     }
 

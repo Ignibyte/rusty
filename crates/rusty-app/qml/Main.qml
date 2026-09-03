@@ -28,7 +28,7 @@ ApplicationWindow {
     palette.highlightedText: theme.background
     palette.placeholderText: theme.faint
     palette.mid: theme.line
-    font.pixelSize: 14
+    font.pixelSize: Math.round(14 * theme.scale)
 
     // The Rust-backed objects. Inline components below reach them as win.theme and so
     // on, because inside a Component scope an unqualified name finds the component's
@@ -66,6 +66,7 @@ ApplicationWindow {
         property string graph: "{}"
         property string bookmarks: "[]"
         property string theme: ""
+        property int textSize: 0
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
@@ -79,6 +80,7 @@ ApplicationWindow {
         onGraphChanged: save()
         onBookmarksChanged: save()
         onThemeChanged: save()
+        onTextSizeChanged: save()
         // Written with the `ui.` prefix throughout: an unqualified `rightPane` here would
         // find the sidebar item of that id before this object's property.
         function load() {
@@ -95,13 +97,14 @@ ApplicationWindow {
                 if (typeof s.graph === "string") ui.graph = s.graph
                 if (typeof s.bookmarks === "string") ui.bookmarks = s.bookmarks
                 if (typeof s.theme === "string") ui.theme = s.theme
+                if (typeof s.textSize === "number" && s.textSize > 0) { theme.setTextSize(s.textSize); ui.textSize = theme.baseSize }
             } catch (e) {}
             ui.loaded = true
         }
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, theme: ui.theme }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, theme: ui.theme, textSize: ui.textSize }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -313,6 +316,8 @@ ApplicationWindow {
     }
     function searchFor(q) { ui.leftOpen = true; ui.leftPane = "search"; searchPane.searchFor(q) }
     function showLeft(pane) { ui.leftOpen = true; ui.leftPane = pane; if (pane === "search") searchPane.focusEntry(); else if (pane === "files") explorerList.forceActiveFocus() }
+    // The base text size: the theme clamps it, the state keeps it.
+    function setTextSize(n) { theme.setTextSize(n); ui.textSize = theme.baseSize }
     function showRight(pane) { ui.rightOpen = true; ui.rightPane = pane; rightPane.current = pane; if (pane === "agent") rightPane.focusAgent() }
 
     Connections {
@@ -416,6 +421,9 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+Shift+F"]; enabled: !win.terminalFocused; onActivated: win.showLeft("search") }
     Shortcut { sequences: ["Ctrl+,"]; enabled: !win.terminalFocused; onActivated: win.openView("settings") }
     Shortcut { sequences: ["Ctrl+G"]; enabled: !win.terminalFocused; onActivated: win.openGraph(false) }
+    Shortcut { sequences: ["Ctrl+=", "Ctrl++"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(theme.baseSize + 1) }
+    Shortcut { sequences: ["Ctrl+-"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(theme.baseSize - 1) }
+    Shortcut { sequences: ["Ctrl+0"]; enabled: !win.terminalFocused; onActivated: win.setTextSize(14) }
     Shortcut { sequences: ["Alt+Left"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goBack() }
     Shortcut { sequences: ["Alt+Right"]; enabled: !win.terminalFocused && win.currentNote !== null; onActivated: win.currentNote.goForward() }
     Shortcut { sequences: ["F2"]; enabled: !win.terminalFocused; onActivated: { if (win.currentNote) win.currentNote.editTitle(); else if (win.currentTab() && win.currentTab().kind === "terminal") renameDialog.openFor(stack.currentIndex) } }
@@ -430,6 +438,9 @@ ApplicationWindow {
         const list = [
             { name: "Quick switcher: Open quick switcher", keys: "Ctrl+O", run: function () { switcher.show() } },
             { name: "Create new note", keys: "Ctrl+N", run: function () { win.newNote() } },
+            { name: "View: Larger text", keys: "Ctrl+=", run: function () { win.setTextSize(theme.baseSize + 1) } },
+            { name: "View: Smaller text", keys: "Ctrl+-", run: function () { win.setTextSize(theme.baseSize - 1) } },
+            { name: "View: Reset text size", keys: "Ctrl+0", run: function () { win.setTextSize(14) } },
             { name: "Daily notes: Open today's daily note", keys: "", run: function () { win.todayNote() } },
             { name: "Toggle reading view", keys: "Ctrl+E", enabled: win.currentNote !== null, run: function () { win.currentNote.toggleEditing() } },
             { name: "Save current file", keys: "Ctrl+S", enabled: win.currentNote !== null, run: function () { win.currentNote.save() } },
@@ -635,7 +646,7 @@ ApplicationWindow {
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
         Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
-        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on) } }
+        Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on); onSetTextSize: (n) => win.setTextSize(n) } }
     }
 
     component RibbonButton: Rectangle {
@@ -647,8 +658,8 @@ ApplicationWindow {
         property bool active: false
         signal clicked()
         readonly property bool lit: rb.active || (rbHover.hovered && enabled)
-        width: 32
-        height: rb.label.length > 0 ? 38 : 30
+        width: Math.round(32 * theme.scale)
+        height: Math.round((rb.label.length > 0 ? 38 : 30) * theme.scale)
         radius: theme.radius
         color: rb.lit ? theme.panel3 : "transparent"
         border.width: 1
@@ -659,8 +670,8 @@ ApplicationWindow {
             anchors.centerIn: parent
             spacing: 1
             Icon { visible: rb.icon.length > 0; anchors.horizontalCenter: parent.horizontalCenter; name: rb.icon; color: rb.lit ? theme.accent : theme.muted; size: 15 }
-            Text { visible: rb.glyph.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.glyph; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: 15 }
-            Text { visible: rb.label.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.label; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: 7 }
+            Text { visible: rb.glyph.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.glyph; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: Math.round(15 * theme.scale) }
+            Text { visible: rb.label.length > 0; anchors.horizontalCenter: parent.horizontalCenter; text: rb.label; color: rb.lit ? theme.accent : theme.muted; font.pixelSize: Math.round(7 * theme.scale) }
         }
         HoverHandler { id: rbHover; cursorShape: Qt.PointingHandCursor; enabled: theme.shotPath.length === 0 }
         TapHandler { onTapped: if (rb.enabled) rb.clicked() }
@@ -675,8 +686,8 @@ ApplicationWindow {
         property string tip: ""
         property bool active: false
         signal clicked()
-        width: 28
-        height: 26
+        width: Math.round(28 * theme.scale)
+        height: Math.round(26 * theme.scale)
         radius: 5
         color: st.active ? theme.active : (stHover.hovered ? theme.hover : "transparent")
         Icon { anchors.centerIn: parent; name: st.icon; color: st.active ? theme.foreground : theme.muted; size: 16 }
@@ -732,14 +743,14 @@ ApplicationWindow {
             // The ribbon.
             Rectangle {
                 Layout.fillHeight: true
-                width: 45
+                width: Math.round(45 * theme.scale)
                 color: theme.panel
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.topMargin: 10
                     anchors.bottomMargin: 10
                     spacing: 6
-                    Text { Layout.alignment: Qt.AlignHCenter; text: "⌘"; color: theme.accent; font.pixelSize: 16 }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "⌘"; color: theme.accent; font.pixelSize: Math.round(16 * theme.scale) }
                     Rectangle { Layout.alignment: Qt.AlignHCenter; width: 30; height: 1; color: theme.line; Layout.bottomMargin: 2 }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "new-note"; label: "new"; tip: "New note (Ctrl+N)"; onClicked: win.newNote() }
                     RibbonButton { Layout.alignment: Qt.AlignHCenter; icon: "daily"; label: "daily"; tip: "Open today's daily note"; onClicked: win.todayNote() }
@@ -757,7 +768,7 @@ ApplicationWindow {
                         color: "transparent"
                         border.width: 1
                         border.color: theme.line
-                        Text { anchors.centerIn: parent; text: desk.user.slice(0, 2).toUpperCase(); color: theme.alive; font.pixelSize: 10 }
+                        Text { anchors.centerIn: parent; text: desk.user.slice(0, 2).toUpperCase(); color: theme.alive; font.pixelSize: Math.round(10 * theme.scale) }
                     }
                 }
             }
@@ -779,7 +790,7 @@ ApplicationWindow {
                         Layout.topMargin: 6
                         Layout.bottomMargin: 4
                         spacing: 2
-                        Text { text: ui.leftPane === "files" ? "Vault files" : ui.leftPane === "search" ? "Search" : "Bookmarks"; color: theme.bright; font.pixelSize: 9; font.letterSpacing: 1.3; font.capitalization: Font.AllUppercase; Layout.leftMargin: 6 }
+                        Text { text: ui.leftPane === "files" ? "Vault files" : ui.leftPane === "search" ? "Search" : "Bookmarks"; color: theme.bright; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1.3; font.capitalization: Font.AllUppercase; Layout.leftMargin: 6 }
                         Item { Layout.fillWidth: true }
                         SideTab { icon: "files"; tip: "Files"; active: ui.leftPane === "files"; onClicked: win.showLeft("files") }
                         SideTab { icon: "search"; tip: "Search (Ctrl+Shift+F)"; active: ui.leftPane === "search"; onClicked: win.showLeft("search") }
@@ -834,9 +845,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.leftMargin: 10
                         Layout.rightMargin: 6
-                        height: 30
+                        height: Math.round(30 * theme.scale)
                         spacing: 6
-                        Text { text: (win.tree ? win.tree.pages + " notes" : "Indexing") + (win.unresolvedCount > 0 ? " · " + win.unresolvedCount + " unresolved" : ""); color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: (win.tree ? win.tree.pages + " notes" : "Indexing") + (win.unresolvedCount > 0 ? " · " + win.unresolvedCount + " unresolved" : ""); color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
                         SideTab { icon: "help"; tip: "Command palette (Ctrl+P) lists every action with its key"; onClicked: palette.show() }
                         SideTab { icon: "settings"; tip: "Settings"; onClicked: win.openView("settings") }
                     }
@@ -851,7 +862,7 @@ ApplicationWindow {
                 spacing: 0
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 42
+                    height: Math.round(42 * theme.scale)
                     color: theme.panel2
                     RowLayout {
                         anchors.fill: parent
@@ -882,7 +893,7 @@ ApplicationWindow {
                                         required property string termTitle
                                         readonly property bool active: stack.currentIndex === index
                                         width: Math.min(230, Math.max(150, tabLabel.implicitWidth + 70))
-                                        height: 42
+                                        height: Math.round(42 * theme.scale)
                                         Rectangle {
                                             anchors.fill: parent
                                             color: tabItem.active ? theme.background : (tabHover.hovered ? theme.panel3 : theme.panel2)
@@ -895,15 +906,15 @@ ApplicationWindow {
                                             anchors.rightMargin: 6
                                             spacing: 7
                                             Icon { visible: tabItem.pinned; name: "pin"; color: theme.muted; size: 12 }
-                                            Text { visible: tabItem.kind !== "terminal" && tabItem.kind !== "graph"; text: tabItem.active ? "◆" : "◇"; color: tabItem.active ? theme.accent : theme.muted; font.pixelSize: 10 }
-                                            Text { visible: tabItem.kind === "terminal"; text: win.agentGlyph(tabItem.program); color: tabItem.active ? theme.foreground : theme.muted; font.pixelSize: 12 }
+                                            Text { visible: tabItem.kind !== "terminal" && tabItem.kind !== "graph"; text: tabItem.active ? "◆" : "◇"; color: tabItem.active ? theme.accent : theme.muted; font.pixelSize: Math.round(10 * theme.scale) }
+                                            Text { visible: tabItem.kind === "terminal"; text: win.agentGlyph(tabItem.program); color: tabItem.active ? theme.foreground : theme.muted; font.pixelSize: Math.round(12 * theme.scale) }
                                             Icon { visible: tabItem.kind === "graph"; name: "graph"; color: tabItem.active ? theme.foreground : theme.muted; size: 13 }
                                             Text {
                                                 id: tabLabel
                                                 Layout.fillWidth: true
                                                 text: tabItem.title
                                                 color: tabItem.active ? theme.bright : theme.muted
-                                                font.pixelSize: 10
+                                                font.pixelSize: Math.round(10 * theme.scale)
                                                 elide: Text.ElideRight
                                             }
                                             Rectangle { visible: tabItem.unread; width: 7; height: 7; radius: 4; color: theme.accent }
@@ -954,11 +965,11 @@ ApplicationWindow {
                     visible: tabs.count === 0
                     anchors.centerIn: parent
                     spacing: 10
-                    Text { Layout.alignment: Qt.AlignHCenter; text: "No file is open"; color: theme.muted; font.pixelSize: 20 }
-                    Text { Layout.alignment: Qt.AlignHCenter; text: "Create new note (Ctrl+N)"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.newNote() } }
-                    Text { Layout.alignment: Qt.AlignHCenter; text: "Go to file (Ctrl+O)"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: switcher.show() } }
-                    Text { Layout.alignment: Qt.AlignHCenter; text: "Open today's daily note"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.todayNote() } }
-                    Text { Layout.alignment: Qt.AlignHCenter; visible: win.agents.length > 0; text: "Open " + win.agentLabel(win.agents[0]) + " in a terminal"; color: theme.link; font.pixelSize: 14; TapHandler { onTapped: win.openTerminal(win.agents[0], "", "", "") } }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "No file is open"; color: theme.muted; font.pixelSize: Math.round(20 * theme.scale) }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Create new note (Ctrl+N)"; color: theme.link; font.pixelSize: Math.round(14 * theme.scale); TapHandler { onTapped: win.newNote() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Go to file (Ctrl+O)"; color: theme.link; font.pixelSize: Math.round(14 * theme.scale); TapHandler { onTapped: switcher.show() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; text: "Open today's daily note"; color: theme.link; font.pixelSize: Math.round(14 * theme.scale); TapHandler { onTapped: win.todayNote() } }
+                    Text { Layout.alignment: Qt.AlignHCenter; visible: win.agents.length > 0; text: "Open " + win.agentLabel(win.agents[0]) + " in a terminal"; color: theme.link; font.pixelSize: Math.round(14 * theme.scale); TapHandler { onTapped: win.openTerminal(win.agents[0], "", "", "") } }
                 }
                 }
             }
@@ -995,7 +1006,7 @@ ApplicationWindow {
         // The status bar.
         Rectangle {
             Layout.fillWidth: true
-            height: 24
+            height: Math.round(24 * theme.scale)
             color: theme.panel
             Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: theme.line }
             RowLayout {
@@ -1003,11 +1014,11 @@ ApplicationWindow {
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 14
-                Text { text: backend.connected ? "" : backend.status; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.backlinkCount : 0) + " backlinks"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.properties.length : 0) + " properties"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.words : 0) + " words"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
-                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.characters : 0) + " characters"; color: theme.faint; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { text: backend.connected ? "" : backend.status; color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.backlinkCount : 0) + " backlinks"; color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.properties.length : 0) + " properties"; color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.words : 0) + " words"; color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                Text { visible: win.currentNote !== null; text: (win.currentNote ? win.currentNote.characters : 0) + " characters"; color: theme.faint; font.pixelSize: Math.round(9 * theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
             }
         }
     }
@@ -1021,11 +1032,11 @@ ApplicationWindow {
         anchors.rightMargin: 22
         anchors.bottomMargin: 18
         width: toastText.implicitWidth + 24
-        height: 30
+        height: Math.round(30 * theme.scale)
         color: theme.panel
         border.width: 1
         border.color: theme.alive
-        Text { id: toastText; anchors.centerIn: parent; text: win.notice; color: theme.alive; font.pixelSize: 10 }
+        Text { id: toastText; anchors.centerIn: parent; text: win.notice; color: theme.alive; font.pixelSize: Math.round(10 * theme.scale) }
         Timer { running: win.notice.length > 0; interval: 2600; onTriggered: win.notice = "" }
     }
 

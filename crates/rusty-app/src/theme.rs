@@ -62,6 +62,8 @@ mod qobject {
         #[qproperty(QString, active)]
         #[qproperty(QString, selection)]
         #[qproperty(i32, radius)]
+        #[qproperty(i32, base_size)]
+        #[qproperty(f64, scale)]
         #[qproperty(bool, scanlines)]
         #[qproperty(bool, dark)]
         #[qproperty(QString, source)]
@@ -86,6 +88,11 @@ mod qobject {
         /// keeps it in the workspace state. Unknown names fall back to the first preset.
         #[qinvokable]
         fn select(self: Pin<&mut Theme>, choice: &QString);
+
+        /// Set the base text size (clamped to 12 to 18); every label follows through
+        /// `scale`. Ignored while `RUSTY_TEXT_SIZE` forces a size.
+        #[qinvokable]
+        fn set_text_size(self: Pin<&mut Theme>, px: i32);
     }
 
     impl cxx_qt::Threading for Theme {}
@@ -128,6 +135,10 @@ pub struct ThemeRust {
     active: QString,
     selection: QString,
     radius: i32,
+    /// The base text size in pixels; every QML label is a multiple of `scale`.
+    base_size: i32,
+    /// `base_size / 12`, the body size the mock was drawn at.
+    scale: f64,
     scanlines: bool,
     dark: bool,
     /// The chosen source: `preset`, `omarchy` or `file`.
@@ -216,6 +227,8 @@ impl Default for ThemeRust {
             active: token("active"),
             selection: token("selection"),
             radius: c.roles.radius,
+            base_size: text_size_from_env().unwrap_or(DEFAULT_TEXT_SIZE),
+            scale: scale_for(text_size_from_env().unwrap_or(DEFAULT_TEXT_SIZE)),
             scanlines: choice.scanlines,
             dark: c.tokens.get("dark").is_some_and(|d| d == "true"),
             source: QString::from(&choice.source),
@@ -310,7 +323,42 @@ fn start_tab_from_env() -> i32 {
         .unwrap_or(-1)
 }
 
+/// The body size the QML was drawn at: a label written as 12 px is 12 px at this base.
+pub const BODY_SIZE: i32 = 12;
+/// The default base text size: the drawn body size plus two.
+pub const DEFAULT_TEXT_SIZE: i32 = 14;
+
+/// The base size kept between 12 and 18.
+pub fn clamp_text_size(px: i32) -> i32 {
+    px.clamp(12, 18)
+}
+
+/// `scale` for a base size.
+pub fn scale_for(base: i32) -> f64 {
+    f64::from(clamp_text_size(base)) / f64::from(BODY_SIZE)
+}
+
+/// `RUSTY_TEXT_SIZE`, for screenshots and tests; unset or unparsable means none.
+pub fn text_size_from_env() -> Option<i32> {
+    std::env::var("RUSTY_TEXT_SIZE")
+        .ok()
+        .and_then(|v| v.trim().parse::<i32>().ok())
+        .map(clamp_text_size)
+}
+
 impl qobject::Theme {
+    /// See [`clamp_text_size`]; the setters run only on a change so bindings settle once.
+    pub fn set_text_size(mut self: Pin<&mut Self>, px: i32) {
+        if text_size_from_env().is_some() {
+            return;
+        }
+        let base = clamp_text_size(px);
+        if base != *self.base_size() {
+            self.as_mut().set_base_size(base);
+            self.as_mut().set_scale(scale_for(base));
+        }
+    }
+
     /// Watch `~/.config/omarchy/current` from a background thread. Omarchy repoints the
     /// `theme` link there on `omarchy theme set`; every change is coalesced for a moment
     /// and then `reload()` runs on the Qt thread. Safe to call once per object.
@@ -402,5 +450,59 @@ impl qobject::Theme {
             .set_choices(QString::from(&skin::choices_json()));
         self.as_mut()
             .set_tokens(QString::from(&tokens_json(&c.tokens)));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_base_size_defaults_to_fourteen_and_stays_between_twelve_and_eighteen() {
+        assert_eq!(DEFAULT_TEXT_SIZE, BODY_SIZE + 2);
+        assert_eq!(clamp_text_size(3), 12);
+        assert_eq!(clamp_text_size(14), 14);
+        assert_eq!(clamp_text_size(40), 18);
+        assert!((scale_for(12) - 1.0).abs() < f64::EPSILON);
+        assert!((scale_for(18) - 1.5).abs() < f64::EPSILON);
+    }
+
+    /// Every text size in the QML derives from the theme's scale: no literal
+    /// `pixelSize`, and a literal `pointSize` only where the terminal keeps the
+    /// Alacritty font (REQ-005 of TICKET-012).
+    #[test]
+    fn qml_text_sizes_derive_from_the_theme() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("qml");
+        let mut literal = Vec::new();
+        for entry in std::fs::read_dir(&dir).expect("qml dir") {
+            let path = entry.expect("entry").path();
+            if path.extension().is_none_or(|e| e != "qml") {
+                continue;
+            }
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            let text = std::fs::read_to_string(&path).expect("qml file");
+            for (i, line) in text.lines().enumerate() {
+                for key in ["pixelSize:", "pointSize:"] {
+                    let mut rest = line;
+                    while let Some(pos) = rest.find(key) {
+                        let after = &rest[pos + key.len()..];
+                        // The value runs to the end of the property.
+                        let end = after.find([';', '}']).unwrap_or(after.len());
+                        let value = after[..end].trim();
+                        let derived = value.contains("theme.scale");
+                        let allowed = key == "pointSize:" && name == "AgentTerminal.qml";
+                        if !derived && !allowed {
+                            literal.push(format!("{name}:{}: {}", i + 1, line.trim()));
+                        }
+                        rest = &rest[pos + key.len()..];
+                    }
+                }
+            }
+        }
+        assert!(
+            literal.is_empty(),
+            "literal text sizes in QML:\n{}",
+            literal.join("\n")
+        );
     }
 }

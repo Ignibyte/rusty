@@ -210,6 +210,10 @@ What using the app every day asks for, added as it comes up.
       per agent CLI move into the top bar (click for a tab, right-click for the agent pane), the
       Hyprland workspace strip goes (waybar has it), the ribbon keeps the vault and the views
 
+- [x] Text size (TICKET-012, 2026-09-03): one base size on the theme (12 to 18, default 14,
+      two more than the drawn body size), every label and the reading view scaled from it, a
+      stepper in Settings, Ctrl with plus, minus and zero, a test that refuses a literal size
+
 ## M8. Knowledge workspace (Obsidian inside Rusty)
 
 Chad, 2026-09-02: skip the Obsidian API and remake Obsidian inside Rusty; the Replit mock

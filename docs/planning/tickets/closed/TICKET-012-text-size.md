@@ -1,11 +1,12 @@
 ---
 title: TICKET-012-text-size
-status: open
+status: done
 ticket_number: 012
 type: feature
 created: 2026-09-03
+closed: 2026-09-03
 intake:
-pipeline_spec: docs/planning/pipeline/active/text-size.spec.md
+pipeline_spec: docs/planning/pipeline/completed/text-size.spec.md
 ---
 
 # TICKET-012-text-size
@@ -39,7 +40,7 @@ setting.
 
 ## Notes
 
-- Pipeline spec: docs/planning/pipeline/active/text-size.spec.md
+- Pipeline spec: docs/planning/pipeline/completed/text-size.spec.md
 - Related docs: `crates/rusty-app/src/theme.rs`, `crates/rusty-app/qml/SettingsPage.qml`, the workspace state in `crates/rusty-app/src/terminals.rs`.
 - Promoted from intake: none; drafted by the rustal session on 2026-09-03 from Chad's words at 15:40: "lets raise the font size up at least 2-3 more pixels and make a settings for that".
 - Follow-ups opened: none.

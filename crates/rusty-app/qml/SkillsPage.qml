@@ -121,7 +121,7 @@ Item {
                 spacing: 6
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: page.skills.length + " skills"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.fillWidth: true }
+                    Text { text: page.skills.length + " skills"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.fillWidth: true }
                     Button { text: "New"; onClicked: { newDialog.open(); newName.forceActiveFocus() } }
                 }
                 ListView {
@@ -142,17 +142,17 @@ Item {
                             anchors.fill: parent; anchors.leftMargin: 10; anchors.rightMargin: 8; anchors.topMargin: 5; anchors.bottomMargin: 5
                             spacing: 1
                             RowLayout {
-                                Text { text: modelData.name; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
-                                Rectangle { visible: modelData.status === "pending"; radius: 3; color: page.theme.foreground; opacity: 0.85; width: pendingText.implicitWidth + 8; height: 16; Text { id: pendingText; anchors.centerIn: parent; text: "pending"; color: page.theme.background; font.pixelSize: 10 } }
-                                Text { visible: modelData.origin === "auto"; text: "auto"; font.pixelSize: 10; opacity: 0.7; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
+                                Text { text: modelData.name; font.pixelSize: Math.round(14 * page.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
+                                Rectangle { visible: modelData.status === "pending"; radius: 3; color: page.theme.foreground; opacity: 0.85; width: pendingText.implicitWidth + 8; height: 16; Text { id: pendingText; anchors.centerIn: parent; text: "pending"; color: page.theme.background; font.pixelSize: Math.round(10 * page.theme.scale) } }
+                                Text { visible: modelData.origin === "auto"; text: "auto"; font.pixelSize: Math.round(10 * page.theme.scale); opacity: 0.7; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
                             }
-                            Text { text: modelData.description; font.pixelSize: 11; opacity: 0.7; elide: Text.ElideRight; Layout.fillWidth: true; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
+                            Text { text: modelData.description; font.pixelSize: Math.round(11 * page.theme.scale); opacity: 0.7; elide: Text.ElideRight; Layout.fillWidth: true; color: page.selected && page.selected.name === modelData.name ? page.theme.background : page.theme.foreground }
                         }
                         HoverHandler { id: hover }
                         TapHandler { onTapped: page.select(modelData) }
                     }
                 }
-                Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: Math.round(11 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
         }
         Rectangle { width: 1; Layout.fillHeight: true; color: page.theme.accent; opacity: 0.25 }
@@ -160,7 +160,7 @@ Item {
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Text { anchors.centerIn: parent; visible: page.selected === null; text: page.backend.connected ? "Pick a skill, or make a new one" : page.backend.status; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 14 }
+            Text { anchors.centerIn: parent; visible: page.selected === null; text: page.backend.connected ? "Pick a skill, or make a new one" : page.backend.status; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(14 * page.theme.scale) }
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 20
@@ -169,7 +169,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    Text { text: page.selected ? page.selected.name : ""; color: page.theme.foreground; font.pixelSize: 22; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { text: page.selected ? page.selected.name : ""; color: page.theme.foreground; font.pixelSize: Math.round(22 * page.theme.scale); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                     Button { text: "Scan"; onClicked: page.scan() }
                     Button { text: "Approve"; visible: page.selected && page.selected.status === "pending"; highlighted: true; onClicked: page.approve(false) }
                     Button { text: "Approve anyway"; visible: page.selected && page.selected.status === "pending" && page.findings.length > 0; onClicked: page.approve(true) }
@@ -179,18 +179,18 @@ Item {
                 }
                 Text {
                     text: page.selected ? (page.selected.status + "  ·  " + page.selected.origin + "  ·  " + page.selected.path) : ""
-                    color: page.theme.foreground; opacity: 0.55; font.pixelSize: 12; elide: Text.ElideMiddle; Layout.fillWidth: true
+                    color: page.theme.foreground; opacity: 0.55; font.pixelSize: Math.round(12 * page.theme.scale); elide: Text.ElideMiddle; Layout.fillWidth: true
                 }
-                Text { text: "Description"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true }
+                Text { text: "Description"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true }
                 TextField { id: descField; Layout.fillWidth: true }
-                Text { text: "Body"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true }
+                Text { text: "Body"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true }
                 TextArea {
                     id: bodyArea
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     wrapMode: TextEdit.Wrap
                     font.family: page.theme.termFont
-                    font.pointSize: 10.5
+                    font.pointSize: 10.5 * page.theme.scale
                     color: page.theme.foreground
                     background: Rectangle { color: Qt.darker(page.theme.background, 1.15); radius: 6; border.color: page.theme.accent; border.width: 1 }
                     Keys.onPressed: (event) => { if (event.key === Qt.Key_S && (event.modifiers & Qt.ControlModifier)) { page.save(); event.accepted = true } }
@@ -198,10 +198,10 @@ Item {
                 ColumnLayout {
                     visible: page.findings.length > 0
                     spacing: 2
-                    Text { text: "Scan findings"; color: page.theme.accent; font.pixelSize: 12; font.bold: true }
+                    Text { text: "Scan findings"; color: page.theme.accent; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true }
                     Repeater {
                         model: page.findings
-                        delegate: Text { required property string modelData; text: "• " + modelData; color: page.theme.foreground; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                        delegate: Text { required property string modelData; text: "• " + modelData; color: page.theme.foreground; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     }
                 }
             }

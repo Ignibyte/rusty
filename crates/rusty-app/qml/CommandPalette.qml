@@ -48,7 +48,7 @@ Popup {
             Layout.fillWidth: true
             Layout.margins: 8
             placeholderText: "Select a command…"
-            font.pixelSize: 15
+            font.pixelSize: Math.round(15 * pop.theme.scale)
             onTextChanged: pop.refilter()
             onAccepted: pop.run()
             Keys.onDownPressed: if (pop.matches.length > 0) pop.selected = Math.min(pop.selected + 1, pop.matches.length - 1)
@@ -71,13 +71,13 @@ Popup {
                 color: pop.selected === index ? pop.theme.active : "transparent"
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 14; anchors.rightMargin: 14
-                    Text { text: modelData.name; color: pop.theme.foreground; font.pixelSize: 14; elide: Text.ElideRight; Layout.fillWidth: true }
-                    Text { text: modelData.keys || ""; color: pop.theme.faint; font.pixelSize: 12 }
+                    Text { text: modelData.name; color: pop.theme.foreground; font.pixelSize: Math.round(14 * pop.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: modelData.keys || ""; color: pop.theme.faint; font.pixelSize: Math.round(12 * pop.theme.scale) }
                 }
                 HoverHandler { onHoveredChanged: if (hovered) pop.selected = index }
                 TapHandler { onTapped: { pop.selected = index; pop.run() } }
             }
         }
-        Text { visible: pop.matches.length === 0; text: "No matching command"; color: pop.theme.faint; font.pixelSize: 12; Layout.margins: 12 }
+        Text { visible: pop.matches.length === 0; text: "No matching command"; color: pop.theme.faint; font.pixelSize: Math.round(12 * pop.theme.scale); Layout.margins: 12 }
     }
 }

@@ -39,10 +39,10 @@ Item {
             Layout.leftMargin: 12
             Layout.rightMargin: 40
             spacing: 8
-            Text { visible: pane.current === "agent"; text: "✦"; color: pane.theme.accent; font.pixelSize: 15 }
-            Text { text: pane.current === "agent" ? "Rusty / Assistant" : pane.current === "backlinks" ? "Backlinks" : pane.current === "outgoing" ? "Outgoing links" : pane.current === "outline" ? "Outline" : "Tags"; color: pane.theme.bright; font.pixelSize: 10; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+            Text { visible: pane.current === "agent"; text: "✦"; color: pane.theme.accent; font.pixelSize: Math.round(15 * pane.theme.scale) }
+            Text { text: pane.current === "agent" ? "Rusty / Assistant" : pane.current === "backlinks" ? "Backlinks" : pane.current === "outgoing" ? "Outgoing links" : pane.current === "outline" ? "Outline" : "Tags"; color: pane.theme.bright; font.pixelSize: Math.round(10 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
             Item { Layout.fillWidth: true }
-            Text { visible: pane.current === "agent"; text: "● " + (pane.program.length > 0 ? "Ready" : "Idle"); color: pane.theme.alive; font.pixelSize: 9; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+            Text { visible: pane.current === "agent"; text: "● " + (pane.program.length > 0 ? "Ready" : "Idle"); color: pane.theme.alive; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: pane.theme.line }
         RowLayout {
@@ -67,11 +67,11 @@ Item {
             Layout.fillHeight: true
             Layout.margins: 8
             spacing: 4
-            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
             RowLayout {
                 visible: pane.note !== null
-                Text { text: "Linked mentions"; color: pane.theme.foreground; font.pixelSize: 13 }
-                Rectangle { radius: 8; color: pane.theme.hover; width: countText.implicitWidth + 12; height: 18; Text { id: countText; anchors.centerIn: parent; text: pane.note ? pane.note.backlinkCount : 0; color: pane.theme.muted; font.pixelSize: 11 } }
+                Text { text: "Linked mentions"; color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale) }
+                Rectangle { radius: 8; color: pane.theme.hover; width: countText.implicitWidth + 12; height: 18; Text { id: countText; anchors.centerIn: parent; text: pane.note ? pane.note.backlinkCount : 0; color: pane.theme.muted; font.pixelSize: Math.round(11 * pane.theme.scale) } }
             }
             ListView {
                 id: backlinkList
@@ -91,14 +91,14 @@ Item {
                         id: bcol
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 6
                         spacing: 2
-                        Text { text: pane.titleOf(modelData.from_slug); color: pane.theme.foreground; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: modelData.context; color: pane.theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: pane.titleOf(modelData.from_slug); color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.context; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
                     }
                     HoverHandler { id: bHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: pane.openPage(modelData.from_slug) }
                 }
             }
-            Text { visible: pane.note !== null && pane.note.backlinkCount === 0; text: "No backlinks found."; color: pane.theme.faint; font.pixelSize: 12 }
+            Text { visible: pane.note !== null && pane.note.backlinkCount === 0; text: "No backlinks found."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }
         }
 
         // Outgoing links
@@ -108,8 +108,8 @@ Item {
             Layout.fillHeight: true
             Layout.margins: 8
             spacing: 4
-            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
-            Text { visible: pane.note !== null; text: "Links"; color: pane.theme.foreground; font.pixelSize: 13 }
+            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { visible: pane.note !== null; text: "Links"; color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale) }
             ListView {
                 id: outList
                 Layout.fillWidth: true
@@ -128,14 +128,14 @@ Item {
                         anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6
                         spacing: 6
                         Icon { name: modelData.resolved ? "link" : "unlink"; color: modelData.resolved ? pane.theme.link : pane.theme.faint; size: 14 }
-                        Text { text: modelData.resolved ? pane.titleOf(modelData.to_slug) : modelData.to_slug; color: modelData.resolved ? pane.theme.foreground : pane.theme.faint; font.pixelSize: 13; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                        Text { visible: !modelData.resolved; text: "create"; color: pane.theme.link; font.pixelSize: 11 }
+                        Text { text: modelData.resolved ? pane.titleOf(modelData.to_slug) : modelData.to_slug; color: modelData.resolved ? pane.theme.foreground : pane.theme.faint; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideMiddle; Layout.fillWidth: true }
+                        Text { visible: !modelData.resolved; text: "create"; color: pane.theme.link; font.pixelSize: Math.round(11 * pane.theme.scale) }
                     }
                     HoverHandler { id: oHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: modelData.resolved ? pane.openPage(modelData.to_slug) : pane.createPage(modelData.to_slug) }
                 }
             }
-            Text { visible: pane.note !== null && pane.note.links !== null && pane.note.links.outbound.length === 0; text: "No links."; color: pane.theme.faint; font.pixelSize: 12 }
+            Text { visible: pane.note !== null && pane.note.links !== null && pane.note.links.outbound.length === 0; text: "No links."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }
         }
 
         // Outline
@@ -145,7 +145,7 @@ Item {
             Layout.fillHeight: true
             Layout.margins: 8
             spacing: 2
-            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: pane.note ? pane.note.title : "No file is open"; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
             ListView {
                 id: outlineList
                 Layout.fillWidth: true
@@ -167,7 +167,7 @@ Item {
                         anchors.right: parent.right
                         text: modelData.text
                         color: modelData.level === 1 ? pane.theme.foreground : pane.theme.muted
-                        font.pixelSize: 13
+                        font.pixelSize: Math.round(13 * pane.theme.scale)
                         elide: Text.ElideRight
                     }
                     HoverHandler { id: hHover; cursorShape: Qt.PointingHandCursor }
@@ -175,7 +175,7 @@ Item {
                     TapHandler { acceptedButtons: Qt.RightButton; onTapped: { headingMenu.heading = modelData.text; headingMenu.popup() } }
                 }
             }
-            Text { visible: pane.note !== null && pane.note.outline.length === 0; text: "No headings."; color: pane.theme.faint; font.pixelSize: 12 }
+            Text { visible: pane.note !== null && pane.note.outline.length === 0; text: "No headings."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }
             Menu {
                 id: headingMenu
                 property string heading: ""
@@ -192,8 +192,8 @@ Item {
             spacing: 2
             RowLayout {
                 spacing: 6
-                Text { text: "Tags"; color: pane.theme.foreground; font.pixelSize: 13 }
-                Rectangle { radius: 8; color: pane.theme.hover; width: tagTotal.implicitWidth + 12; height: 18; Text { id: tagTotal; anchors.centerIn: parent; text: pane.tags.length; color: pane.theme.muted; font.pixelSize: 11 } }
+                Text { text: "Tags"; color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale) }
+                Rectangle { radius: 8; color: pane.theme.hover; width: tagTotal.implicitWidth + 12; height: 18; Text { id: tagTotal; anchors.centerIn: parent; text: pane.tags.length; color: pane.theme.muted; font.pixelSize: Math.round(11 * pane.theme.scale) } }
             }
             ListView {
                 id: tagList
@@ -213,8 +213,8 @@ Item {
                         anchors.leftMargin: 8 + modelData.depth * 14
                         anchors.rightMargin: 8
                         spacing: 6
-                        Text { text: "#" + modelData.name; color: pane.theme.tag; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                        Text { text: modelData.count; color: pane.theme.faint; font.pixelSize: 11 }
+                        Text { text: "#" + modelData.name; color: pane.theme.tag; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: modelData.count; color: pane.theme.faint; font.pixelSize: Math.round(11 * pane.theme.scale) }
                     }
                     HoverHandler { id: tHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: pane.searchTag(modelData.tag) }
@@ -223,7 +223,7 @@ Item {
                     ToolTip.delay: 600
                 }
             }
-            Text { visible: pane.tags.length === 0; text: "No tags yet."; color: pane.theme.faint; font.pixelSize: 12 }
+            Text { visible: pane.tags.length === 0; text: "No tags yet."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }
         }
 
         // The agent pane: one terminal that stays with the sidebar.
@@ -248,11 +248,11 @@ Item {
                     spacing: 6
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Context loaded"; color: pane.theme.accent; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Text { text: "Context loaded"; color: pane.theme.accent; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
                         Item { Layout.fillWidth: true }
-                        Text { text: pane.note ? pane.note.words + " words" : "—"; color: pane.theme.accent; font.pixelSize: 9; font.capitalization: Font.AllUppercase }
+                        Text { text: pane.note ? pane.note.words + " words" : "—"; color: pane.theme.accent; font.pixelSize: Math.round(9 * pane.theme.scale); font.capitalization: Font.AllUppercase }
                     }
-                    Text { text: pane.note ? pane.note.title + (pane.note.backlinkCount > 0 ? " + " + pane.note.backlinkCount + (pane.note.backlinkCount === 1 ? " backlink" : " backlinks") : "") : "no page open"; color: pane.theme.foreground; font.pixelSize: 10; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: pane.note ? pane.note.title + (pane.note.backlinkCount > 0 ? " + " + pane.note.backlinkCount + (pane.note.backlinkCount === 1 ? " backlink" : " backlinks") : "") : "no page open"; color: pane.theme.foreground; font.pixelSize: Math.round(10 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
                     Rectangle {
                         Layout.fillWidth: true
                         height: 3
@@ -265,12 +265,12 @@ Item {
                 Layout.fillWidth: true
                 Layout.margins: 6
                 spacing: 6
-                Text { text: "Agent"; color: pane.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                Text { text: "Agent"; color: pane.theme.muted; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
                 ComboBox {
                     id: programBox
                     Layout.fillWidth: true
                     model: pane.programs
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * pane.theme.scale)
                     onActivated: pane.program = currentText
                     Component.onCompleted: { const i = pane.programs.indexOf(pane.program); currentIndex = i >= 0 ? i : 0; if (pane.program.length === 0 && pane.programs.length > 0) pane.program = pane.programs[0] }
                 }

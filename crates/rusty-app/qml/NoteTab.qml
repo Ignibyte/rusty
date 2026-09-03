@@ -80,7 +80,7 @@ Item {
             accent: theme.accent, code: theme.code, code_bg: theme.codeBg, mono: theme.termFont,
             mark_bg: t.mark || theme.accent, line: theme.line, tag: theme.tag,
             red: t.red, green: t.green, yellow: t.yellow, blue: t.blue, magenta: t.magenta, cyan: t.cyan,
-            headings: [t.h1, t.h2, t.h3, t.h4, t.h5, t.h6], size: 15,
+            headings: [t.h1, t.h2, t.h3, t.h4, t.h5, t.h6], size: Math.round(15 * note.theme.scale),
             bright: theme.bright, gold: theme.gold, alive: theme.alive, accent_soft: theme.accentSoft,
             panel3: theme.panel3, line_bright: theme.lineBright, marks: true, code_head: true
         }
@@ -110,6 +110,8 @@ Item {
         ask("brain_get_links", { slug: slug }, "links")
     }
     function reload() { if (!dirty) load() }
+    // The reading view is rendered at the base size, so a size change renders it again.
+    Connections { target: note.theme; function onScaleChanged() { note.reload() } }
     function save() {
         if (!dirty || !editing) return
         dirty = false
@@ -297,15 +299,15 @@ Item {
                 HeaderButton { icon: "arrow-left"; enabled: note.historyIndex > 0; tip: "Back"; onClicked: note.goBack() }
                 HeaderButton { icon: "arrow-right"; enabled: note.historyIndex < note.history.length - 1; tip: "Forward"; onClicked: note.goForward() }
                 Item { Layout.fillWidth: true }
-                Text { visible: note.folder.length > 0; text: note.folder.replace(/\//g, " / "); color: note.theme.muted; font.pixelSize: 10; elide: Text.ElideMiddle; Layout.maximumWidth: 300 }
-                Text { visible: note.folder.length > 0; text: "/"; color: note.theme.muted; font.pixelSize: 10 }
-                Text { text: note.fileName; color: note.theme.accent; font.pixelSize: 10; elide: Text.ElideMiddle; Layout.maximumWidth: 360 }
-                Text { visible: note.dirty; text: "•"; color: note.theme.accent; font.pixelSize: 14 }
+                Text { visible: note.folder.length > 0; text: note.folder.replace(/\//g, " / "); color: note.theme.muted; font.pixelSize: Math.round(10 * note.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: 300 }
+                Text { visible: note.folder.length > 0; text: "/"; color: note.theme.muted; font.pixelSize: Math.round(10 * note.theme.scale) }
+                Text { text: note.fileName; color: note.theme.accent; font.pixelSize: Math.round(10 * note.theme.scale); elide: Text.ElideMiddle; Layout.maximumWidth: 360 }
+                Text { visible: note.dirty; text: "•"; color: note.theme.accent; font.pixelSize: Math.round(14 * note.theme.scale) }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: note.editing ? "[ EDIT ]" : "[ READ ]"
                     color: readHover.hovered ? note.theme.accent : note.theme.muted
-                    font.pixelSize: 10
+                    font.pixelSize: Math.round(10 * note.theme.scale)
                     font.letterSpacing: 1
                     HoverHandler { id: readHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: note.toggleEditing() }
@@ -341,10 +343,10 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     text: !note.backend.connected ? "waiting for rusty-mcp" : (note.missing ? "No page at " + note.slug : "loading " + note.slug)
                     color: note.theme.muted
-                    font.pixelSize: 14
+                    font.pixelSize: Math.round(14 * note.theme.scale)
                 }
                 Button { visible: note.missing && note.backend.connected; Layout.alignment: Qt.AlignHCenter; text: "Create it"; onClicked: note.ask("brain_new_page", { folder: note.folder, name: note.fileName }, "created") }
-                Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter }
+                Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: Math.round(12 * note.theme.scale); Layout.alignment: Qt.AlignHCenter }
             }
 
             // The mock's legend: how connected this page is; a click opens the local graph.
@@ -367,9 +369,9 @@ Item {
                     spacing: 6
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Local graph"; color: note.theme.gold; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Text { text: "Local graph"; color: note.theme.gold; font.pixelSize: Math.round(9 * note.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
                         Item { Layout.fillWidth: true }
-                        Text { text: (note.graphInfo ? note.graphInfo.nodes : 0) + " nodes"; color: note.theme.muted; font.pixelSize: 9; font.capitalization: Font.AllUppercase }
+                        Text { text: (note.graphInfo ? note.graphInfo.nodes : 0) + " nodes"; color: note.theme.muted; font.pixelSize: Math.round(9 * note.theme.scale); font.capitalization: Font.AllUppercase }
                     }
                     Repeater {
                         model: [["direct links", "direct", note.theme.accent], ["related notes", "related", note.theme.alive], ["distant nodes", "distant", note.theme.lineBright]]
@@ -377,8 +379,8 @@ Item {
                             required property var modelData
                             spacing: 8
                             Rectangle { width: 28; height: 1; color: modelData[2] }
-                            Text { text: modelData[0]; color: note.theme.muted; font.pixelSize: 9; Layout.fillWidth: true }
-                            Text { text: String(note.graphInfo ? note.graphInfo[modelData[1]] : 0).padStart(2, "0"); color: note.theme.foreground; font.pixelSize: 9 }
+                            Text { text: modelData[0]; color: note.theme.muted; font.pixelSize: Math.round(9 * note.theme.scale); Layout.fillWidth: true }
+                            Text { text: String(note.graphInfo ? note.graphInfo[modelData[1]] : 0).padStart(2, "0"); color: note.theme.foreground; font.pixelSize: Math.round(9 * note.theme.scale) }
                         }
                     }
                 }
@@ -407,24 +409,24 @@ Item {
                     RowLayout {
                         visible: !note.editing
                         spacing: 10
-                        Text { text: "●"; color: note.theme.alive; font.pixelSize: 9 }
-                        Text { text: "Live note"; color: note.theme.alive; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.leftMargin: -4 }
-                        Text { visible: note.updatedText.length > 0; text: "Modified " + note.updatedText; color: note.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
-                        Text { text: "·"; color: note.theme.muted; font.pixelSize: 9 }
-                        Text { text: note.backlinkCount + (note.backlinkCount === 1 ? " backlink" : " backlinks"); color: note.theme.muted; font.pixelSize: 9; font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Text { text: "●"; color: note.theme.alive; font.pixelSize: Math.round(9 * note.theme.scale) }
+                        Text { text: "Live note"; color: note.theme.alive; font.pixelSize: Math.round(9 * note.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.leftMargin: -4 }
+                        Text { visible: note.updatedText.length > 0; text: "Modified " + note.updatedText; color: note.theme.muted; font.pixelSize: Math.round(9 * note.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
+                        Text { text: "·"; color: note.theme.muted; font.pixelSize: Math.round(9 * note.theme.scale) }
+                        Text { text: note.backlinkCount + (note.backlinkCount === 1 ? " backlink" : " backlinks"); color: note.theme.muted; font.pixelSize: Math.round(9 * note.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
                     }
                     Item { visible: !note.editing; height: 16 }
                     RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    Text { text: "#"; color: note.theme.accent; font.pixelSize: 28 }
+                    Text { text: "#"; color: note.theme.accent; font.pixelSize: Math.round(28 * note.theme.scale) }
                     // The inline title: Enter renames the file, as in Obsidian.
                     TextInput {
                         id: titleField
                         Layout.fillWidth: true
                         text: note.title
                         color: note.theme.bright
-                        font.pixelSize: 28
+                        font.pixelSize: Math.round(28 * note.theme.scale)
                         font.weight: Font.Medium
                         selectByMouse: true
                         selectionColor: note.theme.accent
@@ -446,8 +448,8 @@ Item {
                         RowLayout {
                             spacing: 6
                             visible: note.properties.length > 0
-                            Text { text: "Properties"; color: note.theme.muted; font.pixelSize: 13 }
-                            Text { text: note.properties.length; color: note.theme.faint; font.pixelSize: 12 }
+                            Text { text: "Properties"; color: note.theme.muted; font.pixelSize: Math.round(13 * note.theme.scale) }
+                            Text { text: note.properties.length; color: note.theme.faint; font.pixelSize: Math.round(12 * note.theme.scale) }
                         }
                         Repeater {
                             model: note.properties
@@ -460,19 +462,19 @@ Item {
                                 id: newKey
                                 Layout.preferredWidth: 160
                                 placeholderText: "Property name"
-                                font.pixelSize: 13
+                                font.pixelSize: Math.round(13 * note.theme.scale)
                                 onAccepted: note.addProperty(text, newType.currentText)
                                 Keys.onEscapePressed: note.addingProperty = false
                                 onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
                             }
-                            ComboBox { id: newType; model: ["Text", "List", "Number", "Checkbox", "Date"]; Layout.preferredWidth: 120; font.pixelSize: 13 }
+                            ComboBox { id: newType; model: ["Text", "List", "Number", "Checkbox", "Date"]; Layout.preferredWidth: 120; font.pixelSize: Math.round(13 * note.theme.scale) }
                             Button { text: "Add"; onClicked: note.addProperty(newKey.text, newType.currentText) }
                         }
                         Text {
                             visible: !note.addingProperty
                             text: "+ Add property"
                             color: addHover.hovered ? note.theme.foreground : note.theme.faint
-                            font.pixelSize: 13
+                            font.pixelSize: Math.round(13 * note.theme.scale)
                             HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler { onTapped: note.startAddProperty() }
                         }
@@ -497,13 +499,13 @@ Item {
                                 wrapMode: Text.WordWrap
                                 color: note.theme.foreground
                                 linkColor: note.theme.link
-                                font.pixelSize: 15
+                                font.pixelSize: Math.round(15 * note.theme.scale)
                                 lineHeight: 1.5
                                 onLinkActivated: (link) => note.onLink(link)
                                 HoverHandler { cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
-                        Text { visible: note.chunks.length === 0; text: "Empty page"; color: note.theme.faint; font.pixelSize: 14; font.italic: true }
+                        Text { visible: note.chunks.length === 0; text: "Empty page"; color: note.theme.faint; font.pixelSize: Math.round(14 * note.theme.scale); font.italic: true }
                     }
 
                     // The mock's footer: who links here.
@@ -512,14 +514,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.topMargin: 28
                         spacing: 13
-                        Text { text: "Linked from"; color: note.theme.accent; font.pixelSize: 10; font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+                        Text { text: "Linked from"; color: note.theme.accent; font.pixelSize: Math.round(10 * note.theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
                         Repeater {
                             model: note.links ? note.links.backlinks.slice(0, 6) : []
                             delegate: Text {
                                 required property var modelData
                                 text: modelData.from_slug ? modelData.from_slug.slice(modelData.from_slug.lastIndexOf("/") + 1) : ""
                                 color: bfHover.hovered ? note.theme.bright : note.theme.alive
-                                font.pixelSize: 10
+                                font.pixelSize: Math.round(10 * note.theme.scale)
                                 HoverHandler { id: bfHover; cursorShape: Qt.PointingHandCursor }
                                 TapHandler { onTapped: note.open(modelData.from_slug) }
                             }
@@ -535,7 +537,7 @@ Item {
                         wrapMode: TextEdit.Wrap
                         textFormat: TextEdit.PlainText
                         font.family: note.theme.termFont
-                        font.pointSize: 11
+                        font.pointSize: 11 * note.theme.scale
                         color: note.theme.foreground
                         selectionColor: note.theme.accent
                         selectedTextColor: note.theme.background
@@ -554,7 +556,7 @@ Item {
                     }
                     MarkdownHighlighter { target: editor.textDocument; tokens: note.theme.tokens; monoFamily: note.theme.termFont }
 
-                    Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: 12 }
+                    Text { visible: note.notice.length > 0; text: note.notice; color: note.theme.muted; font.pixelSize: Math.round(12 * note.theme.scale); wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: 12 }
                 }
             }
         }
@@ -576,7 +578,7 @@ Item {
             Layout.alignment: Qt.AlignTop
             Layout.topMargin: 6
         }
-        Text { text: prow.key; color: note.theme.muted; font.pixelSize: 14; Layout.preferredWidth: 130; Layout.alignment: Qt.AlignTop; Layout.topMargin: 4; elide: Text.ElideRight }
+        Text { text: prow.key; color: note.theme.muted; font.pixelSize: Math.round(14 * note.theme.scale); Layout.preferredWidth: 130; Layout.alignment: Qt.AlignTop; Layout.topMargin: 4; elide: Text.ElideRight }
         // List: chips, each removable; tags are also links to their search.
         Flow {
             Layout.fillWidth: true
@@ -592,7 +594,7 @@ Item {
                     color: chipHover.hovered ? note.theme.active : note.theme.hover
                     width: chipText.implicitWidth + 30
                     height: 22
-                    Text { id: chipText; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 8; text: chip.modelData; color: prow.key === "tags" ? note.theme.tag : note.theme.foreground; font.pixelSize: 12 }
+                    Text { id: chipText; anchors.verticalCenter: parent.verticalCenter; anchors.left: parent.left; anchors.leftMargin: 8; text: chip.modelData; color: prow.key === "tags" ? note.theme.tag : note.theme.foreground; font.pixelSize: Math.round(12 * note.theme.scale) }
                     Icon { anchors.right: parent.right; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; name: "close"; color: note.theme.faint; size: 11; TapHandler { onTapped: { const l = note.listOf(prow.value); l.splice(chip.index, 1); note.setProperty(prow.key, l) } } }
                     HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: if (prow.key === "tags") note.openTag(chip.modelData.replace(/^#/, "")) }
@@ -602,7 +604,7 @@ Item {
                 id: chipAdd
                 width: Math.max(60, implicitWidth)
                 height: 22
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * note.theme.scale)
                 placeholderText: "add"
                 background: Rectangle { color: chipAdd.activeFocus ? note.theme.hover : "transparent"; radius: 10; border.color: note.theme.line; border.width: chipAdd.activeFocus ? 1 : 0 }
                 onAccepted: { const v = text.trim(); if (v.length > 0) { const l = note.listOf(prow.value); l.push(v); text = ""; note.setProperty(prow.key, l) } }
@@ -617,7 +619,7 @@ Item {
             id: valueField
             visible: prow.kind === "text" || prow.kind === "date" || prow.kind === "number"
             Layout.fillWidth: true
-            font.pixelSize: 14
+            font.pixelSize: Math.round(14 * note.theme.scale)
             color: note.theme.foreground
             text: prow.kind === "text" || prow.kind === "date" || prow.kind === "number" ? String(prow.value) : ""
             placeholderText: prow.kind === "date" ? "YYYY-MM-DD" : "Empty"
@@ -635,7 +637,7 @@ Item {
             Layout.fillWidth: true
             text: JSON.stringify(prow.value)
             color: note.theme.foreground
-            font.pixelSize: 13
+            font.pixelSize: Math.round(13 * note.theme.scale)
             wrapMode: Text.Wrap
         }
         Rectangle {

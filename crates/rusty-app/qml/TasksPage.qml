@@ -147,7 +147,7 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 6
-                Text { text: "Lists"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true }
+                Text { text: "Lists"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true }
                 ListView {
                     id: groupList
                     Layout.fillWidth: true
@@ -166,7 +166,7 @@ Item {
                             text: modelData.name
                             elide: Text.ElideRight
                             color: modelData.id === page.groupId ? page.theme.background : page.theme.foreground
-                            font.pixelSize: 14
+                            font.pixelSize: Math.round(14 * page.theme.scale)
                         }
                         HoverHandler { id: groupHover }
                         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: page.selectGroup(modelData.id, modelData.name) }
@@ -192,7 +192,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.margins: 16
                 Layout.bottomMargin: 0
-                Text { text: page.groupName.length > 0 ? page.groupName : "No list yet"; color: page.theme.foreground; font.pixelSize: 22; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                Text { text: page.groupName.length > 0 ? page.groupName : "No list yet"; color: page.theme.foreground; font.pixelSize: Math.round(22 * page.theme.scale); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                 CheckBox { text: "show archived"; checked: page.showArchived; onToggled: { page.showArchived = checked; page.refreshTasks() } }
             }
             TextField {
@@ -258,7 +258,7 @@ Item {
                             text: "⋮⋮"
                             color: page.theme.foreground
                             opacity: gripHover.hovered || rowDrag.active ? 0.9 : 0.3
-                            font.pixelSize: 13
+                            font.pixelSize: Math.round(13 * page.theme.scale)
                             Layout.preferredWidth: 16
                             horizontalAlignment: Text.AlignHCenter
                             HoverHandler { id: gripHover; cursorShape: Qt.SizeVerCursor }
@@ -286,7 +286,7 @@ Item {
                             text: modelData.title
                             elide: Text.ElideRight
                             color: page.theme.foreground
-                            font.pixelSize: 15
+                            font.pixelSize: Math.round(15 * page.theme.scale)
                             font.strikeout: modelData.completed
                         }
                         TextField {
@@ -298,7 +298,7 @@ Item {
                             onAccepted: { page.rename(modelData, text); taskList.editingRow = -1; taskList.forceActiveFocus() }
                             Keys.onEscapePressed: { taskList.editingRow = -1; taskList.forceActiveFocus() }
                         }
-                        Text { visible: modelData.archived; text: "archived"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 11 }
+                        Text { visible: modelData.archived; text: "archived"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(11 * page.theme.scale) }
                     }
                     HoverHandler { id: rowHover }
                     TapHandler {
@@ -314,7 +314,7 @@ Item {
                     text: page.showArchived ? "Nothing here" : "Nothing open. Type above to add a task."
                     color: page.theme.foreground
                     opacity: 0.5
-                    font.pixelSize: 14
+                    font.pixelSize: Math.round(14 * page.theme.scale)
                 }
             }
             Text {
@@ -323,7 +323,7 @@ Item {
                 text: page.notice.length > 0 ? page.notice : (page.backend.connected ? "" : page.backend.status)
                 color: page.theme.foreground
                 opacity: 0.6
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * page.theme.scale)
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }

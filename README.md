@@ -100,8 +100,9 @@ monospace face the terminal uses. The default is Amber phosphor, the palette of 
 design mock; Green phosphor, Ice and Paper ship beside it; "Follow Omarchy" maps the
 desktop theme onto the same roles and follows `omarchy theme set`; and a file in
 `~/.config/rusty/themes/<name>.toml` is a skin of your own (a `[colors]` table with `bg`,
-`text` and `accent` at least, the rest derived). Settings picks the skin and the CRT
-scanline overlay. The chrome is the mock's too: a top bar with the brand, the command
+`text` and `accent` at least, the rest derived). Settings picks the skin, the CRT
+scanline overlay and the text size (12 to 18 pixels, 14 by default; Ctrl with plus, minus
+or zero steps it, and everything but the terminals follows). The chrome is the mock's too: a top bar with the brand, the command
 button and the agents, the vault's state, memory, CPU and the clock; rail buttons with labels; pane
 heads as micro-labels; a note's meta line, heading marks, code header strips and "linked
 from" footer; the assistant's header and context card on the agent pane.

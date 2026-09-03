@@ -18,6 +18,7 @@ Item {
     readonly property var skinChoices: { try { return JSON.parse(page.theme.choices) } catch (e) { return [] } }
     signal selectSkin(string source, string name)
     signal setScanlines(bool on)
+    signal setTextSize(int px)
     readonly property var terminalKeys: [
         { name: "Terminal: Close terminal tab", keys: "Ctrl+Shift+W" },
         { name: "Terminal: Previous or next tab while a terminal has focus", keys: "Ctrl+PgUp / Ctrl+PgDn" },
@@ -73,20 +74,26 @@ Item {
             width: parent.width
             spacing: 12
 
-            Text { text: "Settings"; color: page.theme.foreground; font.pixelSize: 22; font.bold: true }
+            Text { text: "Settings"; color: page.theme.foreground; font.pixelSize: Math.round(22 * page.theme.scale); font.bold: true }
 
-            Text { text: "This machine"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 8 }
+            Text { text: "This machine"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 8 }
             Text {
                 text: page.theme.facts
                     + "\ntabs file: " + page.terminals.tabsPath
                     + "\nback end: " + page.backend.url + " (" + page.backend.status + ")"
-                color: page.theme.foreground; opacity: 0.75; font.pixelSize: 13
+                color: page.theme.foreground; opacity: 0.75; font.pixelSize: Math.round(13 * page.theme.scale)
                 wrapMode: Text.WrapAnywhere; Layout.fillWidth: true
             }
-            Text { text: "Click an agent in the top bar to open it in a new tab, right-click it for the agent pane · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 12 }
+            Text { text: "Click an agent in the top bar to open it in a new tab, right-click it for the agent pane · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
+            RowLayout {
+                spacing: 10
+                Text { text: "Text size"; color: page.theme.foreground; opacity: 0.75; font.pixelSize: Math.round(13 * page.theme.scale) }
+                SpinBox { from: 12; to: 18; value: page.theme.baseSize; editable: false; onValueModified: page.setTextSize(value) }
+                Text { text: "pixels; Ctrl with plus, minus or zero does the same"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            }
 
-            Text { text: "Skin"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
+            Text { text: "Skin"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 16 }
             Flow {
                 Layout.fillWidth: true
                 spacing: 6
@@ -101,7 +108,7 @@ Item {
                         color: on ? page.theme.active : page.theme.panel3
                         border.width: 1
                         border.color: on ? page.theme.accent : page.theme.line
-                        Text { id: chipText; anchors.centerIn: parent; text: modelData.title; color: on ? page.theme.bright : page.theme.muted; font.pixelSize: 10 }
+                        Text { id: chipText; anchors.centerIn: parent; text: modelData.title; color: on ? page.theme.bright : page.theme.muted; font.pixelSize: Math.round(10 * page.theme.scale) }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: page.selectSkin(modelData.source, modelData.name) }
                     }
@@ -110,10 +117,10 @@ Item {
             CheckBox { text: "CRT scanlines"; checked: page.theme.scanlines; onToggled: page.setScanlines(checked) }
             Text {
                 text: "A skin of your own is a file in ~/.config/rusty/themes/<name>.toml: a [colors] table with bg, text and accent at least (panel, panel2, panel3, line, line_bright, muted, bright, accent_soft, gold, alive and red as you like), and an optional [type] table with font and radius. The face applies at the next launch."
-                color: page.theme.foreground; opacity: 0.55; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true
+                color: page.theme.foreground; opacity: 0.55; font.pixelSize: Math.round(11 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
 
-            Text { text: "Hotkeys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
+            Text { text: "Hotkeys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 16 }
             TextField { id: keyFilter; Layout.preferredWidth: 420; placeholderText: "Filter hotkeys…" }
             Repeater {
                 model: page.hotkeyRows(keyFilter.text)
@@ -121,7 +128,7 @@ Item {
                     required property var modelData
                     Layout.fillWidth: true
                     spacing: 12
-                    Text { text: modelData.name; color: page.theme.foreground; font.pixelSize: 13; elide: Text.ElideRight; Layout.preferredWidth: 440 }
+                    Text { text: modelData.name; color: page.theme.foreground; font.pixelSize: Math.round(13 * page.theme.scale); elide: Text.ElideRight; Layout.preferredWidth: 440 }
                     Rectangle {
                         visible: modelData.keys.length > 0
                         radius: 4
@@ -129,14 +136,14 @@ Item {
                         border.color: page.theme.line
                         implicitWidth: keyText.implicitWidth + 14
                         implicitHeight: 22
-                        Text { id: keyText; anchors.centerIn: parent; text: modelData.keys; color: page.theme.foreground; font.pixelSize: 12; font.family: page.theme.termFont }
+                        Text { id: keyText; anchors.centerIn: parent; text: modelData.keys; color: page.theme.foreground; font.pixelSize: Math.round(12 * page.theme.scale); font.family: page.theme.termFont }
                     }
-                    Text { visible: modelData.keys.length === 0; text: "Blank"; color: page.theme.faint; font.pixelSize: 12 }
+                    Text { visible: modelData.keys.length === 0; text: "Blank"; color: page.theme.faint; font.pixelSize: Math.round(12 * page.theme.scale) }
                 }
             }
 
-            Text { text: "Settings rusty-mcp reads"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 16 }
-            Text { visible: !page.backend.connected; text: page.backend.status; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 13 }
+            Text { text: "Settings rusty-mcp reads"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 16 }
+            Text { visible: !page.backend.connected; text: page.backend.status; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(13 * page.theme.scale) }
             Repeater {
                 model: page.known
                 delegate: ColumnLayout {
@@ -146,7 +153,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 12
-                        Text { text: modelData.key; color: page.theme.foreground; font.pixelSize: 14; font.family: page.theme.termFont; Layout.preferredWidth: 220; elide: Text.ElideRight }
+                        Text { text: modelData.key; color: page.theme.foreground; font.pixelSize: Math.round(14 * page.theme.scale); font.family: page.theme.termFont; Layout.preferredWidth: 220; elide: Text.ElideRight }
                         TextField {
                             id: knownField
                             Layout.preferredWidth: 420
@@ -154,20 +161,20 @@ Item {
                             placeholderText: modelData.fallback
                             onAccepted: if (text !== page.storedValue(modelData.key)) page.setValue(modelData.key, text)
                         }
-                        Text { text: knownField.text !== page.storedValue(modelData.key) ? "Enter saves" : (page.storedValue(modelData.key).length === 0 ? "default" : ""); color: page.theme.accent; font.pixelSize: 11 }
+                        Text { text: knownField.text !== page.storedValue(modelData.key) ? "Enter saves" : (page.storedValue(modelData.key).length === 0 ? "default" : ""); color: page.theme.accent; font.pixelSize: Math.round(11 * page.theme.scale) }
                     }
-                    Text { text: modelData.about; color: page.theme.foreground; opacity: 0.55; font.pixelSize: 11; Layout.leftMargin: 232; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Text { text: modelData.about; color: page.theme.foreground; opacity: 0.55; font.pixelSize: Math.round(11 * page.theme.scale); Layout.leftMargin: 232; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 }
             }
 
-            Text { visible: page.others().length > 0; text: "Other stored keys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; font.bold: true; Layout.topMargin: 12 }
+            Text { visible: page.others().length > 0; text: "Other stored keys"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 12 }
             Repeater {
                 model: page.others()
                 delegate: RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
                     spacing: 12
-                    Text { text: modelData.key; color: page.theme.foreground; font.pixelSize: 14; font.family: page.theme.termFont; Layout.preferredWidth: 220; elide: Text.ElideRight }
+                    Text { text: modelData.key; color: page.theme.foreground; font.pixelSize: Math.round(14 * page.theme.scale); font.family: page.theme.termFont; Layout.preferredWidth: 220; elide: Text.ElideRight }
                     TextField {
                         id: valueField
                         Layout.preferredWidth: 420
@@ -175,7 +182,7 @@ Item {
                         placeholderText: modelData.value === "•••" ? "hidden; type a new value to replace it" : ""
                         onAccepted: if (text !== modelData.value && text !== "•••") page.setValue(modelData.key, text)
                     }
-                    Text { text: valueField.text !== modelData.value ? "Enter saves" : ""; color: page.theme.accent; font.pixelSize: 11 }
+                    Text { text: valueField.text !== modelData.value ? "Enter saves" : ""; color: page.theme.accent; font.pixelSize: Math.round(11 * page.theme.scale) }
                 }
             }
             RowLayout {
@@ -186,7 +193,7 @@ Item {
                 TextField { id: newValue; Layout.preferredWidth: 420; placeholderText: "value"; onAccepted: { page.setValue(newKey.text, text); newKey.text = ""; text = "" } }
                 Button { text: "Set"; onClicked: { page.setValue(newKey.text, newValue.text); newKey.text = ""; newValue.text = "" } }
             }
-            Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
         }
     }
 }

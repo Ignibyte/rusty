@@ -82,8 +82,8 @@ Item {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { text: page.memories.length + " memories"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12; Layout.fillWidth: true }
-            Text { text: "filter"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 12 }
+            Text { text: page.memories.length + " memories"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); Layout.fillWidth: true }
+            Text { text: "filter"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale) }
             ComboBox { model: ["all"].concat(page.categories); Layout.preferredWidth: 150; onActivated: (i) => page.filter = i === 0 ? "" : currentText }
         }
 
@@ -109,19 +109,19 @@ Item {
                         id: rowCol
                         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 7
                         spacing: 3
-                        Text { text: modelData.content; color: page.theme.foreground; font.pixelSize: 14; wrapMode: Text.WordWrap; Layout.fillWidth: true; maximumLineCount: 3; elide: Text.ElideRight }
+                        Text { text: modelData.content; color: page.theme.foreground; font.pixelSize: Math.round(14 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true; maximumLineCount: 3; elide: Text.ElideRight }
                         RowLayout {
                             spacing: 8
-                            Rectangle { radius: 3; color: page.theme.accent; opacity: 0.85; width: catText.implicitWidth + 10; height: 18; Text { id: catText; anchors.centerIn: parent; text: modelData.category; color: page.theme.background; font.pixelSize: 11 } }
-                            Text { text: modelData.importance; color: page.theme.foreground; opacity: 0.6; font.pixelSize: 11 }
-                            Text { text: modelData.source; color: page.theme.foreground; opacity: 0.4; font.pixelSize: 11 }
-                            Text { text: new Date(modelData.updated_at * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat); color: page.theme.foreground; opacity: 0.4; font.pixelSize: 11 }
+                            Rectangle { radius: 3; color: page.theme.accent; opacity: 0.85; width: catText.implicitWidth + 10; height: 18; Text { id: catText; anchors.centerIn: parent; text: modelData.category; color: page.theme.background; font.pixelSize: Math.round(11 * page.theme.scale) } }
+                            Text { text: modelData.importance; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(11 * page.theme.scale) }
+                            Text { text: modelData.source; color: page.theme.foreground; opacity: 0.4; font.pixelSize: Math.round(11 * page.theme.scale) }
+                            Text { text: new Date(modelData.updated_at * 1000).toLocaleDateString(Qt.locale(), Locale.ShortFormat); color: page.theme.foreground; opacity: 0.4; font.pixelSize: Math.round(11 * page.theme.scale) }
                         }
                     }
                     HoverHandler { id: rowHover }
                     TapHandler { onTapped: { page.selected = modelData; editContent.text = modelData.content; editCategory.editText = modelData.category; editImportance.currentIndex = Math.max(0, page.importances.indexOf(modelData.importance)) } }
                 }
-                Text { anchors.centerIn: parent; visible: page.shown().length === 0; text: page.backend.connected ? "Nothing remembered yet" : page.backend.status; color: page.theme.foreground; opacity: 0.5; font.pixelSize: 14 }
+                Text { anchors.centerIn: parent; visible: page.shown().length === 0; text: page.backend.connected ? "Nothing remembered yet" : page.backend.status; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(14 * page.theme.scale) }
             }
 
             // Editor for the selected memory
@@ -135,7 +135,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 8
-                    Text { text: "Edit"; color: page.theme.foreground; font.pixelSize: 14; font.bold: true }
+                    Text { text: "Edit"; color: page.theme.foreground; font.pixelSize: Math.round(14 * page.theme.scale); font.bold: true }
                     TextArea {
                         id: editContent
                         Layout.fillWidth: true
@@ -159,6 +159,6 @@ Item {
                 }
             }
         }
-        Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: 12; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
     }
 }

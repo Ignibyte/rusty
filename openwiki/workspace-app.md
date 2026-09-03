@@ -35,10 +35,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T21:03:48.186Z"}
+generated: {by: "claude-code", at: "2026-09-03T21:14:42.210Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T21:03:48.186Z
+    at: 2026-09-03T21:14:42.210Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -72,6 +72,13 @@ every view backed by the MCP server that agents share.
   `~/.config/omarchy/current` reloads on `omarchy theme set`; `omarchy.rs` reads the
   palette, the Alacritty font and colours, and writes the Konsole scheme. `main.rs` sets
   the application font from the saved skin before any item exists.
+  Since TICKET-012 the theme also carries `baseSize` (12 to 18, default 14, or
+  `RUSTY_TEXT_SIZE` when set, which then wins) and `scale` (`baseSize / 12`); every QML
+  text size is `Math.round(n * theme.scale)` for the drawn value `n`, the reading view's
+  render style takes its `size` from the same scale, and the terminal keeps the Alacritty
+  font. `textSize` in the workspace state, Ctrl with plus, minus and zero, three palette
+  commands and a stepper under "This machine" in Settings set it; a Rust test in
+  `theme.rs` refuses a literal `pixelSize` anywhere in the QML.
 - `src/desk.rs`: `Desk`, what the top bar reads: memory in use, the CPU's share, the
   clock, the login name. It asks the compositor for nothing; the Hyprland workspace strip
   went with TICKET-011, since waybar shows the workspaces.

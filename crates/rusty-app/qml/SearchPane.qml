@@ -33,7 +33,7 @@ Item {
         radius: 5
         color: chip.active ? pane.theme.active : (chipHover.hovered ? pane.theme.hover : "transparent")
         opacity: enabled ? 1 : 0.4
-        Text { visible: chip.label.length > 0; anchors.centerIn: parent; text: chip.label; color: chip.active ? pane.theme.foreground : pane.theme.muted; font.pixelSize: 12; font.family: pane.theme.termFont }
+        Text { visible: chip.label.length > 0; anchors.centerIn: parent; text: chip.label; color: chip.active ? pane.theme.foreground : pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); font.family: pane.theme.termFont }
         Icon { visible: chip.icon.length > 0; anchors.centerIn: parent; name: chip.icon; color: pane.theme.muted; size: 14 }
         HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
         TapHandler { onTapped: if (chip.enabled) chip.clicked() }
@@ -84,7 +84,7 @@ Item {
                 id: field
                 Layout.fillWidth: true
                 placeholderText: "Search…"
-                font.pixelSize: 13
+                font.pixelSize: Math.round(13 * pane.theme.scale)
                 onTextChanged: debounce.restart()
                 onAccepted: pane.openHit(pane.hit >= 0 ? pane.hit : 0)
                 Keys.onEscapePressed: text = ""
@@ -99,7 +99,7 @@ Item {
             visible: field.text.trim().length === 0
             text: "Narrow with path: file: tag: type:  ·  quotes keep spaces  ·  a leading - excludes"
             color: pane.theme.faint
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * pane.theme.scale)
             wrapMode: Text.Wrap
             Layout.fillWidth: true
         }
@@ -107,7 +107,7 @@ Item {
             visible: field.text.trim().length > 0
             text: pane.results.length === 0 ? "No matches" : pane.results.length + (pane.results.length === 1 ? " result" : " results")
             color: pane.theme.faint
-            font.pixelSize: 11
+            font.pixelSize: Math.round(11 * pane.theme.scale)
         }
         ListView {
             id: list
@@ -132,14 +132,14 @@ Item {
                     anchors.top: parent.top
                     anchors.margins: 6
                     spacing: 2
-                    Text { text: modelData.title; color: pane.theme.foreground; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
-                    Text { text: modelData.slug; color: pane.theme.faint; font.pixelSize: 11; elide: Text.ElideMiddle; Layout.fillWidth: true }
-                    Text { text: pane.styled(modelData.snippet); textFormat: Text.StyledText; color: pane.theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: modelData.title; color: pane.theme.foreground; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: modelData.slug; color: pane.theme.faint; font.pixelSize: Math.round(11 * pane.theme.scale); elide: Text.ElideMiddle; Layout.fillWidth: true }
+                    Text { text: pane.styled(modelData.snippet); textFormat: Text.StyledText; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
                 }
                 HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: pane.openPage(modelData.slug) }
             }
         }
-        Text { visible: pane.notice.length > 0; text: pane.notice; color: pane.theme.muted; font.pixelSize: 11; wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Text { visible: pane.notice.length > 0; text: pane.notice; color: pane.theme.muted; font.pixelSize: Math.round(11 * pane.theme.scale); wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
 }
