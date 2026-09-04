@@ -41,6 +41,10 @@ USAGE:\n\
   rusty-cli notes path                        (the notes folder the tools use)\n\
   rusty-cli notes adopt [--dry-run]           (move an older notes folder into the vault, once)\n\
   rusty-cli hooks install|uninstall|status    (the brain loop's Claude Code hooks, in ~/.claude/settings.json)\n\
+  rusty-cli scripts list [--all]              (store scripts: a *.sh beside a skill is the command `rusty <name>`)\n\
+  rusty-cli scripts view|path|edit|rm <name>  (name, or skill/name when two skills share one)\n\
+  rusty-cli scripts new <name> [--skill S] [--body TEXT] [--force]\n\
+  rusty-cli scripts run <name> [args...]      (an approved script, in place of this process)\n\
   rusty-cli brain ask <question>              (the brain loop: pages, decisions and follow-ups, a consultation id)\n\
   rusty-cli brain decide <id> --title T --choice C --rationale R [--alt A]... [--follow-up-by DATE] [--supersedes SLUG]\n\
   rusty-cli brain follow-up <slug> --status kept|revised|superseded --outcome O [--successor SLUG] [--follow-up-by DATE]\n\
@@ -71,6 +75,10 @@ fn main() {
         (Some("skills"), _) => {
             let sub = args.get(2).map(String::as_str).unwrap_or("list");
             run_skills(sub, args.get(3..).unwrap_or_default());
+        }
+        (Some("scripts"), _) => {
+            let sub = args.get(2).map(String::as_str).unwrap_or("list");
+            run_scripts(sub, args.get(3..).unwrap_or_default());
         }
         (Some("ingest-conversation"), _) => {
             run_ingest_conversation(args.get(2..).unwrap_or_default())
@@ -921,6 +929,103 @@ fn refresh_signal() {
 fn fail(msg: &str) -> ! {
     eprintln!("error: {msg}");
     exit(1);
+}
+
+/// `rusty-cli scripts ...`: the store's scripts as commands (TICKET-010).
+fn run_scripts(sub: &str, rest: &[String]) {
+    let mgr = skills();
+    match sub {
+        "list" => {
+            let (_, flags) = parse_with_bools(rest, &["all"]);
+            let list = mgr.scripts(flags.contains_key("all"));
+            if list.is_empty() {
+                println!("(no scripts)");
+            } else {
+                for s in list {
+                    println!(
+                        "{}\t[{}] {}/{}.sh{}",
+                        s.name,
+                        s.status,
+                        s.skill,
+                        s.name,
+                        if s.executable {
+                            ""
+                        } else {
+                            "  (not executable)"
+                        }
+                    );
+                }
+            }
+        }
+        "view" => {
+            let (pos, _) = parse(rest);
+            let name = pos.first().unwrap_or_else(|| fail("view: missing <name>"));
+            match mgr.script_text(name) {
+                Ok((s, text)) => print!("# {} ({}, {})\n{}", s.name, s.skill, s.status, text),
+                Err(e) => fail(&e),
+            }
+        }
+        "path" => {
+            let (pos, _) = parse(rest);
+            let name = pos.first().unwrap_or_else(|| fail("path: missing <name>"));
+            match mgr.resolve_script(name) {
+                Ok(s) => println!("{}", s.path),
+                Err(e) => fail(&e),
+            }
+        }
+        "edit" => {
+            let (pos, _) = parse(rest);
+            let name = pos.first().unwrap_or_else(|| fail("edit: missing <name>"));
+            let script = mgr.resolve_script(name).unwrap_or_else(|e| fail(&e));
+            let editor = std::env::var("VISUAL")
+                .or_else(|_| std::env::var("EDITOR"))
+                .unwrap_or_else(|_| "vi".to_string());
+            let status = std::process::Command::new(&editor)
+                .arg(&script.path)
+                .status()
+                .unwrap_or_else(|e| fail(&format!("start {editor}: {e}")));
+            if status.success() {
+                mgr.git_commit_blocking(&format!("scripts: edit {}", script.name));
+            }
+        }
+        "new" => {
+            let (pos, flags) = parse_with_bools(rest, &["force"]);
+            let name = pos.first().unwrap_or_else(|| {
+                fail("new: usage: scripts new <name> [--skill <skill>] [--body <text>] [--force]")
+            });
+            match mgr.create_script(
+                name,
+                flags.get("skill").map(String::as_str),
+                flags.get("body").map(String::as_str),
+                flags.contains_key("force"),
+            ) {
+                Ok(s) => {
+                    mgr.git_commit_blocking(&format!("scripts: add {}/{}", s.skill, s.name));
+                    println!("created {} ({})", s.path, s.status);
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        "rm" => {
+            let (pos, _) = parse(rest);
+            let name = pos.first().unwrap_or_else(|| fail("rm: missing <name>"));
+            match mgr.delete_script(name) {
+                Ok(s) => {
+                    mgr.git_commit_blocking(&format!("scripts: remove {}/{}", s.skill, s.name));
+                    println!("removed {}", s.path);
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        "run" => {
+            let name = rest.first().unwrap_or_else(|| fail("run: missing <name>"));
+            let script_args: Vec<String> = rest.iter().skip(1).cloned().collect();
+            if let Err(e) = mgr.exec_script(name, &script_args) {
+                fail(&e);
+            }
+        }
+        other => fail(&format!("unknown scripts command: {other}")),
+    }
 }
 
 /// `rusty-cli hooks install|uninstall|status`: the brain loop's Claude Code hooks.

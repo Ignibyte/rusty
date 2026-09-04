@@ -19,7 +19,61 @@ mod theme;
 
 use cxx_qt_lib::{QFont, QGuiApplication, QQmlApplicationEngine, QString, QUrl};
 
+/// Whether `<store>/.claude/skills/<skill>/<name>.sh` exists for `name` or `skill/name`
+/// (TICKET-010). The store is `RUSTY_SKILLS` or `~/.rusty/skills`; the CLI, which owns
+/// the resolver, decides the rest (a pending script, a clash between skills).
+fn store_script_exists(name: &str) -> bool {
+    if name.is_empty() || name.starts_with('-') || name.contains("..") {
+        return false;
+    }
+    let store = std::env::var_os("RUSTY_SKILLS")
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(|h| std::path::PathBuf::from(h).join(".rusty").join("skills"))
+        });
+    let Some(store) = store else {
+        return false;
+    };
+    let active = store.join(".claude").join("skills");
+    let name = name.strip_suffix(".sh").unwrap_or(name);
+    if let Some((skill, base)) = name.split_once('/') {
+        return active.join(skill).join(format!("{base}.sh")).is_file();
+    }
+    let Ok(entries) = std::fs::read_dir(&active) else {
+        return false;
+    };
+    entries
+        .flatten()
+        .any(|e| e.path().join(format!("{name}.sh")).is_file())
+}
+
+/// Hand the process to `rusty-cli scripts run <name> args...`; returns only on failure.
+fn exec_store_script(name: &str, args: &[String]) -> String {
+    use std::os::unix::process::CommandExt;
+    let beside = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.join("rusty-cli")))
+        .filter(|p| p.is_file());
+    let cli = beside.unwrap_or_else(|| std::path::PathBuf::from("rusty-cli"));
+    let err = std::process::Command::new(&cli)
+        .arg("scripts")
+        .arg("run")
+        .arg(name)
+        .args(args)
+        .exec();
+    format!("{}: {err}", cli.display())
+}
+
 fn main() {
+    // `rusty <name> [args]`: a store script runs in place of the window (TICKET-010).
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(name) = args.first() {
+        if store_script_exists(name) {
+            eprintln!("rusty {name}: {}", exec_store_script(name, &args[1..]));
+            std::process::exit(126);
+        }
+    }
     // Wayland first on Omarchy; Qt still falls back to X11 when there is no compositor.
     if std::env::var_os("QT_QPA_PLATFORM").is_none() {
         std::env::set_var("QT_QPA_PLATFORM", "wayland;xcb");

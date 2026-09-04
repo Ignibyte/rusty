@@ -138,8 +138,9 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index, skills,
   secrets, settings), the semantic index (`brain::semantic`: chunks,
   providers, sqlite-vec, fusion), the vault migration, the file watcher and the event bus.
-- `crates/rusty-mcp`: 76 tools (2026-09-03: six of them the PIN and the reveal behind the
-  Secrets tab since TICKET-015, five the brain loop since TICKET-018), five resources plus templates, `list_changed` notifications,
+- `crates/rusty-mcp`: 80 tools (2026-09-03: six of them the PIN and the reveal behind the
+  Secrets tab since TICKET-015, five the brain loop since TICKET-018, four the store's
+  scripts since TICKET-010), five resources plus templates, `list_changed` notifications,
   a background indexer for embeddings; stdio for agents, Streamable HTTP for the app.
 - `crates/rusty-app`: cxx-qt 0.10 on Qt 6. Rust types exposed to QML: `Theme` (Omarchy
   colours and the tokens read from the theme's `obsidian.css` and Alacritty palette, font,
@@ -178,6 +179,13 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   Claude Code hooks shipped inside `rusty-cli` (`hooks install|uninstall|status`) that read
   the transcript: the first write waits for a `brain_ask`, a stop after writes waits once
   for a `brain_decide` or a `brain_no_decision`. The ADR: `docs/architecture/brain-loop.md`.
+- Scripts as commands (2026-09-03, TICKET-010): a `*.sh` beside a skill in the store is
+  `rusty <name>`; the app binary checks the store before Qt starts and execs `rusty-cli
+  scripts run`, whose resolver (in `rusty-core::skills::scripts`) names clashes as
+  `skill/name`, refuses a pending skill's script, and execs the file; `rusty-cli scripts
+  list|view|new|rm|path|edit|run`, the tools `script_list`, `script_view`, `script_update`
+  and `script_run` (approved only, capped at sixty seconds), and a Scripts section of the
+  Skills tab whose Run opens a terminal tab (`run:<path>`) that keeps a shell after.
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   `brain semantic`, and `notes adopt` (2026-09-03, TICKET-014: the notes folder lives in
   the vault under `notes/`, and the one-shot moves an older `~/.rusty/notes` in).

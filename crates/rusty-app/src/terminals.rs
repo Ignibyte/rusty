@@ -251,6 +251,12 @@ fn on_path(program: &str) -> bool {
 
 /// The command behind a program name.
 pub fn command_for(program: &str) -> String {
+    // `run:<path>` runs a store script and keeps a shell open after it (TICKET-010).
+    // tmux hands this string to `sh -c`, so it is one shell command, not a word list.
+    if let Some(path) = program.strip_prefix("run:") {
+        let quoted = format!("'{}'", path.replace('\'', "'\\''"));
+        return format!("bash {quoted}; exec \"${{SHELL:-/bin/bash}}\"");
+    }
     match program {
         "shell" => std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()),
         other => other.to_string(),
@@ -399,5 +405,17 @@ mod tests {
         );
         assert!(!command_for("shell").is_empty());
         assert_eq!(command_for("codex"), "codex");
+    }
+
+    /// `run:<path>` becomes one shell command tmux can hand to `sh -c`: the script runs,
+    /// then the shell replaces it, and a path with a space or a quote survives both.
+    #[test]
+    fn a_script_program_runs_then_leaves_a_shell() {
+        assert_eq!(
+            command_for("run:/home/x/skills/dev-box-usb/usb-reset.sh"),
+            "bash '/home/x/skills/dev-box-usb/usb-reset.sh'; exec \"${SHELL:-/bin/bash}\""
+        );
+        assert!(command_for("run:/a b/c.sh").starts_with("bash '/a b/c.sh';"));
+        assert!(command_for("run:/it's/x.sh").starts_with(r"bash '/it'\''s/x.sh';"));
     }
 }

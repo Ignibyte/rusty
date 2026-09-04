@@ -31,6 +31,19 @@ fn args(value: serde_json::Value) -> serde_json::Map<String, serde_json::Value> 
 #[tokio::test]
 async fn a_real_client_can_list_call_and_read() {
     let home = scratch_home();
+    // A store script beside its skill, for the script tools.
+    let skill_dir = home.join(".rusty/skills/.claude/skills/dev-box-usb");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: dev-box-usb\ndescription: Reset the USB controller.\n---\n\nRun `rusty usb-reset`.\n",
+    )
+    .unwrap();
+    std::fs::write(
+        skill_dir.join("usb-reset.sh"),
+        "#!/usr/bin/env bash\necho \"reset $1\"\n",
+    )
+    .unwrap();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_rusty-mcp"));
     cmd.env("HOME", &home)
         .env("XDG_CONFIG_HOME", home.join(".config"))
@@ -264,6 +277,46 @@ async fn a_real_client_can_list_call_and_read() {
         graph_text.contains("\"from\": \"ideas/Linker\""),
         "{graph_text}"
     );
+    // Scripts as commands: list, view, update, run.
+    let scripts = client
+        .call_tool(
+            CallToolRequestParams::new("script_list").with_arguments(args(serde_json::json!({}))),
+        )
+        .await
+        .unwrap();
+    let scripts_text = text_of(&scripts);
+    assert!(
+        scripts_text.contains("\"name\": \"usb-reset\""),
+        "{scripts_text}"
+    );
+    let viewed = client
+        .call_tool(
+            CallToolRequestParams::new("script_view")
+                .with_arguments(args(serde_json::json!({"name": "usb-reset"}))),
+        )
+        .await
+        .unwrap();
+    assert!(text_of(&viewed).contains("echo"), "{}", text_of(&viewed));
+    client
+        .call_tool(
+            CallToolRequestParams::new("script_update").with_arguments(args(serde_json::json!({
+                "name": "usb-reset", "body": "#!/usr/bin/env bash\necho \"bound $1\"\nexit 2\n"
+            }))),
+        )
+        .await
+        .unwrap();
+    let ran = client
+        .call_tool(
+            CallToolRequestParams::new("script_run").with_arguments(args(
+                serde_json::json!({"name": "usb-reset", "args": ["again"]}),
+            )),
+        )
+        .await
+        .unwrap();
+    let ran: serde_json::Value = serde_json::from_str(&text_of(&ran)).unwrap();
+    assert_eq!(ran["status"], 2, "{ran}");
+    assert_eq!(ran["stdout"], "bound again\n", "{ran}");
+
     // The brain loop: ask, decide, due, follow up, and the typed edges in the graph.
     let asked = client
         .call_tool(

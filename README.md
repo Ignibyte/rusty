@@ -139,7 +139,7 @@ completed pipeline is delivered only with the completion receipt that run leaves
 
 ```
 crates/rusty-core   the manager layer: tasks, notes, memories, brain vault + index, skills, secrets, settings
-crates/rusty-mcp    the back end: an MCP server on rmcp, 76 tools, stdio and local Streamable HTTP
+crates/rusty-mcp    the back end: an MCP server on rmcp, 80 tools, stdio and local Streamable HTTP
 crates/rusty-app    the desktop app: the workspace in QML on cxx-qt, native agent terminals (binary `rusty`)
 crates/rusty-cli    terminal access to the same store: brain, tasks, notes, refresh, conversation ingest
 docs/               architecture and vault rules
@@ -201,6 +201,33 @@ the `notes_path` setting names. An older install kept notes in `~/.rusty/notes`;
 `rusty-cli notes adopt` once (`--dry-run` first, if you like) to move them in. It refuses
 when a name already exists in the vault, deletes nothing, leaves a README behind that
 says where the notes went, and points `notes_path` at the new folder.
+
+## Scripts as commands
+
+A `*.sh` file beside a skill in the store is a command: `rusty usb-reset` runs
+`dev-box-usb/usb-reset.sh` from any terminal, with its arguments, in place of the window
+(the app binary checks the store before Qt starts and hands the process to `rusty-cli
+scripts run`, which resolves the name and execs the script). A script is named by its
+basename without the suffix; `skill/name` picks one when two skills share a name. A
+script inside a pending skill does not run until the skill is approved, and the safety
+scan that reads a skill reads a script's text too. The Skills tab lists scripts under the
+skills, shows and edits them, and Run opens a terminal tab that runs the script and keeps
+a shell. Every write commits the store.
+
+```bash
+rusty-cli scripts list [--all]
+rusty-cli scripts new usb-reset --skill dev-box-usb      # a script without --skill gets a skill of its name
+rusty-cli scripts view|path|edit|rm usb-reset
+rusty-cli scripts run usb-reset [args...]
+rusty usb-reset [args...]
+```
+
+The tools `script_list`, `script_view`, `script_update` and `script_run` (approved
+scripts only; status, stdout and stderr, cut after sixty seconds) serve agents. Both the
+dispatch and the CLI read `RUSTY_SKILLS` when it is set, so the script the window finds is
+the script that runs; after that the CLI honours the `skills_path` setting, while the bare
+`rusty <name>` dispatch, which has no database open yet, looks in `~/.rusty/skills`. A
+store moved with `skills_path` is reached through `rusty-cli scripts run`.
 
 ## The brain loop
 

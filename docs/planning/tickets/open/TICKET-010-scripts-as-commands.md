@@ -1,6 +1,6 @@
 ---
 title: TICKET-010-scripts-as-commands
-status: open
+status: in-progress
 ticket_number: 010
 type: feature
 created: 2026-09-03

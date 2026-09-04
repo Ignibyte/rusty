@@ -33,6 +33,8 @@ use std::path::{Path, PathBuf};
 
 /// Self-authoring loop: propose reusable skills from completed tasks.
 pub mod author;
+/// Scripts as commands: a `*.sh` beside a skill is `rusty <name>` (TICKET-010).
+pub mod scripts;
 
 /// Settings key: master switch for skills (`"true"` / `"false"`). Default enabled.
 pub const SETTING_ENABLED: &str = "skills_enabled";
@@ -419,8 +421,17 @@ pub fn default_root() -> PathBuf {
         .join("skills")
 }
 
-/// Resolve the skills root from settings, expanding a leading `~`.
+/// Resolve the skills root, expanding a leading `~`: `RUSTY_SKILLS` wins, then the
+/// `skills_path` setting, then the default under `~/.rusty`. The app's `rusty <name>`
+/// dispatch (TICKET-010) reads the variable before any database is open, so every reader
+/// has to agree with it or the script it found is not the script that runs.
 pub fn resolve_root(settings: &SettingsManager) -> PathBuf {
+    if let Some(from_env) = std::env::var_os("RUSTY_SKILLS") {
+        let from_env = from_env.to_string_lossy().trim().to_string();
+        if !from_env.is_empty() {
+            return PathBuf::from(expand_tilde(&from_env));
+        }
+    }
     match settings.get(SETTING_PATH) {
         Ok(Some(p)) if !p.trim().is_empty() => PathBuf::from(expand_tilde(p.trim())),
         _ => default_root(),

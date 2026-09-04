@@ -8,7 +8,7 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (queued, awaiting Chad's seal, 2026-09-03)
+- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (in progress 2026-09-03)
 - [`TICKET-019` — Folders, part two: file operations](open/TICKET-019-folder-file-operations.md) (queued 2026-09-03)
 - [`TICKET-020` — Folders, part three: git decorations](open/TICKET-020-folder-git-decorations.md) (queued 2026-09-03)
 

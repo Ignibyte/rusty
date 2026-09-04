@@ -189,6 +189,23 @@ printf '{}' > "$vault/projects/data.json"
 
 IFS=x read -r w h <<< "$size"
 printf '[window]\nwidth=%s\nheight=%s\nlastTab=0\n' "$w" "$h" > "$scratch/.config/Ignibyte/rusty.conf"
+store="$scratch/.rusty/skills/.claude/skills/dev-box-usb"
+mkdir -p "$store"
+cat > "$store/SKILL.md" <<'MD'
+---
+name: dev-box-usb
+description: Reset the USB controller when the KVM's hub stops answering.
+---
+
+Run `rusty usb-reset`; the script is `usb-reset.sh` beside this file.
+MD
+cat > "$store/usb-reset.sh" <<'SH'
+#!/usr/bin/env bash
+# usb-reset: run with `rusty usb-reset`.
+set -euo pipefail
+echo "rebinding the USB controller (a stand-in for the screenshot)"
+SH
+chmod 755 "$store/usb-reset.sh"
 cat > "$scratch/workspace.json" <<'JSON'
 {"leftWidth":280,"rightWidth":320,"leftOpen":true,"rightOpen":true,"leftPane":"files","rightPane":"backlinks","expanded":"{\"projects\":true,\"people\":true}","paneProgram":"shell","bookmarks":"[{\"kind\":\"file\",\"path\":\"projects/orbit\",\"title\":\"Orbit\"},{\"kind\":\"folder\",\"path\":\"concepts\",\"title\":\"concepts\"},{\"kind\":\"search\",\"query\":\"tag:theme path:concepts\",\"title\":\"Themes\"},{\"kind\":\"heading\",\"path\":\"projects/orbit\",\"heading\":\"Timeline\",\"title\":\"Orbit › Timeline\"}]"}
 JSON

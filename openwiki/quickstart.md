@@ -25,7 +25,7 @@ box without a setting that says so.
 | Part | What it owns | Page |
 |---|---|---|
 | `crates/rusty-core` | the managers: tasks, notes, memories, the brain vault and its SQLite index, the renderer, semantic search, skills, secrets, settings, the file watcher | [Vault and brain](vault-and-brain.md), [Markdown rendering](markdown-rendering.md) |
-| `crates/rusty-mcp` | the back end: 76 tools, five resources, change notifications, a background indexer; stdio for agents, Streamable HTTP for the app | [MCP back end](mcp-back-end.md) |
+| `crates/rusty-mcp` | the back end: 80 tools, five resources, change notifications, a background indexer; stdio for agents, Streamable HTTP for the app | [MCP back end](mcp-back-end.md) |
 | `crates/rusty-app` | the desktop app (binary `rusty`): the workspace in QML on cxx-qt, terminals on tmux, theme from Omarchy | [Workspace app](workspace-app.md) |
 | `crates/rusty-cli` | terminal access to the same store (brain, tasks, notes, refresh, conversation ingest) | [MCP back end](mcp-back-end.md) |
 | `CONSTITUTION.md`, `docs/planning/`, `bin/`, `.claude/`, `scripts/` | the workflow: phases, record, gate and receipts, hooks, CodeGraph, OpenWiki | [Workflow and gates](workflow-and-gates.md) |

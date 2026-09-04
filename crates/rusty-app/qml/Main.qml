@@ -194,7 +194,10 @@ ApplicationWindow {
     readonly property var tokens: JSON.parse(theme.tokens || "{}")
     function agentLabel(p) { return agentNames[p] || p }
     function agentGlyph(p) { return agentGlyphs[p] || "▸" }
-    function tabLabelFor(p) { return p === "claude" ? "Claude" : (p.charAt(0).toUpperCase() + p.slice(1)) }
+    function tabLabelFor(p) {
+        if (p.startsWith("run:")) return "Run " + p.slice(p.lastIndexOf("/") + 1).replace(/\.sh$/, "")
+        return p === "claude" ? "Claude" : (p.charAt(0).toUpperCase() + p.slice(1))
+    }
 
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
@@ -685,7 +688,7 @@ ApplicationWindow {
         Component { id: tasksComp; TasksPage { backend: win.backend; theme: win.theme } }
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
         Component { id: decisionsComp; DecisionsPage { backend: win.backend; theme: win.theme; onOpenPage: (s) => win.openPage(s, false) } }
-        Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme } }
+        Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme; onRunScript: (path, name) => win.openTerminal("run:" + path, "Run " + name, "", "") } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
         Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on); onSetTextSize: (n) => win.setTextSize(n) } }
     }

@@ -308,6 +308,40 @@ pub struct SecretSetParams {
     pub value: String,
 }
 
+/// Parameters for `script_list`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ScriptListParams {
+    /// Include the scripts of pending skills (they cannot run).
+    #[serde(default)]
+    pub include_pending: Option<bool>,
+}
+
+/// Parameters for `script_view`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ScriptNameParams {
+    /// The script's name, or `skill/name` when two skills share one.
+    pub name: String,
+}
+
+/// Parameters for `script_update`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ScriptUpdateParams {
+    /// The script's name, or `skill/name`.
+    pub name: String,
+    /// The whole script.
+    pub body: String,
+}
+
+/// Parameters for `script_run`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ScriptRunParams {
+    /// The script's name, or `skill/name`.
+    pub name: String,
+    /// Arguments, as words.
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
 /// Parameters for `brain_ask`.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct AskParams {
@@ -986,6 +1020,64 @@ impl Rusty {
     #[tool(description = "The page types the vault knows, with their folders and page counts")]
     fn brain_page_types(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.page_types())
+    }
+
+    #[tool(
+        description = "The scripts in the store (a `*.sh` beside a skill is the command `rusty <name>`), with their skill, status and path"
+    )]
+    fn script_list(
+        &self,
+        Parameters(p): Parameters<ScriptListParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(Ok::<_, String>(
+            self.core
+                .skills_manager
+                .scripts(p.include_pending.unwrap_or(false)),
+        ))
+    }
+
+    #[tool(description = "A script and its text")]
+    fn script_view(
+        &self,
+        Parameters(p): Parameters<ScriptNameParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .skills_manager
+                .script_text(&p.name)
+                .map(|(script, text)| serde_json::json!({ "script": script, "text": text })),
+        )
+    }
+
+    #[tool(description = "Replace a script's text; the store commits it")]
+    fn script_update(
+        &self,
+        Parameters(p): Parameters<ScriptUpdateParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let result = self.core.skills_manager.update_script(&p.name, &p.body);
+        if let Ok(script) = &result {
+            self.core
+                .skills_manager
+                .git_commit(&format!("scripts: update {}", script.name));
+        }
+        self.mutate(result)
+    }
+
+    #[tool(
+        description = "Run an approved store script with arguments (a pending one is refused): its status, stdout and stderr, cut after sixty seconds"
+    )]
+    async fn script_run(
+        &self,
+        Parameters(p): Parameters<ScriptRunParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let core = Arc::clone(&self.core);
+        let result = tokio::task::spawn_blocking(move || {
+            core.skills_manager
+                .run_script(&p.name, &p.args, rusty_core::skills::scripts::RUN_CAP)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        json_result(result)
     }
 
     #[tool(
@@ -1981,6 +2073,10 @@ mod tests {
         "brain_follow_up",
         "brain_no_decision",
         "brain_due",
+        "script_list",
+        "script_view",
+        "script_update",
+        "script_run",
     ];
 
     #[test]
