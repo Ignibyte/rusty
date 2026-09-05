@@ -945,16 +945,24 @@ mod tests {
             .contains("--resume"));
     }
 
+    /// The spawn tests run one at a time: a script written by one test thread while
+    /// another forks to exec its own can answer `ETXTBSY` (the child holds the writer's
+    /// descriptor until the exec), so they take this lock.
+    static SPAWN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     fn fake(dir: &Path, body: &str) -> PathBuf {
         let path = dir.join("claude-fake");
-        std::fs::write(&path, format!("#!/usr/bin/env bash\n{body}")).unwrap();
+        let staging = dir.join("claude-fake.tmp");
+        std::fs::write(&staging, format!("#!/usr/bin/env bash\n{body}")).unwrap();
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::rename(&staging, &path).unwrap();
         path
     }
 
     #[test]
     fn spawn_reports_lines_then_the_exit() {
+        let _serial = SPAWN.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("rusty_assistant_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -996,6 +1004,7 @@ mod tests {
 
     #[test]
     fn spawn_refuses_a_missing_binary() {
+        let _serial = SPAWN.lock().unwrap_or_else(|e| e.into_inner());
         let err = spawn(
             Path::new("/nonexistent/claude"),
             &[],
@@ -1009,6 +1018,7 @@ mod tests {
 
     #[test]
     fn kill_ends_a_waiting_process() {
+        let _serial = SPAWN.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("rusty_assistant_kill_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

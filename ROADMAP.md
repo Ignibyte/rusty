@@ -290,6 +290,10 @@ workflow in `CONSTITUTION.md`.
       own paths — collisions skipped and named, bare links rewritten, bookmarks carried into
       the app, a report page under `inbox/`, a rollback that leaves the brain as it was; two
       tools (82), `rusty-cli brain import`, a review dialog
+- [x] TICKET-027 Personal search engine (2026-09-05): a `source` page type captured by URL
+      (a fetch, an in-house HTML extractor, `pdftotext` for PDF), indexed like any page; three
+      tools, `rusty-cli source capture|search`, a capture dialog and a glyph in the tree; every
+      answer an agent gets about a source marked untrusted and normalised; 85 tools
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

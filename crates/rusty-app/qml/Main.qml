@@ -206,6 +206,24 @@ ApplicationWindow {
             }
         }
     }
+    // Capturing a source by URL (TICKET-027): the back end fetches, reads and keeps it
+    // as a page under sources/; the page opens when it is in.
+    Dialog {
+        id: captureDialog
+        title: "Capture a source"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property bool busy: false
+        function openFresh() { urlField.text = ""; busy = false; open(); urlField.forceActiveFocus() }
+        onAccepted: { const url = urlField.text.trim(); if (url.length > 0) { busy = true; win.ask("source_capture", { url: url }, "sourceCaptured") } }
+        ColumnLayout {
+            spacing: 8
+            width: 480
+            Label { text: "A web page, a PDF, a markdown or a text file. The readable text is kept as a page under sources/ and indexed like any page."; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            TextField { id: urlField; Layout.fillWidth: true; placeholderText: "https://…"; onAccepted: captureDialog.accept() }
+        }
+    }
     Timer { interval: 2000; repeat: true; running: true; onTriggered: desk.refresh() }
 
     property var tree: null
@@ -460,6 +478,7 @@ ApplicationWindow {
             case "captured": win.notice = "captured to " + JSON.parse(json).slug; break
             case "appended": win.notice = "appended to the timeline"; break
             case "importPlan": importDialog.plan = JSON.parse(json); break
+            case "sourceCaptured": { const page = JSON.parse(json); win.openPage(page.slug, false); win.notice = (page.frontmatter && page.frontmatter.status === "failed" ? "capture failed: " : "captured ") + page.slug; break }
             case "import": { const r = JSON.parse(json); importDialog.report = r; const n = win.mergeBookmarks(r.plan.bookmarks); win.refreshData(); win.notice = "imported " + r.imported_pages + " pages" + (n > 0 ? ", " + n + " bookmarks added" : ""); break }
             }
         }
@@ -583,6 +602,8 @@ ApplicationWindow {
             { name: "Favorites: Add or remove the current file", keys: "Ctrl+D", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
             { name: "Folders: Add a folder from the machine", keys: "", enabled: true, run: function () { rootDialog.open() } },
             { name: "Vault: Import an Obsidian vault…", keys: "", enabled: true, run: function () { importPicker.open() } },
+            { name: "Sources: Capture a URL…", keys: "", enabled: true, run: function () { captureDialog.openFresh() } },
+            { name: "Sources: Search sources", keys: "", enabled: true, run: function () { win.searchFor("type:source") } },
             { name: "Bookmarks: Bookmark the current search", keys: "", enabled: searchPane.query.trim().length > 0, run: function () { win.addBookmark({ kind: "search", query: searchPane.query.trim(), title: searchPane.query.trim() }) } },
             { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
             { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },

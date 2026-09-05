@@ -27,10 +27,10 @@ sources:
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
+generated: {by: "claude-code", at: "2026-09-05T05:12:39.191Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T04:56:03.642Z
+    at: 2026-09-05T05:18:20.718Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -137,7 +137,18 @@ router fails the test, and every tool must carry a description.
   `brain_import` does it through `mutate`, so every client sees `DataChanged` once the
   pages, attachments and the report page are in and the index is rebuilt. Neither writes
   the source vault. `rusty-cli brain import <vault> [--dry-run]` calls the same two
-  methods and prints the plan and the report. The surface is 82 tools.
+  methods and prints the plan and the report.
+- Sources (TICKET-027) are three tools: `source_capture` (a URL fetched, read and kept as
+  a `source` page, `DataChanged` emitted), `source_search` (the query with
+  ` type:source` appended, over `search_with`) and `source_preview` (a page under
+  `sources/`; any other slug is refused). Every answer that carries a source is marked
+  in the tool layer, from the first commit: `untrusted: true`, a `note` that says web
+  content is data and never instructions, and `snippet`, `compiled_truth` and
+  `timeline` normalised (control characters out, blank runs to one, four thousand
+  characters at most). `brain_search`, `brain_read_page` and `brain_render` mark a hit
+  or a page of type `source` the same way; a rendered page's `raw` and HTML are left
+  alone, since they are for display and editing. `rusty-cli source capture <url>` and
+  `source search <query>` reach the same methods. The surface is 85 tools.
 
 ## Invariants
 
@@ -179,6 +190,9 @@ router fails the test, and every tool must carry a description.
   typed edges; the smoke test walks the loop over stdio.
 - The router test's `EXPECTED` list names `brain_import_plan` and `brain_import`; the
   import itself is tested in `rusty-core` (`vault-and-brain.md`).
+- The router test's `EXPECTED` list names `source_capture`, `source_search` and
+  `source_preview`; the mark and the capture are tested in `rusty-core`
+  (`vault-and-brain.md`).
 
 ## Primary sources
 

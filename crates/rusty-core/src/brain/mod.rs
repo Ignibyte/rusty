@@ -12,6 +12,7 @@ pub mod import;
 pub mod links;
 pub mod render;
 pub mod semantic;
+pub mod sources;
 pub mod vault;
 
 use crate::engine::db::Database;
@@ -1802,6 +1803,121 @@ impl BrainManager {
             self.vault.flush_commits();
         }
         Ok(report)
+    }
+
+    // ── Sources (TICKET-027) ──────────────────────────────────────────
+
+    /// The source page whose `url` property is `url`, if one exists.
+    pub fn source_for_url(&self, url: &str) -> Result<Option<String>, String> {
+        for (slug, path) in self.vault.list_all_files()? {
+            if !sources::is_source_slug(&slug) {
+                continue;
+            }
+            let raw = std::fs::read_to_string(&path)
+                .map_err(|e| format!("read {}: {e}", path.display()))?;
+            let parsed = parse_lenient(&raw);
+            if parsed.frontmatter.extra.get("url").and_then(|v| v.as_str()) == Some(url) {
+                return Ok(Some(slug));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Capture a URL as a source page: fetched, read, written under `sources/` and
+    /// indexed; a URL captured before updates its page; a failure is recorded on the
+    /// page rather than leaving an empty one.
+    pub fn capture_url(&self, url: &str) -> Result<BrainPage, String> {
+        self.capture_fetched(url, sources::fetch(url))
+    }
+
+    /// The capture from what the fetch answered (or failed with), so a test needs no
+    /// network. `created` is kept for a page captured before; a failure on a page that
+    /// has text keeps the text and records `status: failed` and `error`.
+    pub fn capture_fetched(
+        &self,
+        url: &str,
+        fetched: Result<sources::Fetched, String>,
+    ) -> Result<BrainPage, String> {
+        let url = url.trim();
+        if !(url.starts_with("http://") || url.starts_with("https://")) {
+            return Err("only http and https URLs are captured".to_string());
+        }
+        let existing = self.source_for_url(url)?;
+        let captured = chrono::Local::now()
+            .format("%Y-%m-%dT%H:%M:%S%:z")
+            .to_string();
+        let site = sources::site_of(url);
+        let outcome = fetched.and_then(|f| sources::extract(&f));
+        let (slug, raw) = match (outcome, existing) {
+            (Ok(extracted), existing) => {
+                let created = existing
+                    .as_deref()
+                    .and_then(|slug| self.read_page(slug).ok().flatten())
+                    .map(|page| page.frontmatter.created)
+                    .filter(|c| !c.is_empty());
+                let slug = match existing {
+                    Some(slug) => slug,
+                    None => {
+                        self.unique_slug(sources::DIR, &sources::slug_base(url, &extracted.title))?
+                    }
+                };
+                let mut fm = BrainFrontmatter::new(sources::PAGE_TYPE, &extracted.title);
+                if let Some(created) = created {
+                    fm.created = created;
+                }
+                fm.extra.insert(
+                    "url".to_string(),
+                    serde_json::Value::String(url.to_string()),
+                );
+                fm.extra
+                    .insert("site".to_string(), serde_json::Value::String(site));
+                fm.extra
+                    .insert("captured".to_string(), serde_json::Value::String(captured));
+                fm.extra.insert(
+                    "kind".to_string(),
+                    serde_json::Value::String(extracted.kind.to_string()),
+                );
+                let body = format!("{}\n", extracted.text.trim_end());
+                (slug, render_page(&fm, &body, "")?)
+            }
+            (Err(error), Some(slug)) => {
+                let raw = self
+                    .vault
+                    .read_page(&slug)?
+                    .ok_or_else(|| format!("Page not found: {slug}"))?;
+                let raw = frontmatter::set_property(&raw, "status", serde_json::json!("failed"))?;
+                let raw = frontmatter::set_property(&raw, "error", serde_json::json!(error))?;
+                (slug, raw)
+            }
+            (Err(error), None) => {
+                let title = site.clone();
+                let slug = self.unique_slug(sources::DIR, &sources::slug_base(url, ""))?;
+                let mut fm = BrainFrontmatter::new(sources::PAGE_TYPE, &title);
+                fm.extra.insert(
+                    "url".to_string(),
+                    serde_json::Value::String(url.to_string()),
+                );
+                fm.extra
+                    .insert("site".to_string(), serde_json::Value::String(site));
+                fm.extra
+                    .insert("captured".to_string(), serde_json::Value::String(captured));
+                fm.extra.insert(
+                    "status".to_string(),
+                    serde_json::Value::String("failed".into()),
+                );
+                fm.extra.insert(
+                    "error".to_string(),
+                    serde_json::Value::String(error.clone()),
+                );
+                let body = format!("Capture failed: {error}\n");
+                (slug, render_page(&fm, &body, "")?)
+            }
+        };
+        self.vault.write_page(&slug, &raw)?;
+        self.sync_page(&slug)?;
+        self.vault.git_commit(&format!("capture: {slug}"));
+        self.read_page(&slug)?
+            .ok_or_else(|| format!("Page not found after capture: {slug}"))
     }
 
     // ── Importing an Obsidian vault (TICKET-026) ──────────────────────
@@ -4498,5 +4614,86 @@ mod tests {
         );
         cleanup(&dir);
         cleanup(&source);
+    }
+
+    #[test]
+    fn capture_writes_updates_and_records_failures() {
+        // Its own vault: `capture_lands_in_inbox_and_daily_pages` builds one named
+        // "capture", and two tests on one temporary vault wipe each other mid-run.
+        let (dir, bm) = test_brain("source_capture");
+        let url = "https://www.example.com/posts/orbit-launch";
+        let html = |title: &str| {
+            sources::Fetched {
+            url: url.to_string(),
+            content_type: "text/html; charset=utf-8".to_string(),
+            bytes: format!("<html><head><title>{title}</title></head><body><main><p>Orbit launched on a Tuesday.</p></main></body></html>").into_bytes(),
+        }
+        };
+        let page = bm.capture_fetched(url, Ok(html("Orbit launch"))).unwrap();
+        assert_eq!(page.slug, "sources/example-com-orbit-launch");
+        assert_eq!(page.page_type, "source");
+        assert_eq!(page.title, "Orbit launch");
+        assert_eq!(page.frontmatter.extra["url"], url);
+        assert_eq!(page.frontmatter.extra["site"], "example.com");
+        assert_eq!(page.frontmatter.extra["kind"], "html");
+        assert!(page.frontmatter.extra["captured"]
+            .as_str()
+            .unwrap()
+            .starts_with("20"));
+        assert!(
+            page.compiled_truth.contains("Orbit launched on a Tuesday."),
+            "{}",
+            page.compiled_truth
+        );
+        let raw = fs::read_to_string(dir.join("sources/example-com-orbit-launch.md")).unwrap();
+        assert!(
+            raw.starts_with("---\n")
+                && raw.contains("type: source")
+                && raw.contains(&format!("url: {url}")),
+            "{raw}"
+        );
+        let hits = bm.search("Tuesday type:source", None, None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].page_type, "source");
+        // The same URL again: the page, not a second one; the title follows, created stays.
+        let created = page.frontmatter.created.clone();
+        let again = bm
+            .capture_fetched(url, Ok(html("Orbit launch, updated")))
+            .unwrap();
+        assert_eq!(again.slug, page.slug);
+        assert_eq!(again.title, "Orbit launch, updated");
+        assert_eq!(again.frontmatter.created, created);
+        assert_eq!(bm.list_pages(Some("source"), None).unwrap().len(), 1);
+        // A failure on a captured URL keeps the text and records the failure.
+        let failed = bm
+            .capture_fetched(url, Err("fetch: timed out".to_string()))
+            .unwrap();
+        assert_eq!(failed.slug, page.slug);
+        assert!(failed.compiled_truth.contains("Tuesday"));
+        assert_eq!(failed.frontmatter.extra["status"], "failed");
+        assert_eq!(failed.frontmatter.extra["error"], "fetch: timed out");
+        // A failure on a new URL is a page that says why.
+        let fresh = bm
+            .capture_fetched(
+                "https://other.invalid/paper.pdf",
+                Err("pdftotext is not available".to_string()),
+            )
+            .unwrap();
+        assert_eq!(fresh.slug, "sources/other-invalid-paper-pdf");
+        assert_eq!(fresh.frontmatter.extra["status"], "failed");
+        assert!(
+            fresh
+                .compiled_truth
+                .starts_with("Capture failed: pdftotext"),
+            "{}",
+            fresh.compiled_truth
+        );
+        assert!(bm.capture_fetched("ftp://x/y", Err("no".into())).is_err());
+        assert_eq!(
+            bm.source_for_url(url).unwrap().as_deref(),
+            Some(page.slug.as_str())
+        );
+        assert_eq!(bm.source_for_url("https://nowhere.invalid/").unwrap(), None);
+        cleanup(&dir);
     }
 }

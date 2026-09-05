@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:0637da07dcd5cf9213d56139cae19151f3a3b2a3f626ae1b4976caf8bd3e7f31",
+  "pageVersion": "sha256:f6dde589e325667d6c1c76ed9da0ce340fa5689dc9957851af00438b69fbe00f",
   "claims": [
     {
       "id": "claim_68adc19bbd9b421d94fac143f471d633",
@@ -159,10 +159,28 @@
           "version": "repo-lines-v1:sha256:b87a3fa2bc68bab4659238436e46b9a2417f1926a12673ea46cf6037ba2ee5ab:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMjM5MzIxZTllZGM2ZjJmOTM4YzUxMTI3NjI5ZDEyODU2MGYwMzVjNTIwNzRiOThlNjA2NGI2NmMyZjdhZTVkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJkMTM2MGU3ODkzNzI3NDkwNzY5YWMzOGU2MTI0YTc2YTBiMjhmZGRiYmYxZWEzNWQyYjk5ODA2MzIzYjFmYzg1In0"
         }
       ]
+    },
+    {
+      "id": "claim_0de909b223b1434f92399bd612b52716",
+      "statement": "A source is a page of type `source` under `sources/` with `url`, `site`, `captured` and `kind` in its frontmatter and the readable text as its body, indexed by `sync_page` like every page and embedded by the same loop: `capture_url` fetches the URL (http or https only, twenty seconds, five redirects, eight megabytes, a `rusty` user agent, nothing else sent) and `capture_fetched` reads it — HTML through a state machine (the `<title>` or first `<h1>`, the text of `<main>`/`<article>` when present else the body, scripts and styles dropped, headings and list items kept as markdown, entities decoded), PDF through `pdftotext` when the box has it, markdown and text as they are, a megabyte kept — finds an earlier page by its `url` property and rewrites it keeping `created`, else takes `sources/<site>-<title slug>`; a failure on a new URL writes a page that says why (`status: failed`, `error`), a failure on a captured URL keeps the text and records those two keys.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-core/src/brain/sources.rs#L1-L563",
+          "version": "repo-lines-v1:sha256:da3d5a9c11b2efa865935f139de6aa815e2b4bcd5ca4b093d6d469ee7143f098:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJkNDBhYTZhOWI1MjVkMDVhNmFmMGQzM2U2NGQxMDcyMTU3NDk2ZTA1ZDczZjYwZDBhZWU5MTkyM2U3YzZlNjcyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJkMTM2MGU3ODkzNzI3NDkwNzY5YWMzOGU2MTI0YTc2YTBiMjhmZGRiYmYxZWEzNWQyYjk5ODA2MzIzYjFmYzg1In0"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/mod.rs#L1808-L1921",
+          "version": "repo-lines-v1:sha256:deccddb502f78bdb69e1ec15338872ab5644066c7a4452aa4052879f24cbeb5c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJjZDc2ODkzOWI2YWM3OWMwODI2MDhlNmJjYmU5YTRjOTc1NGExZGIxNDRmNzQwYjYwZjhhNDI0MWM1MDM0OThmIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0ODkzZjQwZTM3ODFlYjg5NmM4MmQwNDZhMDgwNjdhMTFlMzVjZGYyZjFkZmFmMjZmZWE5MGI4ZGI2Njc2NDEzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIyNGJjZjYzZTE3ZGM5MzI0Nzc5YjUyZGJiYjkxMGUzZmYzYzU5OGFlYzIxMTI5MzI3M2IwNjQyMDllNTkxY2Y0IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJhYmY2NTVkYzRhNzFiOTMxNzdlN2I5YjEyMDA3MzE1MDc3YmI3NGUyYWVjMThmMTA2NWUzM2FhN2VjYWRiYzgyIn0"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/vault.rs#L11-L23",
+          "version": "repo-lines-v1:sha256:201ad3cbe1fdf391ea89f80229160859f8c4e0e7c22c357bc0fcdb669217a086:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0OTVjNDBiNDQ4YTRiYWY1NGJmMDVlY2QwYmE3YzE2MzVkZTlhMzI1Y2FiNDY1MjBhZTcxOTcyNWYyNmMwMmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMmQyYzBkNmRjNWU3NGQ5MmZhMTRiOTFkYmVhMjY0MDkwYmViMzVmZGI5MTg4ZDliMzQxMTgxZGNlOWY0Y2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhmYzJkYWNkODU2NWVhN2JjMDI1OGFkZWQwOThlOWFhMjgyMGRmZGI2ZGZiZTdhNjc3OTVhYWFmNjc5Njk3OGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI3ZTE0MGQyMGFlZGRmYWY3NDcwYmM2OGY1M2RhODgwZjUwY2EwMjAwNzZhNzJmMGZmMjU5YWMyYTkxMGQ1MzEifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T05:00:58.441Z"
+    "at": "2026-09-05T05:12:39.191Z"
   }
 }

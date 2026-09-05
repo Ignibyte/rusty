@@ -19,6 +19,7 @@ const TYPE_DIRS: &[(&str, &str)] = &[
     ("inbox", "inbox"),
     ("decision", "decisions"),
     ("conversation", "conversations"),
+    ("source", "sources"),
 ];
 
 /// The type of a page in a folder that is not a type folder, or at the root.

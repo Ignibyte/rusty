@@ -8,7 +8,7 @@ Rusty is a local-first AI personal assistant for Omarchy:
 
 - `crates/rusty-core`: the managers (tasks, notes, memories, brain vault and index,
   semantic index, skills, secrets, settings, events, watcher).
-- `crates/rusty-mcp`: the back end, an MCP server (82 tools, resources, notifications)
+- `crates/rusty-mcp`: the back end, an MCP server (85 tools, resources, notifications)
   over stdio for agents and Streamable HTTP for the app.
 - `crates/rusty-app`: the desktop app, cxx-qt on Qt 6, the knowledge workspace in QML
   with native agent terminals.

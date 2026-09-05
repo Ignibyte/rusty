@@ -2,10 +2,7 @@
 type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
-generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
-verified:
-  - by: openwiki/0.3.3
-    at: 2026-09-05T04:56:03.642Z
+generated: {by: "claude-code", at: "2026-09-05T05:12:39.191Z"}
 sources:
   - id: openwiki-source-4059556410fe6db8498fe8e9
     resource: repo://crates/rusty-app/build.rs
@@ -61,6 +58,9 @@ sources:
     resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
     resource: repo://scripts/screenshot.sh
+verified:
+  - by: openwiki/0.3.3
+    at: 2026-09-05T05:18:20.718Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -226,6 +226,13 @@ every view backed by the MCP server that agents share.
   answer's bookmarks are merged into `ui.bookmarks` through `bookmarkIndex` in the app's
   own shapes (a file or folder path, a search query, a heading), the tree, pages and tags
   refresh, and the dialog shows what came in and the report page's slug.
+- Sources (`Main.qml`, `Explorer.qml`; TICKET-027) reach the app through two palette
+  commands: "Sources: Capture a URL…" opens `captureDialog`, whose URL goes to
+  `source_capture` and whose answer opens the new page (a failed capture is named in the
+  notice); "Sources: Search sources" runs the `type:source` search. A page under
+  `sources/` shows a glyph of its own (`⌁`, in the faint token) in the explorer's tree,
+  and its type, `url`, `site`, `captured` and `kind` in its properties. The app reads
+  the same JSON an agent does and ignores the untrusted mark.
 - The graph (`GraphView`, tab kind `graph`, Ctrl+G, the ribbon, "Open local graph" on a
   page): `brain_graph` supplies nodes and edges; a force simulation on a timer
   (repulsion between every pair, springs on the edges toward the link distance, a pull
@@ -428,6 +435,9 @@ an agent run it are in `workflow-and-gates.md`.
   turn from the fake `claude` the script seeds.
 - `scripts/screenshot.sh <out> "import:obsidian-vault"` photographs the import dialog
   with the plan for the small vault the script seeds.
+- `scripts/screenshot.sh <out> "open:sources/example-com-launchers"` photographs a
+  source page the script seeds; the script maps the `reading` scene alone to the empty
+  scene (an exact match, since a scene path may hold the word).
 
 ## Primary sources
 

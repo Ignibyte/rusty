@@ -13,12 +13,14 @@ sources:
     resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-061d1620011caae21b2a0d24
     resource: repo://crates/rusty-core/src/brain/semantic.rs
+  - id: openwiki-source-469079f987eef0b6a4cf0a50
+    resource: repo://crates/rusty-core/src/brain/sources.rs
   - id: openwiki-source-79e92c26a49d3b5ce7f4c00a
     resource: repo://crates/rusty-core/src/brain/vault.rs
-generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
+generated: {by: "claude-code", at: "2026-09-05T05:12:39.191Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T05:00:58.441Z
+    at: 2026-09-05T05:12:39.191Z
 ---
 
 # Vault and brain: files as the truth, SQLite as the index
@@ -75,6 +77,21 @@ in the database can be rebuilt from the folder.
   rebuilds the index and commits once. Every path the run creates is recorded, and a
   failure removes them all, rebuilds the index and returns the error, so the brain is
   the import whole or as it was.
+- A source (TICKET-027) is a page of type `source` under `sources/` — `url`, `site`,
+  `captured` and `kind` in its frontmatter, the readable text as its body — indexed by
+  `sync_page` like every page and embedded by the same loop when a provider is set.
+  `capture_url` fetches the URL (http or https only, twenty seconds, five redirects,
+  eight megabytes, a `rusty` user agent, nothing else sent) and `capture_fetched` reads
+  it: HTML through a small state machine in `brain/sources.rs` (the `<title>` or the
+  first `<h1>`; the text of `<main>` or `<article>` when the page has one, else the
+  body; scripts, styles and the like dropped; headings and list items kept as markdown;
+  entities decoded), PDF through `pdftotext` when the box has it, markdown and text as
+  they are, a megabyte kept. A URL captured before is found by its `url` property and
+  its page rewritten with `created` kept; a new one takes `sources/<site>-<title slug>`.
+  A failure on a new URL writes a page that says why (`status: failed`, `error`); a
+  failure on a captured URL keeps the text and records those two keys. `rusty-cli
+  source capture <url>` and `source search <query>` are the terminal's doors; the tools
+  are the back end's (`mcp-back-end.md`).
 - Wikilinks are vault paths: `[[projects/orbit]]`, `[[projects/orbit|alias]]`,
   `[[projects/orbit#Heading]]`, `![[embed]]`. The scanner skips fenced and inline code.
 - Deletes are soft: a page or folder moves to `archive/<name>_<timestamp>`.
@@ -132,6 +149,11 @@ sends page text off the machine. Vectors live in the `vec0` table `brain_vec`, c
 the model's width; changing the model rebuilds them. With no provider, search stays
 full text and nothing else changes.
 
+A capture is the one other thing that leaves the machine: a single GET of the URL the
+user chose, with a `rusty` user agent and nothing else — no cookie, no key. What comes
+back is data from the web, and every MCP answer that carries it says so (the mark in
+`mcp-back-end.md`).
+
 ## Invariants
 
 - Files are the truth; never write the database without the file.
@@ -148,6 +170,11 @@ full text and nothing else changes.
 - An import that fails part way (a file where a folder must go, a disk full) leaves the
   brain as it was: the files the run created are removed and the index rebuilt; the
   folders it made may stay, empty. The source vault is never written in any path.
+- A capture that fails (a fetch error, a page with no readable text, a PDF without
+  `pdftotext` or without a text layer) is recorded on the source page — `status: failed`
+  and `error` in the frontmatter, and for a new URL a body that says so — never an empty
+  source; the next capture of the URL reads it again. The `sources/` folder appears in a
+  vault on the next `ensure_dirs`, as every type folder does.
 
 ## Extension points
 
@@ -166,6 +193,12 @@ full text and nothing else changes.
   source byte for byte as before, the brain itself refused), the import (links rewritten,
   frontmatter kept, the attachment's bytes, search, tags and links after the run, the
   report page, the source unchanged), and the rollback.
+- `cargo test -p rusty-core sources` and `capture_writes_updates_and_records_failures`
+  cover the sources without the network: the HTML extractor on a fixture (chrome
+  dropped, entities, headings, lists, the title and the `<h1>` fallback), the kind from
+  the type then the bytes, the scheme refusal, the site and the slug, the normaliser, the
+  mark on hits and on a page, and the capture from a fetched body — the keys, the index,
+  the recapture keeping the slug and `created`, the two failure shapes.
 
 ## Primary sources
 

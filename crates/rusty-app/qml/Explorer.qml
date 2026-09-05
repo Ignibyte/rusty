@@ -297,7 +297,8 @@ Item {
                     }
                     Text { visible: row.isDir; text: "▰"; color: row.modelData.kind === "root" ? explorer.theme.accent : explorer.theme.gold; font.pixelSize: Math.round(9 * explorer.theme.scale) }
                     Text { visible: row.isSection; text: row.modelData.name; color: explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase; Layout.fillWidth: true; Layout.topMargin: 6 }
-                    Text { visible: !row.isDir && !row.isSection; text: row.modelData.kind === "page" ? (row.active ? "◆" : "◇") : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : explorer.theme.alive) : explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); Layout.preferredWidth: 12 }
+                    // A captured source (a page under sources/, TICKET-027) carries its own glyph.
+                    Text { visible: !row.isDir && !row.isSection; text: row.modelData.kind === "page" ? (row.modelData.path.startsWith("sources/") ? "⌁" : (row.active ? "◆" : "◇")) : "◈"; color: row.modelData.kind === "page" ? (row.active ? explorer.theme.accent : (row.modelData.path.startsWith("sources/") ? explorer.theme.faint : explorer.theme.alive)) : explorer.theme.muted; font.pixelSize: Math.round(10 * explorer.theme.scale); Layout.preferredWidth: 12 }
                     Text {
                         visible: !row.isRenaming && !row.isSection
                         Layout.fillWidth: true

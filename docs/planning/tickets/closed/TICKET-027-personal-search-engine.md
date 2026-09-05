@@ -1,6 +1,6 @@
 ---
 title: TICKET-027-personal-search-engine
-status: open
+status: done
 ticket_number: 027
 type: feature
 created: 2026-09-04

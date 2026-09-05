@@ -186,6 +186,25 @@ With [[people/sarah-chen]] about [[projects/orbit]]; decided on [[concepts/theme
 MD
 printf 'Loose note without frontmatter, as Obsidian writes them.\n\n- #inbox item\n' > "$vault/Loose note.md"
 printf '{}' > "$vault/projects/data.json"
+mkdir -p "$vault/sources"
+cat > "$vault/sources/example-com-launchers.md" <<'MD'
+---
+title: A list for launchers
+type: source
+url: https://example.com/reading-list
+site: example.com
+captured: 2026-09-05T09:30:00+00:00
+kind: html
+---
+
+## Why launchers
+
+A launcher is one key, a line of text, and the thing you meant. The best ones stay out of
+the way.
+
+- Keep the index warm.
+- Answer in under a frame.
+MD
 
 IFS=x read -r w h <<< "$size"
 printf '[window]\nwidth=%s\nheight=%s\nlastTab=0\n' "$w" "$h" > "$scratch/.config/Ignibyte/rusty.conf"
@@ -296,7 +315,7 @@ for scene in "${scenes[@]}"; do
     QT_QPA_PLATFORM="${SHOT_PLATFORM:-offscreen}" QT_FORCE_STDERR_LOGGING=1 \
     RUSTY_MCP_URL="http://127.0.0.1:$port/mcp" RUSTY_TABS="$scratch/tabs.json" RUSTY_STATE="$scratch/workspace.json" \
     RUSTY_OMARCHY_THEME_DIR="$theme" RUSTY_SHOT="$file" RUSTY_SHOT_DELAY="${RUSTY_SHOT_DELAY:-3500}" RUSTY_CLAUDE_BIN="$scratch/bin/claude" \
-    RUSTY_SHOT_SCENE="${scene/reading/}" RUSTY_DEBUG=1 \
+    RUSTY_SHOT_SCENE="$([[ "$scene" == reading ]] || printf '%s' "$scene")" RUSTY_DEBUG=1 \
     timeout 40 "$target/debug/rusty" >"$out/$name.log" 2>&1 || echo "scene $scene exited $?" >&2
   [[ -s "$file" ]] && echo "wrote $file" || echo "no image for $scene (see $out/$name.log, or journalctl -t rusty)" >&2
 done

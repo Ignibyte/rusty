@@ -8,11 +8,11 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Open queue
 
-- [`TICKET-027` — Personal search engine](open/TICKET-027-personal-search-engine.md) (queued 2026-09-04, from intake)
 - [`TICKET-028` — Live preview editing](open/TICKET-028-live-preview-editing.md) (queued 2026-09-04)
 
 ## Closed
 
+- [`TICKET-027` — Personal search engine](closed/TICKET-027-personal-search-engine.md) (2026-09-05)
 - [`TICKET-026` — Obsidian vault migration](closed/TICKET-026-obsidian-vault-migration.md) (2026-09-05)
 - [`TICKET-025` — Native agent pane](closed/TICKET-025-native-agent-pane.md) (2026-09-05)
 - [`TICKET-024` — First-class tagging](closed/TICKET-024-first-class-tagging.md) (2026-09-05)

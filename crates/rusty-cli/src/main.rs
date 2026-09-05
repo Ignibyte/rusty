@@ -35,6 +35,8 @@ USAGE:\n\
   rusty-cli brain types                       (page types, folders, counts)\n\
   rusty-cli brain migrate [--dry-run]         (timeline sections + vault-path links)\n\
   rusty-cli brain import <vault> [--dry-run]  (bring an Obsidian vault in: pages, attachments, bookmarks; a report under inbox/)\n\
+  rusty-cli source capture <url>              (keep a web page, PDF or file as a source page under sources/)\n\
+  rusty-cli source search <query...> [--limit N]\n\
   rusty-cli brain reindex\n\
   rusty-cli brain embed [--all]               (vectors for stale pages, or every page)\n\
   rusty-cli brain semantic                    (embedding provider and index state)\n\
@@ -72,6 +74,7 @@ fn main() {
     ) {
         (Some("brain"), Some(sub)) => run_brain(sub, &args[3..]),
         (Some("notes"), Some(sub)) => run_notes(sub, &args[3..]),
+        (Some("source"), Some(sub)) => run_source(sub, &args[3..]),
         (Some("hooks"), sub) => run_hooks(sub),
         (Some("skills"), _) => {
             let sub = args.get(2).map(String::as_str).unwrap_or("list");
@@ -144,6 +147,57 @@ fn legacy_notes_path(db: &Arc<Database>) -> PathBuf {
 }
 
 /// Dispatch a `notes` subcommand.
+/// `source capture <url>` and `source search <query>` (TICKET-027).
+fn run_source(sub: &str, rest: &[String]) {
+    match sub {
+        "capture" => {
+            let url = rest.first().cloned().unwrap_or_default();
+            if url.is_empty() {
+                fail("usage: rusty-cli source capture <url>");
+            }
+            match brain().capture_url(&url) {
+                Ok(page) => {
+                    let status = page
+                        .frontmatter
+                        .extra
+                        .get("status")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("captured");
+                    println!("{status}: {} ({})", page.slug, page.title);
+                    if let Some(error) =
+                        page.frontmatter.extra.get("error").and_then(|v| v.as_str())
+                    {
+                        println!("  {error}");
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        "search" => {
+            let (pos, flags) = parse(rest);
+            let query = pos.join(" ");
+            if query.is_empty() {
+                fail("search: missing <query>");
+            }
+            let limit = flags.get("limit").and_then(|v| v.parse().ok());
+            match brain().search(&format!("{query} type:source"), limit, None) {
+                Ok(hits) => {
+                    println!("{}", rusty_core::brain::sources::UNTRUSTED_NOTE);
+                    for hit in hits {
+                        println!("{}  {}", hit.slug, hit.title);
+                        let snippet = rusty_core::brain::sources::normalise(&hit.snippet);
+                        if !snippet.is_empty() {
+                            println!("  {}", snippet.replace('\n', " "));
+                        }
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        _ => fail(&format!("unknown source command: {sub}")),
+    }
+}
+
 fn run_notes(sub: &str, rest: &[String]) {
     let db = Arc::new(Database::open().unwrap_or_else(|e| fail(&format!("open database: {e}"))));
     match sub {
