@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:579005ab1b26db40315c2591d74b43729618cde14ccf73af0747ed4e2d939834",
+  "pageVersion": "sha256:58971faa837d12290d97ab611ea21d089404f63e9da4782724face293712b60f",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -94,25 +94,41 @@
     },
     {
       "id": "claim_8f2222968fe54937978634521a4f39a8",
-      "statement": "The right sidebar's Tags pane lists every tag as a tree with counts and searches by tag on a click.",
+      "statement": "The right sidebar's Tags pane lists every tag as a tree with counts, searches by tag on a click or Enter, and tags the open page from a `+` shown on hover, a right-click menu or the `T` key on the keyboard-selected row (the list is focused by a click or by the \"Tags: Show tags\" command); the tagging goes through the note's own `tagThePage`, and the counts follow the change notification.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/RightPane.qml#L186-L230",
-          "version": "repo-lines-v1:sha256:380f282844d23f7f9bb92883ab86893ef544e5c486b6448a120e2be4df73900d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyYjE5ZjE0YjM1NmIxYTQxMDEwMGQ2NmQ0MmVkOWQ2ODMyZmFhMTQ5MDVjZmM4ZmIzZDBjNGM1NWE4MzFlMjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjllNDYxYzEwNThjZDU3YjZjZThmNzQyYjk2NWEwNzEzM2QxZDBiNzgyNjhlNTMyNDU3M2I3NjQ2NTVlNzdlYjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRhOWY4NmQyOGU3ODRmOWZkMzFmYjcyZDE1ZjYwY2JjZWFhZmRkNjY5Y2JkNWI2ZGE3ODg4YTAyMzMyMWViYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhlY2NiMDZiNWE3NmE4ODE5NzliYmU0ODRlOTU3OTYzMDdmNmZkY2I1NWQ4ZmZjMzNhMDI3N2ZkMjNiZWRlY2UifQ"
+          "resource": "repo://crates/rusty-app/qml/RightPane.qml#L26-L31",
+          "version": "repo-lines-v1:sha256:c9601f87413f2536a28aa05d650b218355f26b0945c93f786f898128be6254e8:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODE1OTU0ZWQ0NTgxMTZhZDZhNDIwOTM4MGFiZDY0NzJmMjVkY2Q2NDUwYzgzNDIyNWM3MGUwMmIzYzJkMTExYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTZkOTM1MmQ4NTVlNTUxZjM5MGE5NzNjODJlZTBjZGY4MDBhYTMwYjVhYmNlNWRhZDlmMzE1MDdiMWU3YWEwMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjgzNTIxNzc0Y2FiZmJmZWMwZjRhNGY3MGRmN2U4NjJhMmUyMWNiN2U4MDI2Nzg3OWM1ZjIxZGRiYzcyMDFmNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODE5NDgzZDViNmMzZTc0OWJjZjg5YTQyZGFhZDQxZTJkYWM2YzFjOWI0NWFhMmI0MzgxOGZiNDIzYjM2NzRmNyJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/RightPane.qml#L190-L252",
+          "version": "repo-lines-v1:sha256:719041f341f04aeba09c182f14e60e4a18ede09b70472cffa0b955a258bb2f94:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0Zjk1OGI1NGJlMzgxMTQyNDlhOGUxY2NhOGZhZWNhM2EyYTMxNjg3MGRiNjBkNjUxNjI3MGRjNjJhM2YxM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjNjQ3OWNjMjMwNDQwZmQ0MWU4MjI0MjE4Njc5Njk4NTU5ZDI4OTNiZDY3YjQzODBhZmFiODExYjM4YTU1YWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNmODYwYjBjYWI4MmEyZDRlZmYwODcwYmZhZmVlNzcyN2U4N2Q2MTNjYjI3NGQ4M2RiOTVmMzNlZmMzY2RkZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyN2M3MGE2MDMwMjc2MGY5ZGI3ZDBjNDZmOGUwM2E1ZjcwNmYwMGQyNjM2YzczNzVhZDRiZTM3ZjEzODI3ZjcifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L513-L514",
+          "version": "repo-lines-v1:sha256:33cf0b683a4ce25c8549d0a3f434a96c047256b39e86d54650f1275f496b440b:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDc0ODBjYmFlNmM3YmI2MDM0YmFlNDkzZmZiZDJhNzUyOTU2ZjU0OGIyMGUxNmYxNGMwYWE3M2Q0NzFmMGVhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTlmZDIwNDdhYWIwZjA0NTgyYmU4ZGZmMTViMDE0ZTI3YjU0ZTQ0ZWI5YmU5YTMwMTY3ZjYwNmFlN2E3ZTYzNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGQ3MWQ0ZWU1ZmUxNDRlNjJiNDMyZTY2MDhmZWVjZWJlNDRiMGZlZmZkZTIyYjU2ZGFkYTU5ZWM1MTgxZjMzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGEwNjVlY2FiMDc3MDk2OGE4YTlhNTVlN2NjM2EzMzZhMjY0YmYzNzUwOGI5NzMyMjkxOWZiZTM4YjIzYTA2MCJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L1097-L1102",
+          "version": "repo-lines-v1:sha256:db54255f812aa37acb5e79954db57fa873c1c125dd2f9528ad834752546fa84e:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDQ1MWRkN2QzYzAzODdjMTkzMmUyYjEwMTNkNzkzN2ExNzA2MjE3YWRlZDNjMDZjYzRjM2EzMGFkOTc1ODRmOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjg0MWYzNjI5ODVlYjBiMjIyZDJmYjMxNDAzMTVmNDQzYmQxZDI0ZWM0MjhiNmYyMjg0YzlmZjM0MGJhMWYyYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmFjMmE0MWUxMzQwYzI2MTcyMjc3MWVlMTMwNGI5NDVhMDhhMTc4MzY3MDU2MWJjMjg4NmI3ZDA3ZTk2NGRkMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDhiNjY0MmY5YjFmMzVjMWFjNWZiODVhM2NmN2M2MjY0NWE0M2VjOWMxNjI5MzU1ODVjMzgzNTVlODRkOWEyYSJ9"
         }
       ]
     },
     {
       "id": "claim_79caf2afad8a4395bb2470963e584521",
-      "statement": "The properties block in reading view edits each value by its type through the property tools and adds a key of a chosen type.",
+      "statement": "The properties block in reading view edits each value by its type through the property tools and adds a key of a chosen type; Tags is among the types, with its key fixed to `tags` and a list value, and a page that already has `tags` gets that row's field focused instead of a second key.",
       "evidence": [
         {
           "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L113-L126",
-          "version": "repo-lines-v1:sha256:48dea3f732f6b12da1f25602c2431fae68b967fadfbdba953c3cb36faeeefbf8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE4MmRjMGI4YWIwZDBkNWQ5OWE4MmNiYTg5YzJiMTdhNDFmNTM5NTcyZGQyM2JiNzE5OTZhZjAwZmMxMzY4MTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkYjMyNWE0ZDNjYmIyMmVlYjllNWE3MDQ4NzUxNjYzMWE3ZmU3MDIxOTRkZWY1ZjhiN2QzOTJlYjFiNGI0ZTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkMDg1ODcwZTUzMmU0YTQ2NzhjMGQxNjVjMTBmODdhZWZkZDdhMTE0MTkxOWI1YjE0MzY0YWU0ZjNmMWZlOTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY2ODJkM2RmNGNiN2I4ODBkMDc2MGIwZWIyNzc4ODU0OTkyOWUwZjI3NGZlNjM5MjU0Y2Q2ZGFlYTg3NjI2Y2IifQ"
+          "version": "repo-lines-v1:sha256:4768f6674b9e0d4ee96e5694a0db4860662fd7996ee8f1c94b25276b96cb655c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjODhiYTIyZWVmNTA3YjhjNDAxNTIzNzkzOGNkNGJlMzhkZTcxMTE1ZGY4NDk3MThhOGQ3NTY3MGMxNjBjMWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwNDM4NmYxNjYyMDE1ZmVmNzM2NDFiNjUyZWM4Y2ZmMWJmYjk1YjQzZTRmOTE2OTUwODYwNjE4NDMxODFlZDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlYjUxNWIxZGUwNjk4ZjM4ODU2MzQ4OTlkZDFkODQzMzJkODExNjdjMWVlMjA1NjRkMmFkN2M4NzQ1MWVlZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM4ZDU4NGFmOTkyZTg1MmRiYmRhZDZhOTBiZTY4Y2I2NjQzNWY4ZWMxZWM5YTVkMjAyZjg4YzJhYzEwYmZjNDAifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L448-L471",
-          "version": "repo-lines-v1:sha256:ec9fa67c58f239bb32835fc5d25f3d539732ea06f9e812e8088d3254229aebfe:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNmQ0YjAxOGVlNDY4NDhhYmY3NmMyNGVkYjhjMjg4NmQ1YTBlNGZjNDE5MTIyN2RhOWJjNDJiNWQ5ZjEyZTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlMGM5OTRmODk0NjFhNzgyMjdiNWQ2MDUxYjBjYWRiYzg1MjRjMmRhNDg1YmYxMDRmYjZmNWRkMmJlOGYzMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExNzk4YTllMjE3NDUyNjRmMzI4NTNhNmIzY2Q1MWY1MGI5YjRhNTQxNjUxMDRhOTllNTU1YzIxZmY1OWU5ZTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmN2MyODQ5YmI0MjU4YjAwYTg0MjRiNGEyZWMxYmRlNjZlOTlkYzc1ZGU2YjA5NWM2NmY5MDgyYWE1YWNiZTAifQ"
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L174-L178",
+          "version": "repo-lines-v1:sha256:dac7c0efe56d61aa34dcf18f16143153600a7c27cf02f5f4e86aea1d9ead3617:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWFlNjViNzg0ZTYxY2FkMjI5Y2MyMGQxMGFlYWZkZjczMTFkZjhhMTUzMjUwYTNlY2FiNDE1ZjUwYTlmMGE4NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdhN2QxYzI1OTNhNTY2MWVmZDkyOWM5OGJmMGI3YzQzZWY2MTM2MWE3MDZkNzE4ZjU2M2ZmMTBhMzNkMTViNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGQ5ZmQ1MmRkYWVhZWVkOWMxNjZmNDAyZTAzYjlkZThiZGE1ZDRhY2Q5ZGM0NDFjOGJkOWJkY2Y4MjliZTIzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTY1NTY0NjgwYzQ4OGM0YTVjMzUwNzk5MmNmOTdjYWQwNDJmODk4NTM5N2Q0M2VkYTgwZDNiODQzY2ExZjNkYiJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L505-L530",
+          "version": "repo-lines-v1:sha256:540d6768fd6b1d178f4fcbd7e1b99bbd571f2e69fb0375b76f4099b78b925b86:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiMWZiODVmMTA4MDE2ZWFhOWE0ZGE2N2M5YjVhZDAzM2RmNWM5MDU4NjE4ODQyNzg1OTYzYTg2NTc0NjdmMzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTE4YzQyYTQ3OGZjNTEzZDczOTdmZTExZjc2NGFmMWUwODJlZGQzZDAyNWQ1OGZlMTNlZTIxYTY1YWNkNzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI5Y2M1OWQyNDM4NGZmMzcxNWU2YTAyNTNlNzAxZmVlMWE4NzEzY2VkZmMxZjdkODFmZjQzMGQ0ZjlmNDk2YWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY5ZThlOGExMDhhMDU2ZjdjNGNmMzcwYzVkMmRiY2JkNmJiY2YxMzQ2MzFhOTk2YTUyMzk3NGUyM2QwOTZlMTMifQ"
         }
       ]
     },
@@ -540,11 +556,11 @@
     },
     {
       "id": "claim_422d7b99298d492e9a867ddbe5d03d0b",
-      "statement": "Screenshot scenes exist for the chrome that only shows on demand: `RUSTY_SHOT_SCENE=rename` opens the rename dialog for the current tab, `plus` pops the tab strip's menu, `skills:collapse-scripts` (or `collapse-skills`) sets the Skills page's remembered layout before `view:skills` opens it, `file:<path>` opens a file tab and `file:edit` puts it in edit mode, `root:<path>` adds a folder root and expands it once the roots have changed, `expand:<path>` opens any row — a scene path is taken as given when absolute and under `HOME` otherwise — so each can be photographed offscreen against a scratch vault.",
+      "statement": "Screenshot scenes exist for the chrome that only shows on demand: `RUSTY_SHOT_SCENE=rename` opens the rename dialog for the current tab, `plus` pops the tab strip's menu, `skills:collapse-scripts` (or `collapse-skills`) sets the Skills page's remembered layout before `view:skills` opens it, `file:<path>` opens a file tab and `file:edit` puts it in edit mode, `root:<path>` adds a folder root and expands it once the roots have changed, `expand:<path>` opens any row, `tagfield:<text>` puts the text in the open page's tags field so the completion list shows — a scene path is taken as given when absolute and under `HOME` otherwise — so each can be photographed offscreen against a scratch vault.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/Main.qml#L413-L431",
-          "version": "repo-lines-v1:sha256:86dfed06dee4056b5fdbf5fc4d6f9c21e8e2ceb86bf9c519dde39cb5a1e1ee75:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjMjExMmQwYWQwYTNlZTkyMTM1OTlmNDU0ZWI0ZmRiYWE1MTBiZjY5NjQ2OTQ5YmQ1ZGE3Yzc1NGRkYWVjODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlOGI0MWQwMTRmZTgzOTg4NWUzNWI2MjA4YTRkNDllODY1MTc3ZTNkNzcxZGFkZTZmYWI2N2EzZjc1YmQ2MzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ZDBlMGVmMGM2M2M2NjAzNDJmY2U1YWZmZWM5NDI0MGQ1ZDQxY2FkYzZlNDMxYmFlZmJmNTFhY2I5NWU1NGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNjM2FiYTUzYzU2ZmNkNGM3ZmQ5MGJmMDIzNGIwODUyZDA2ZDE0MDFlMWJiZGY2NjhiMjExZjJjMTNlZDYwM2UifQ"
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L413-L432",
+          "version": "repo-lines-v1:sha256:0067050d0044527706fa84d70daff41fd4258a7867efd3b1011386fe8da1b44f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjMjExMmQwYWQwYTNlZTkyMTM1OTlmNDU0ZWI0ZmRiYWE1MTBiZjY5NjQ2OTQ5YmQ1ZGE3Yzc1NGRkYWVjODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlOGI0MWQwMTRmZTgzOTg4NWUzNWI2MjA4YTRkNDllODY1MTc3ZTNkNzcxZGFkZTZmYWI2N2EzZjc1YmQ2MzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ZDBlMGVmMGM2M2M2NjAzNDJmY2U1YWZmZWM5NDI0MGQ1ZDQxY2FkYzZlNDMxYmFlZmJmNTFhY2I5NWU1NGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNjM2FiYTUzYzU2ZmNkNGM3ZmQ5MGJmMDIzNGIwODUyZDA2ZDE0MDFlMWJiZGY2NjhiMjExZjJjMTNlZDYwM2UifQ"
         }
       ]
     },
@@ -703,10 +719,40 @@
           "version": "repo-lines-v1:sha256:0ceaab9b0759bc86afaa77fcc2921bdd7de38fb4e55786c2979519043fd6a2a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhYjQ1Y2EzN2VjZTYzZjZkOTA2YzkwODU2YWJmNzY2MzA3Y2JmMmUzY2U4Mzk1OGQ4NjQ1MDFjMTViOWYwYWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUyZjU0MmU2NDhjNjk4ZmViMTk4NDM3YzA0OGQ4NTJkN2NhYmE1MGU3Njg3Y2E3ZWQ3Nzg3ODk0MmNmZmZhNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwNGQ0Y2VmZDU5NzBhOTcwNGJiMGQ3ZGU0OGUzMWVkZTJlZDcwMTMxYmYwZGE2ZDQ4YjNjODA1Y2I3MDNiMmQifQ"
         }
       ]
+    },
+    {
+      "id": "claim_2d5dd67ccf0f47d48af08905c676eebb",
+      "statement": "Tagging a page deliberately is one writer, `NoteTab.tagThePage` (a leading `#` dropped, a duplicate refused without case, a scalar `tags:` counted as one tag, then `brain_set_property` on `tags`), reached from the tags row's field, the Tags pane and the palette; the tags row's field completes from the tag index the window already holds (`win.tags`, re-read on every change notification): a substring match without case, the page's own tags left out, ranked by count then name, eight at most, nothing picked until Down, Enter adding the text as typed when nothing is picked, Tab taking the pick or the first; \"Tags: Tag this page\" focuses that field, adding the `tags` property first when the page has none and focusing the new row once the re-render creates it.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L62-L100",
+          "version": "repo-lines-v1:sha256:1cea3d4984fc96d71e00f298f8006a771e600574eebf0f0d829b791a5f743c42:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMzZWI2YWM1ZTNlNDUxMGYxZjdmZWQ1YmQ2ZGExYzk3MzJlZmM4NmYyYzkxMDJmNzJlZjY3ZDNhOTg4MDI2ZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjczOWNlZDQ5ODY4NTU5ZWE1ODUyNTAwNTY1Y2E0YzM0NjhjNjFiNjkzZGI2MTc5MGRjOTNkNjQ3MjZmZjQxNDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImViODRhY2Q4NWU1YzY4MWZkZTFlNTAwYzAxMGQwY2I0OTNkMzJiMGVjYWJlNzg1YjkzMWZmZTA5MGRhZDI4NWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhZTYwNDRhMDJiMWYyMjU3MzFkODVlMzJlYjJlM2JhMGJjNjQ3Nzk3YTExNmViMDAwMDljOTUyNzY1MTQ1N2EifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L625-L626",
+          "version": "repo-lines-v1:sha256:5b0523671a1af53f2b72e418b16187897642106d690f009b4b7a4445192e12fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODVhMjExMGQ4YTliOWM0MDM3MjIwMGRlOWU4NGRjM2MyN2ZjZmY0NGU2NWY0NDlhNWRiYzhjZmFmZDY3YjQ5YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDMxY2FhYzc2MDViOGZiNDk5OGM0ZGQ2NzkxYjI2N2UzODlhNDJmOTJhOTUwYmI5MzQ5NzFmZGYyMWU5NmJlNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjBjNzdmNjU4MGMyNjc5OTQ0NDg3YjkyY2YxOWJjOWQ3YmRkNTAzZWM5NGEyNmVhZjg5ZTllZjUwYTZhNDQ5MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGI2NmRiMjAyNDA0ZTIxNDE2MWRkM2MyMmY1NzZlYTBhNGQ5NDJmM2ZhMGEzNzBjNmRhNjgzMzk0ZDc0MjU0MiJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L655-L723",
+          "version": "repo-lines-v1:sha256:49f8bbea8da87e1c47bdb3773106d3266729e46b3262ba23a431fa6aed39632d:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5ZjliZTZiNmE3YmQzM2M2ZTFlZjJjNzgzZGE5ODBlNWRhNjcwZDkzMGZmYmYwYTkwMTU2NjdjZmZmM2NlNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc0YzUyNGYwZDU0N2JmMGYwODgyY2IwNjE2Yjk4YjczMDVjMzA5YTFkOTI4MGI4ZDU4YWNiZDIyNGIwMTVmMWMifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L514-L514",
+          "version": "repo-lines-v1:sha256:99fd2047aab0f04582be8dff15b014e27b54e44eb9be9a30167f606ae7a7e635:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTlmZDIwNDdhYWIwZjA0NTgyYmU4ZGZmMTViMDE0ZTI3YjU0ZTQ0ZWI5YmU5YTMwMTY3ZjYwNmFlN2E3ZTYzNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTlmZDIwNDdhYWIwZjA0NTgyYmU4ZGZmMTViMDE0ZTI3YjU0ZTQ0ZWI5YmU5YTMwMTY3ZjYwNmFlN2E3ZTYzNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2UyMGYxMWM1MTAwYTZlNzI4Mjg3M2FmZWQ5NjczNTRlZTI5MmUxZGI0ZDJjNDkwMjI4ZGE4OTFjNWUxZTQxMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGEwNjVlY2FiMDc3MDk2OGE4YTlhNTVlN2NjM2EzMzZhMjY0YmYzNzUwOGI5NzMyMjkxOWZiZTM4YjIzYTA2MCJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L685-L685",
+          "version": "repo-lines-v1:sha256:2decb372c6fd6317272934742e8ea180c85c0e71c37c5069fcc22353e65c3bb9:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmRlY2IzNzJjNmZkNjMxNzI3MjkzNDc0MmU4ZWExODBjODVjMGU3MWMzN2M1MDY5ZmNjMjIzNTNlNjVjM2JiOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmRlY2IzNzJjNmZkNjMxNzI3MjkzNDc0MmU4ZWExODBjODVjMGU3MWMzN2M1MDY5ZmNjMjIzNTNlNjVjM2JiOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDM4NGZkMjE0M2MyZGE4NjNlMjJjNjM5ZjBlMjFjOTJmMGEwMDcxNDFkNTE3YmE1OGYyNjA1MjY1YTU3OGVjYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTFhZTJmYTM3ZmY5OWExZmFlMjVhZDJmNTI0NzNmMzNmOWQxNzcyYjgxMDdlMGNkZTg0MjkyOGY1NzhmYzQ0YyJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/mod.rs#L1084-L1096",
+          "version": "repo-lines-v1:sha256:f5bbffad9f550727d0a02a07337b192758f0494b4b80fe242de1861ae247fbb2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1NDViYWIwMmU0ODJhNWE5M2U0YWM2OWU3MTI1ZjJhYTMyM2UzMTQ5MjlhMGMwYjU0NDkxNjYxZTU4MDc3MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFlZWU5NDY1ODU1YmMwMGM3Y2ZhOWUxM2E5YmJjNGQzNWNiZWMxMWRmMTU0OTBjZTA3MWU0ZWQxMWIyMGYzYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJiZGM2OGU1YWQ4YWZiNTUwYjE2M2UyODJjM2FkYjk3ODA5NDQxY2Q1YWFmZmVlNTVkMjgxYjVkY2RmZDZkNGIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T04:09:53.999Z"
+    "at": "2026-09-05T04:22:26.145Z"
   }
 }

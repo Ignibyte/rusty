@@ -1,6 +1,6 @@
 ---
 title: TICKET-024-first-class-tagging
-status: open
+status: done
 ticket_number: 024
 type: feature
 created: 2026-09-04

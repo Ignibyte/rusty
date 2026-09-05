@@ -51,12 +51,14 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
+  - id: openwiki-source-c7501cab00d475ec77094adb
+    resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
     resource: repo://scripts/screenshot.sh
-generated: {by: "claude-code", at: "2026-09-05T04:09:53.999Z"}
+generated: {by: "claude-code", at: "2026-09-05T04:22:26.145Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T04:09:53.999Z
+    at: 2026-09-05T04:22:26.145Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -161,9 +163,19 @@ every view backed by the MCP server that agents share.
   "Add property" adds a key of a chosen type, all through `brain_set_property` and
   `brain_remove_property`; the page re-renders on the change notification. A `#tag` in
   the reading view, a chip, or a row of the Tags pane puts `tag:<name>` into the search
-  pane. Edits autosave after 1.5 s and on
-  Ctrl+S through `brain_write_page`; a `dataChanged` reloads only when the editor is
-  clean. Each tab keeps its own history.
+  pane. Tagging is deliberate as well as inline (TICKET-024): Tags is one of the types
+  "Add property" offers, its key fixed to `tags` and its value a list (a page that has
+  `tags` gets that row's field focused instead); the tags row's field completes from the
+  tag index the window holds — a substring match without case, the page's own tags left
+  out, by count then name, eight at most, nothing picked until Down, Enter adding the
+  text as typed when nothing is picked, Tab taking the pick or the first; the Tags pane
+  tags the open page from a `+` on hover, a right-click menu or `T` on the selected
+  row; "Tags: Tag this page" puts the cursor in the field, adding the property first
+  when the page has none. One function writes, `tagThePage` (a leading `#` dropped, a
+  duplicate refused without case, a scalar `tags:` kept as one tag), and the counts,
+  `tag:` search and the graph follow the same change notification. Edits autosave
+  after 1.5 s and on Ctrl+S through `brain_write_page`; a `dataChanged` reloads only
+  when the editor is clean. Each tab keeps its own history.
 - Terminals (`AgentTerminal`): `qmltermwidget` running `tmux new-session -A -s
   <session> -c <dir> <program>` with `set-titles on`, so Claude Code's and Codex's
   titles reach the tab; output in a hidden tab marks it unread, a title that asks for
@@ -358,6 +370,11 @@ an agent run it are in `workflow-and-gates.md`.
   (modified, added, untracked, a subfolder root), and a plain folder.
   `scripts/screenshot.sh <out> "root:repo,expand:repo/src"` photographs the marks against
   the repository the script seeds.
+- `cargo test -p rusty-core brain::tests::tags_index_search_and_properties` covers the
+  deliberate tag path's back half: a `tags` list set through the property shows in the
+  counts and in `tag:` search, and a tag removed through the property leaves both.
+  `scripts/screenshot.sh <out> "tagfield:r" "right:tags"` photographs the completion
+  list and the pane.
 
 ## Primary sources
 

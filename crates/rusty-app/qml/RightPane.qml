@@ -23,10 +23,12 @@ Item {
     signal createPage(string name)
     signal paneChanged(string name)
     signal searchTag(string tag)
+    signal tagPage(string tag)
     signal bookmarkHeading(string text)
 
     function titleOf(slug) { return titles[slug] || slug.slice(slug.lastIndexOf("/") + 1) }
     function focusAgent() { if (current === "agent") agentTerm.focusTerminal() }
+    function focusTags() { if (current === "tags") tagList.forceActiveFocus() }
 
     ColumnLayout {
         anchors.fill: parent
@@ -201,26 +203,52 @@ Item {
                 Layout.fillHeight: true
                 clip: true
                 model: pane.tagRows
+                currentIndex: -1
+                keyNavigationEnabled: true
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                // The keyboard: Enter searches the current tag, T tags the open page with it
+                // (TICKET-024).
+                Keys.onReturnPressed: if (currentIndex >= 0) pane.searchTag(pane.tagRows[currentIndex].tag)
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_T && currentIndex >= 0 && pane.note) { pane.tagPage(pane.tagRows[currentIndex].tag); event.accepted = true } }
                 delegate: Rectangle {
+                    required property int index
                     required property var modelData
                     width: tagList.width
                     height: 26
                     radius: 4
-                    color: tHover.hovered ? pane.theme.hover : "transparent"
+                    color: tHover.hovered || tagList.currentIndex === index ? pane.theme.hover : "transparent"
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: 8 + modelData.depth * 14
                         anchors.rightMargin: 8
                         spacing: 6
                         Text { text: "#" + modelData.name; color: pane.theme.tag; font.pixelSize: Math.round(13 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                        // Tag the open page with this tag; the count follows the change.
+                        Rectangle {
+                            visible: tHover.hovered && pane.note !== null
+                            width: 18; height: 18; radius: 4
+                            color: plusHover.hovered ? pane.theme.active : "transparent"
+                            Text { anchors.centerIn: parent; text: "+"; color: pane.theme.foreground; font.pixelSize: Math.round(14 * pane.theme.scale); font.bold: true }
+                            HoverHandler { id: plusHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: pane.tagPage(modelData.tag) }
+                            ToolTip.visible: plusHover.hovered
+                            ToolTip.text: "Tag " + (pane.note ? pane.note.title : "the open page") + " with #" + modelData.tag
+                            ToolTip.delay: 600
+                        }
                         Text { text: modelData.count; color: pane.theme.faint; font.pixelSize: Math.round(11 * pane.theme.scale) }
                     }
                     HoverHandler { id: tHover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: pane.searchTag(modelData.tag) }
-                    ToolTip.visible: tHover.hovered && modelData.depth > 0
+                    TapHandler { acceptedButtons: Qt.LeftButton; onTapped: { tagList.currentIndex = index; tagList.forceActiveFocus(); pane.searchTag(modelData.tag) } }
+                    TapHandler { acceptedButtons: Qt.RightButton; onTapped: { tagList.currentIndex = index; tagList.forceActiveFocus(); tagMenu.tag = modelData.tag; tagMenu.popup() } }
+                    ToolTip.visible: tHover.hovered && !plusHover.hovered && modelData.depth > 0
                     ToolTip.text: "#" + modelData.tag
                     ToolTip.delay: 600
+                }
+                Menu {
+                    id: tagMenu
+                    property string tag: ""
+                    MenuItem { text: "Tag the open page"; enabled: pane.note !== null; onTriggered: pane.tagPage(tagMenu.tag) }
+                    MenuItem { text: "Search #" + tagMenu.tag; onTriggered: pane.searchTag(tagMenu.tag) }
                 }
             }
             Text { visible: pane.tags.length === 0; text: "No tags yet."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }

@@ -428,6 +428,7 @@ ApplicationWindow {
                 else if (p.startsWith("file:")) win.openFile(shot.resolve(p.slice(5)))
                 else if (p.startsWith("root:")) { const f = shot.resolve(p.slice(5)); win.addRoot(f); Qt.callLater(function () { explorer.expandPath(f) }) }
                 else if (p.startsWith("expand:")) explorer.expandPath(shot.resolve(p.slice(7)))
+                else if (p.startsWith("tagfield:")) { if (win.currentNote) win.currentNote.focusTagAdd(p.slice(9)) }
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
@@ -509,7 +510,8 @@ ApplicationWindow {
             { name: "Backlinks: Show backlinks", keys: "", run: function () { win.showRight("backlinks") } },
             { name: "Outgoing links: Show outgoing links", keys: "", run: function () { win.showRight("outgoing") } },
             { name: "Outline: Show outline", keys: "", run: function () { win.showRight("outline") } },
-            { name: "Tags: Show tags", keys: "", run: function () { win.showRight("tags") } },
+            { name: "Tags: Show tags", keys: "", run: function () { win.showRight("tags"); rightPane.focusTags() } },
+            { name: "Tags: Tag this page", keys: "", run: function () { if (win.currentNote) win.currentNote.focusTagAdd() } },
             { name: "Properties: Add a property to this page", keys: "", enabled: win.currentNote !== null, run: function () { win.currentNote.startAddProperty() } },
             { name: "Agent: Show the agent pane", keys: "", run: function () { win.showRight("agent") } },
             { name: "Graph view: Open graph view", keys: "Ctrl+G", run: function () { win.openGraph(false) } },
@@ -680,6 +682,7 @@ ApplicationWindow {
             NoteTab {
                 backend: win.backend
                 theme: win.theme
+                tags: win.tags
                 isCurrent: host.isCurrent
                 Component.onCompleted: open(host.slug)
                 onNavigated: (s, t) => win.tabNavigated(host.index, s, t)
@@ -1096,6 +1099,7 @@ ApplicationWindow {
                     onOpenPage: (slug) => win.openPage(slug, false)
                     onCreatePage: (name) => win.createPage(name)
                     onSearchTag: (tag) => win.searchFor("tag:" + tag)
+                    onTagPage: (tag) => { if (win.currentNote) win.currentNote.tagThePage(tag) }
                     onBookmarkHeading: (text) => { if (win.currentNote) win.addBookmark({ kind: "heading", path: win.currentNote.slug, heading: text, title: win.currentNote.title + " › " + text }) }
                     onPaneChanged: (name) => ui.rightPane = name
                     onProgramChanged: ui.paneProgram = program

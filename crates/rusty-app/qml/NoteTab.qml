@@ -59,6 +59,43 @@ Item {
 
     signal navigated(string slug, string title)
     signal openTag(string tag)
+    // The deliberate tag path (TICKET-024): the vault's tags for completion, the tags
+    // row's field for the palette and the pane, and one function that writes the list.
+    property var tags: []
+    property var tagAdd: null
+    property bool pendingTagFocus: false
+    property string pendingTagText: ""
+    function propertyValue(key) { for (const p of properties) if (p.key === key) return p.value; return undefined }
+    function tagRowReady(field) {
+        tagAdd = field
+        if (pendingTagFocus) { pendingTagFocus = false; field.forceActiveFocus(); field.text = pendingTagText; pendingTagText = "" }
+    }
+    // The page's tags as a list, a scalar `tags: x` counting as one.
+    function tagList() { const v = propertyValue("tags"); return isList(v) ? listOf(v) : (typeof v === "string" && v.trim().length > 0 ? [v.trim()] : []) }
+    function ownTags() { return tagList().map(function (t) { return t.replace(/^#/, "").toLowerCase() }) }
+    // The vault's tags holding `q` (no case), the page's own left out, by count then
+    // name, eight at most; an empty `q` lists the most used.
+    function tagCompletions(q) {
+        const query = q.trim().replace(/^#/, "").toLowerCase()
+        const own = ownTags()
+        return tags.filter(function (t) { const l = t.tag.toLowerCase(); return l.indexOf(query) >= 0 && own.indexOf(l) < 0 })
+            .sort(function (a, b) { return b.count - a.count || a.tag.localeCompare(b.tag) })
+            .slice(0, 8)
+    }
+    function tagThePage(tag) {
+        const clean = tag.trim().replace(/^#/, "")
+        if (clean.length === 0 || ownTags().indexOf(clean.toLowerCase()) >= 0) return
+        const l = tagList(); l.push(clean)
+        setProperty("tags", l)
+    }
+    // Put the cursor in the tags row's field, adding the property first when the page
+    // has none; the row reports itself through `tagRowReady` once it exists.
+    function focusTagAdd(prefill) {
+        if (editing) toggleEditing()
+        const text = prefill === undefined ? "" : String(prefill)
+        if (propertyValue("tags") === undefined) { pendingTagFocus = true; pendingTagText = text; setProperty("tags", []); return }
+        if (tagAdd) { tagAdd.forceActiveFocus(); tagAdd.text = text }
+    }
     signal requestMove(string slug)
     signal requestDelete(string slug)
     signal requestLocalGraph(string slug)
@@ -135,6 +172,8 @@ Item {
     function removeProperty(key) { ask("brain_remove_property", { slug: slug, key: key }, "property") }
     function startAddProperty() { if (editing) toggleEditing(); addingProperty = true }
     function addProperty(key, type) {
+        // Tags is the `tags` list the index reads; a page that has one gets its field.
+        if (type === "Tags") { addingProperty = false; focusTagAdd(); return }
         const k = key.trim()
         if (k.length === 0) return
         let value = ""
@@ -473,12 +512,13 @@ Item {
                                 id: newKey
                                 Layout.preferredWidth: 160
                                 placeholderText: "Property name"
+                                enabled: newType.currentText !== "Tags"
                                 font.pixelSize: Math.round(13 * note.theme.scale)
                                 onAccepted: note.addProperty(text, newType.currentText)
                                 Keys.onEscapePressed: note.addingProperty = false
                                 onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
                             }
-                            ComboBox { id: newType; model: ["Text", "List", "Number", "Checkbox", "Date"]; Layout.preferredWidth: 120; font.pixelSize: Math.round(13 * note.theme.scale) }
+                            ComboBox { id: newType; model: ["Text", "List", "Number", "Checkbox", "Date", "Tags"]; Layout.preferredWidth: 120; font.pixelSize: Math.round(13 * note.theme.scale); onCurrentTextChanged: if (currentText === "Tags") newKey.text = "tags" }
                             Button { text: "Add"; onClicked: note.addProperty(newKey.text, newType.currentText) }
                         }
                         Text {
@@ -582,6 +622,8 @@ Item {
         readonly property string kind: note.kindOf(modelData.value)
         Layout.fillWidth: true
         spacing: 8
+        Component.onCompleted: if (key === "tags" && kind === "list") note.tagRowReady(chipAdd)
+        Component.onDestruction: if (note.tagAdd === chipAdd) note.tagAdd = null
         Icon {
             name: prow.kind === "list" ? "list" : prow.kind === "number" ? "hash" : prow.kind === "bool" ? "check-square" : prow.kind === "date" ? "calendar" : "text"
             color: note.theme.faint
@@ -618,7 +660,66 @@ Item {
                 font.pixelSize: Math.round(12 * note.theme.scale)
                 placeholderText: "add"
                 background: Rectangle { color: chipAdd.activeFocus ? note.theme.hover : "transparent"; radius: 10; border.color: note.theme.line; border.width: chipAdd.activeFocus ? 1 : 0 }
-                onAccepted: { const v = text.trim(); if (v.length > 0) { const l = note.listOf(prow.value); l.push(v); text = ""; note.setProperty(prow.key, l) } }
+                // The tags row completes from the vault's tag index (TICKET-024): the list
+                // follows the text with nothing picked, Down and Up pick, Enter takes the
+                // pick or adds the text as typed, Tab takes the pick or the first.
+                readonly property bool completes: prow.key === "tags"
+                property var completions: []
+                property int pick: -1
+                function refresh() {
+                    if (!completes) return
+                    completions = note.tagCompletions(text)
+                    pick = -1
+                    if (activeFocus && completions.length > 0) completionPopup.open(); else completionPopup.close()
+                }
+                function add(v) {
+                    const clean = v.trim()
+                    if (clean.length === 0) return
+                    const l = note.listOf(prow.value); l.push(clean)
+                    text = ""; completionPopup.close()
+                    note.setProperty(prow.key, l)
+                }
+                onTextChanged: refresh()
+                onActiveFocusChanged: if (activeFocus) refresh(); else completionPopup.close()
+                onAccepted: add(completionPopup.visible && pick >= 0 ? completions[pick].tag : text)
+                Keys.onDownPressed: if (completionPopup.visible) pick = Math.min(pick + 1, completions.length - 1)
+                Keys.onUpPressed: if (completionPopup.visible) pick = Math.max(pick - 1, 0)
+                Keys.onTabPressed: (event) => { if (completionPopup.visible && completions.length > 0) { add(completions[Math.max(pick, 0)].tag); event.accepted = true } else event.accepted = false }
+                Keys.onEscapePressed: (event) => { if (completionPopup.visible) { completionPopup.close(); event.accepted = true } else event.accepted = false }
+                Popup {
+                    id: completionPopup
+                    parent: chipAdd
+                    y: chipAdd.height + 2
+                    width: 220
+                    padding: 4
+                    focus: false
+                    closePolicy: Popup.CloseOnPressOutsideParent
+                    background: Rectangle { color: note.theme.panel3; radius: 6; border.color: note.theme.line; border.width: 1 }
+                    contentItem: ColumnLayout {
+                        spacing: 0
+                        Repeater {
+                            model: chipAdd.completions
+                            delegate: Rectangle {
+                                required property int index
+                                required property var modelData
+                                Layout.fillWidth: true
+                                height: 24
+                                radius: 4
+                                color: index === chipAdd.pick || cHover.hovered ? note.theme.hover : "transparent"
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    spacing: 6
+                                    Text { text: "#" + modelData.tag; color: note.theme.tag; font.pixelSize: Math.round(12 * note.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text { text: modelData.count; color: note.theme.faint; font.pixelSize: Math.round(11 * note.theme.scale) }
+                                }
+                                HoverHandler { id: cHover; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: chipAdd.add(modelData.tag) }
+                            }
+                        }
+                    }
+                }
             }
         }
         CheckBox {

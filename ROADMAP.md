@@ -279,6 +279,9 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-020 Folders, part three (2026-09-05): a root in a git repository marks modified,
       added and untracked files and the folders above them and carries its branch; one read
       of `git status --porcelain=v2` per root, cached with the listing, never a write
+- [x] TICKET-024 First-class tagging (2026-09-05): Tags as a property type writing the
+      `tags:` list, completions from the tag index under the tags field, the Tags pane
+      tagging the open page (a `+`, a menu, `T`), a "Tags: Tag this page" command
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

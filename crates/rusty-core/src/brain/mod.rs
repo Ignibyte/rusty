@@ -3168,6 +3168,13 @@ mod tests {
             .unwrap();
         assert_eq!(page.frontmatter.tags, vec!["Rust", "next"]);
         assert!(bm.tags().unwrap().iter().any(|t| t.tag == "next"));
+        // The deliberate path (TICKET-024): a tag added or removed through the property
+        // shows in the counts and in `tag:` search at once.
+        assert_eq!(bm.search("tag:next", None, None).unwrap().len(), 1);
+        bm.set_property("projects/orbit", "tags", serde_json::json!(["Rust"]))
+            .unwrap();
+        assert!(!bm.tags().unwrap().iter().any(|t| t.tag == "next"));
+        assert!(bm.search("tag:next", None, None).unwrap().is_empty());
         bm.remove_property("projects/orbit", "status").unwrap();
         assert!(!fs::read_to_string(dir.join("projects/orbit.md"))
             .unwrap()
