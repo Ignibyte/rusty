@@ -68,11 +68,14 @@ ApplicationWindow {
         property string roots: "[]"
         property string theme: ""
         property int textSize: 0
+        // The Skills page's split and which of its sections are open, as JSON (TICKET-023).
+        property string skillsLayout: ""
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
         onRightWidthChanged: save()
         onLeftOpenChanged: save()
+        onSkillsLayoutChanged: save()
         onRightOpenChanged: save()
         onLeftPaneChanged: save()
         onRightPaneChanged: save()
@@ -99,6 +102,7 @@ ApplicationWindow {
                 if (typeof s.bookmarks === "string") ui.bookmarks = s.bookmarks
                 if (typeof s.roots === "string") ui.roots = s.roots
                 if (typeof s.theme === "string") ui.theme = s.theme
+                if (typeof s.skillsLayout === "string") ui.skillsLayout = s.skillsLayout
                 if (typeof s.textSize === "number" && s.textSize > 0) { theme.setTextSize(s.textSize); ui.textSize = theme.baseSize }
             } catch (e) {}
             ui.loaded = true
@@ -106,7 +110,7 @@ ApplicationWindow {
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize, skillsLayout: ui.skillsLayout }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -416,6 +420,7 @@ ApplicationWindow {
                 else if (p === "palette") palette.show()
                 else if (p === "rename") renameDialog.openFor(stack.currentIndex)
                 else if (p === "plus") plusMenu.popup(plusButton, 0, plusButton.height)
+                else if (p.startsWith("skills:")) ui.skillsLayout = JSON.stringify({ width: 300, skills: p.slice(7) !== "collapse-skills", scripts: p.slice(7) !== "collapse-scripts" })
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
@@ -715,7 +720,7 @@ ApplicationWindow {
         Component { id: tasksComp; TasksPage { backend: win.backend; theme: win.theme } }
         Component { id: memoryComp; MemoryPage { backend: win.backend; theme: win.theme } }
         Component { id: decisionsComp; DecisionsPage { backend: win.backend; theme: win.theme; onOpenPage: (s) => win.openPage(s, false) } }
-        Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme; onRunScript: (path, name) => win.openTerminal("run:" + path, "Run " + name, "", "") } }
+        Component { id: skillsComp; SkillsPage { backend: win.backend; theme: win.theme; savedLayout: ui.skillsLayout; onLayoutChanged: (json) => ui.skillsLayout = json; onRunScript: (path, name) => win.openTerminal("run:" + path, "Run " + name, "", "") } }
         Component { id: secretsComp; SecretsPage { backend: win.backend; theme: win.theme } }
         Component { id: settingsComp; SettingsPage { backend: win.backend; theme: win.theme; terminals: win.terminals; commands: win.commandList(); onSelectSkin: (s, n) => win.selectTheme(s, n); onSetScanlines: (on) => win.setScanlines(on); onSetTextSize: (n) => win.setTextSize(n) } }
     }
@@ -767,29 +772,6 @@ ApplicationWindow {
         ToolTip.visible: stHover.hovered && st.tip.length > 0
         ToolTip.text: st.tip
         ToolTip.delay: 600
-    }
-
-    component Splitter: Item {
-        id: sp
-        property bool isLeft: true
-        width: 7
-        Rectangle { anchors.centerIn: parent; width: 1; height: parent.height; color: theme.line }
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.SplitHCursor
-            property real startX: 0
-            property int startWidth: 0
-            // Scene coordinates: `mouse.x` is in this handle's own frame, and the handle
-            // moves as the pane resizes, so a delta measured from it is measured from a
-            // moving origin and the drag only tracks while the pointer stays inside.
-            onPressed: (mouse) => { startX = sp.mapToItem(null, mouse.x, 0).x; startWidth = sp.isLeft ? ui.leftWidth : ui.rightWidth }
-            onPositionChanged: (mouse) => {
-                if (!pressed) return
-                const delta = sp.mapToItem(null, mouse.x, 0).x - startX
-                if (sp.isLeft) ui.leftWidth = Math.max(180, Math.min(600, startWidth + delta))
-                else ui.rightWidth = Math.max(200, Math.min(700, startWidth - delta))
-            }
-        }
     }
 
     // ── Layout ────────────────────────────────────────────────────────────
@@ -939,7 +921,7 @@ ApplicationWindow {
                     }
                 }
             }
-            Splitter { visible: ui.leftOpen; Layout.fillHeight: true; isLeft: true }
+            Splitter { visible: ui.leftOpen; Layout.fillHeight: true; theme: win.theme; value: ui.leftWidth; min: 180; max: 600; onMoved: (v) => ui.leftWidth = Math.round(v) }
 
             // The main area: the tab strip and the tabs.
             ColumnLayout {
@@ -1088,7 +1070,7 @@ ApplicationWindow {
                 }
             }
 
-            Splitter { visible: ui.rightOpen; Layout.fillHeight: true; isLeft: false }
+            Splitter { visible: ui.rightOpen; Layout.fillHeight: true; theme: win.theme; value: ui.rightWidth; min: 200; max: 700; invert: true; onMoved: (v) => ui.rightWidth = Math.round(v) }
 
             // The right sidebar.
             Rectangle {

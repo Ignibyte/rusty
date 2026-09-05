@@ -31,6 +31,7 @@ fn main() {
                 "qml/SkillsPage.qml",
                 "qml/SecretsPage.qml",
                 "qml/SettingsPage.qml",
+                "qml/Splitter.qml",
             ]),
     )
     .files([

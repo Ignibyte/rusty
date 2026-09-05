@@ -3,6 +3,8 @@ type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
 sources:
+  - id: openwiki-source-4059556410fe6db8498fe8e9
+    resource: repo://crates/rusty-app/build.rs
   - id: openwiki-source-a2d65a21b1f78042c4d974ff
     resource: repo://crates/rusty-app/qml/AgentTerminal.qml
   - id: openwiki-source-1762a766e47a090b0ce4e932
@@ -31,6 +33,8 @@ sources:
     resource: repo://crates/rusty-app/qml/SettingsPage.qml
   - id: openwiki-source-b219b7cb57258d9cb096d197
     resource: repo://crates/rusty-app/qml/SkillsPage.qml
+  - id: openwiki-source-deeb404896a39245dc19d37e
+    resource: repo://crates/rusty-app/qml/Splitter.qml
   - id: openwiki-source-f536fe8c8de4eb428d24ba4b
     resource: repo://crates/rusty-app/qml/TopBar.qml
   - id: openwiki-source-68599611588cfbbf1f2b222b
@@ -47,10 +51,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-05T03:29:11.619Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:38:24.130Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:29:11.619Z
+    at: 2026-09-05T03:38:24.130Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -112,12 +116,16 @@ every view backed by the MCP server that agents share.
   and never creates a window, so `rusty usb-reset` is a command and `rusty` alone is the
   app (TICKET-010). A name that matches nothing falls through to the window, which is why
   an unknown command opens the workspace rather than reporting an error.
-- The sidebar splitters measure a drag in scene coordinates — `mapToItem(null, …)` at
-  press and at every move — not in the handle's own frame (TICKET-022). The pane resize
-  moves the handle under the pointer, so a delta measured from it is measured from a
-  moving origin and the drag only tracked while the pointer stayed inside the 7px strip.
-  The left pane is clamped to 180–600 px, the right to 200–700 px; both widths persist
-  in the workspace state.
+- Every drag handle is `Splitter.qml` (TICKET-023), listed in `build.rs` and shared by the
+  sidebars and the Skills page. The owner binds `value`, `min`, `max` and `invert` and
+  applies the result in `onMoved`; the handle clamps and reports but never writes a value
+  itself, which is what lets one component serve a window pane and a page. It measures
+  in scene coordinates — `mapToItem(null, …)` at press and at every move — not in its
+  own frame (TICKET-022): the pane resize moves the handle under the pointer, so a delta
+  measured from it is measured from a moving origin and the drag only tracked while the
+  pointer stayed inside the 7px strip. The sidebars bind 180–600 px on the left and
+  200–700 px on the right, the right one inverted so a drag left grows it; both widths
+  persist in the workspace state.
 - Layout: a top bar (`TopBar.qml`: the brand, the command button, one glyph per agent
   CLI on `PATH` with a click for a new tab and a right-click for the agent pane, the
   vault's state, memory, CPU, the clock), a ribbon (new note, daily note, graph, Tasks,
@@ -238,7 +246,12 @@ The Skills tab (`SkillsPage.qml`) carries a Scripts section beside the skill lis
 `script_list` and `script_view` and saved through `script_update`. A script is edited
 where its skill is, because that is where it lives on disk, and Run opens it in a terminal
 tab rather than capturing its output in the page — the same script the command line runs,
-shown running.
+shown running. The list pane resizes through a `Splitter` clamped 200–600 px, and the
+Skills and Scripts sections collapse from their headers — a chevron and a label, focusable,
+toggled by click or by Enter and Space — with the open section taking the freed height
+(TICKET-023). The split and both open states travel as one JSON string, `savedLayout` in
+and `layoutChanged` out with a guard against echoing while applying, and live as
+`ui.skillsLayout` in the workspace state the way `graph` and `bookmarks` do.
 
 The Decisions view (`DecisionsPage.qml`, opened from the ribbon, the palette or
 `openView("decisions")`) is fed by one tool, `brain_due`: the follow-ups due first, then

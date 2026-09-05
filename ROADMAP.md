@@ -272,6 +272,11 @@ workflow in `CONSTITUTION.md`.
       reorder by drag (the Tasks page's handler, turned sideways); the rename dialog lays its
       field out; the tab strip's `+` is a menu — the page switcher, every top-bar agent by
       name, the custom terminal
+- [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
+      the detail, the Skills and Scripts sections collapsible from their headers (click, or
+      Enter and Space when focused) with the open one taking the height, both remembered in
+      the workspace state; the splitter lifted into `Splitter.qml` so the sidebars and the page
+      share one
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

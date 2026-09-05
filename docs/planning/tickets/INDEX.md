@@ -10,7 +10,6 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - [`TICKET-019` — Folders, part two: file operations](open/TICKET-019-folder-file-operations.md) (queued 2026-09-03)
 - [`TICKET-020` — Folders, part three: git decorations](open/TICKET-020-folder-git-decorations.md) (queued 2026-09-03)
-- [`TICKET-023` — Skills page layout](open/TICKET-023-skills-page-layout.md) (queued 2026-09-04)
 - [`TICKET-024` — First-class tagging](open/TICKET-024-first-class-tagging.md) (queued 2026-09-04)
 - [`TICKET-025` — Native agent pane](open/TICKET-025-native-agent-pane.md) (queued 2026-09-04)
 - [`TICKET-026` — Obsidian vault migration](open/TICKET-026-obsidian-vault-migration.md) (queued 2026-09-04)
@@ -19,6 +18,7 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 ## Closed
 
+- [`TICKET-023` — Skills page layout](closed/TICKET-023-skills-page-layout.md) (2026-09-05)
 - [`TICKET-022` — Workspace chrome fixes](closed/TICKET-022-workspace-chrome-fixes.md) (2026-09-05)
 - [`TICKET-021` — Terminal clipboard](closed/TICKET-021-terminal-clipboard.md) (2026-09-05)
 - [`TICKET-010` — Scripts as commands](closed/TICKET-010-scripts-as-commands.md) (2026-09-05)

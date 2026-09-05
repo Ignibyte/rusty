@@ -20,6 +20,57 @@ Item {
     property string notice: ""
     property var pending: ({})
 
+    // The layout the window remembers (TICKET-023): the split, and which sections are
+    // open. It arrives as JSON in `savedLayout` and leaves as JSON on `layoutChanged`.
+    property int listWidth: 300
+    property bool skillsOpen: true
+    property bool scriptsOpen: true
+    property string savedLayout: ""
+    signal layoutChanged(string json)
+    property bool applyingLayout: false
+    function applyLayout() {
+        if (savedLayout.length === 0) return
+        try {
+            const l = JSON.parse(savedLayout)
+            applyingLayout = true
+            if (typeof l.width === "number") listWidth = Math.max(200, Math.min(600, Math.round(l.width)))
+            if (typeof l.skills === "boolean") skillsOpen = l.skills
+            if (typeof l.scripts === "boolean") scriptsOpen = l.scripts
+        } catch (e) {
+        } finally { applyingLayout = false }
+    }
+    function reportLayout() { if (!applyingLayout) layoutChanged(JSON.stringify({ width: listWidth, skills: skillsOpen, scripts: scriptsOpen })) }
+    onSavedLayoutChanged: applyLayout()
+    onListWidthChanged: reportLayout()
+    onSkillsOpenChanged: reportLayout()
+    onScriptsOpenChanged: reportLayout()
+
+    // A section's header: a chevron and a label that toggle it by click, or by Enter and
+    // Space when focused, so the keyboard reaches it too.
+    component SectionHeader: Item {
+        id: sh
+        property string label: ""
+        property bool open: true
+        signal toggled()
+        implicitHeight: shRow.implicitHeight
+        implicitWidth: shRow.implicitWidth
+        activeFocusOnTab: true
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) { sh.toggled(); event.accepted = true }
+        }
+        // The ring sits beside the row, not inside it: a layout would try to place it.
+        Rectangle { anchors.fill: parent; anchors.margins: -2; radius: 4; color: "transparent"; border.width: sh.activeFocus ? 1 : 0; border.color: page.theme.accent }
+        RowLayout {
+            id: shRow
+            anchors.fill: parent
+            spacing: 6
+            Text { text: sh.open ? "▾" : "▸"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale) }
+            Text { text: sh.label; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+        }
+        HoverHandler { cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: sh.toggled() }
+    }
+
     function ask(tool, args, kind) {
         const id = backend.call(tool, JSON.stringify(args))
         const p = pending; p[id] = kind; pending = p
@@ -99,7 +150,7 @@ Item {
         }
         function onDataChanged() { page.refresh() }
     }
-    Component.onCompleted: if (backend.connected) refresh()
+    Component.onCompleted: { applyLayout(); if (backend.connected) refresh() }
 
     Dialog {
         id: confirmDelete
@@ -135,7 +186,7 @@ Item {
         spacing: 0
 
         Rectangle {
-            Layout.preferredWidth: 300
+            Layout.preferredWidth: page.listWidth
             Layout.fillHeight: true
             color: Qt.darker(page.theme.background, 1.08)
             ColumnLayout {
@@ -144,13 +195,14 @@ Item {
                 spacing: 6
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: page.skills.length + " skills"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.fillWidth: true }
+                    SectionHeader { label: page.skills.length + " skills"; open: page.skillsOpen; Layout.fillWidth: true; onToggled: page.skillsOpen = !page.skillsOpen }
                     Button { text: "New"; onClicked: { newDialog.open(); newName.forceActiveFocus() } }
                 }
                 ListView {
                     id: list
+                    visible: page.skillsOpen
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Layout.fillHeight: page.skillsOpen
                     clip: true
                     model: page.skills
                     spacing: 2
@@ -175,13 +227,15 @@ Item {
                         TapHandler { onTapped: page.select(modelData) }
                     }
                 }
-                // Scripts: a `*.sh` beside a skill, run as `rusty <name>`.
-                Text { visible: page.scripts.length > 0; text: "Scripts"; color: page.theme.foreground; opacity: 0.6; font.pixelSize: Math.round(12 * page.theme.scale); font.bold: true; Layout.topMargin: 6 }
+                // Scripts: a `*.sh` beside a skill, run as `rusty <name>`. With the skills
+                // section closed, this one takes the height; otherwise it keeps its cap.
+                SectionHeader { visible: page.scripts.length > 0; label: "Scripts"; open: page.scriptsOpen; Layout.fillWidth: true; Layout.topMargin: 6; onToggled: page.scriptsOpen = !page.scriptsOpen }
                 ListView {
                     id: scriptList
-                    visible: page.scripts.length > 0
+                    visible: page.scripts.length > 0 && page.scriptsOpen
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(Math.round(180 * page.theme.scale), page.scripts.length * Math.round(36 * page.theme.scale))
+                    Layout.fillHeight: !page.skillsOpen
+                    Layout.preferredHeight: page.skillsOpen ? Math.min(Math.round(180 * page.theme.scale), page.scripts.length * Math.round(36 * page.theme.scale)) : -1
                     clip: true
                     model: page.scripts
                     spacing: 2
@@ -203,10 +257,12 @@ Item {
                         TapHandler { onTapped: page.selectScript(modelData) }
                     }
                 }
+                // With both sections closed nothing fills, so this keeps the notice at the bottom.
+                Item { visible: !page.skillsOpen && !(page.scripts.length > 0 && page.scriptsOpen); Layout.fillHeight: true }
                 Text { text: page.notice; visible: page.notice.length > 0; color: page.theme.accent; font.pixelSize: Math.round(11 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
             }
         }
-        Rectangle { width: 1; Layout.fillHeight: true; color: page.theme.accent; opacity: 0.25 }
+        Splitter { Layout.fillHeight: true; theme: page.theme; value: page.listWidth; min: 200; max: 600; onMoved: (v) => page.listWidth = Math.round(v) }
 
         Item {
             Layout.fillWidth: true

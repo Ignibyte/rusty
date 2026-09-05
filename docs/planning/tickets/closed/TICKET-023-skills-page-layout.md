@@ -1,6 +1,6 @@
 ---
 title: TICKET-023-skills-page-layout
-status: open
+status: done
 ticket_number: 023
 type: feature
 created: 2026-09-04
