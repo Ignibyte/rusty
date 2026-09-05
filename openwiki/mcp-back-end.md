@@ -19,16 +19,18 @@ sources:
     resource: repo://crates/rusty-core/src/lib.rs
   - id: openwiki-source-2bac0135ef08343388f2c7a1
     resource: repo://crates/rusty-core/src/notes/mod.rs
+  - id: openwiki-source-38142a1a317c38546fd7b1f4
+    resource: repo://crates/rusty-core/src/skills/scripts.rs
   - id: openwiki-source-087a3c8d2ec2da0b0f978302
     resource: repo://crates/rusty-mcp/src/main.rs
   - id: openwiki-source-84acb13abf83511312610cd3
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-03T23:29:57.910Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:04:53.524Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T23:29:57.910Z
+    at: 2026-09-05T03:04:53.524Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -73,6 +75,13 @@ the way an agent would.
   (`tag:`, `path:`, `file:`, `type:`, `-` excluding) in the query and the two text modes
   as `case_sensitive` and `regex`.
 - Skills: list, view, create, update, scan, approve, reject, delete.
+- Scripts (TICKET-010): `script_list`, `script_view`, `script_update` and `script_run`.
+  A script is not an object of its own — it is a `*.sh` file *inside* a skill directory,
+  so it inherits that skill's approval state, and `resolve_script` finds it by basename
+  without the extension, taking `skill/name` when two skills share a basename. That one
+  decision carries the safety story: `script_run` is the only tool here that executes
+  anything, and it refuses a script whose skill is still pending, so approving the skill
+  is the only route to running it.
 - Secrets: list names, set, delete; and, since TICKET-015, the PIN behind the Secrets
   tab, which the server owns. `PinLock` (`rusty-core::engine::pin_lock`) keeps an
   argon2id hash at `~/.rusty/.pin` (mode 0600) and one in-memory token. `secret_pin_status`
@@ -131,6 +140,8 @@ router fails the test, and every tool must carry a description.
 - Long work runs in `spawn_blocking` so the server keeps answering.
 - A secret's value leaves the server only against the live PIN token, and no call
   logs a PIN, a token or a value.
+- A script runs only from an approved skill. Both execution paths check the status, so
+  neither the tool nor the command line can run a script waiting in staging.
 
 ## Failure modes
 
@@ -138,6 +149,11 @@ router fails the test, and every tool must carry a description.
 - A lost HTTP session makes the app reconnect every three seconds.
 - Five wrong PINs in a row refuse every unlock for a minute, the right PIN included;
   the lockout and the token live in memory, so a restart clears both.
+- A script that does not finish inside the caller's cap is killed and reported as status
+  124 with a `timed_out` flag rather than left running; each stream is truncated at
+  64 KiB, so a script that prints forever cannot exhaust the server. The `rusty <name>`
+  path has neither cap: `exec_script` replaces the process, so the script becomes the
+  command and lives as long as the terminal lets it.
 
 ## Extension points
 

@@ -1,7 +1,7 @@
 ---
 title: Scripts as commands
 pipeline_id: 0cbefd28-f640-49c3-a2cf-78bc996d66c2
-status: Phase 4 — Validate PASS; Phase 5 — Complete all but the OpenWiki step, which needs the openwiki server a session inside this repository has. The pair stays here until that run leaves its receipt; then it archives and the ticket closes.
+status: Phase 5 — Complete PASS. The OpenWiki reconciliation ran on 2026-09-05 in a session inside this repository: `openwiki_finish` returned `complete` and the receipt carries this pipeline id.
 ticket: TICKET-010
 ticket_doc: docs/planning/tickets/open/TICKET-010-scripts-as-commands.md
 aar: docs/planning/knowledge/aar/AAR-010-scripts-as-commands.md

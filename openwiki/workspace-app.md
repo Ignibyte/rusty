@@ -29,6 +29,8 @@ sources:
     resource: repo://crates/rusty-app/qml/SecretsPage.qml
   - id: openwiki-source-157820f2258f93d1ba08859f
     resource: repo://crates/rusty-app/qml/SettingsPage.qml
+  - id: openwiki-source-b219b7cb57258d9cb096d197
+    resource: repo://crates/rusty-app/qml/SkillsPage.qml
   - id: openwiki-source-f536fe8c8de4eb428d24ba4b
     resource: repo://crates/rusty-app/qml/TopBar.qml
   - id: openwiki-source-68599611588cfbbf1f2b222b
@@ -45,10 +47,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-03T23:29:57.910Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:04:53.524Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T23:29:57.910Z
+    at: 2026-09-05T03:04:53.524Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -63,7 +65,7 @@ every view backed by the MCP server that agents share.
 ## Ownership
 
 - `src/main.rs`: the Qt application, the QML engine, `COLORSCHEMES_DIR` for the
-  terminal widget.
+  terminal widget, and the `rusty <name>` command path that runs before any of it.
 - `src/backend.rs`: `Backend`, the MCP client: one Streamable HTTP session on a tokio
   runtime, reconnecting every three seconds; `call(tool, argsJson)` returns an id and
   the reply arrives through `result(id, tool, json, ok)`; `resources/list_changed`
@@ -105,6 +107,11 @@ every view backed by the MCP server that agents share.
 
 ## Runtime flow
 
+- The binary is two programs. Before Qt starts, `rusty <name> [args]` looks in the active
+  skills store for a script of that basename; on a hit it execs `rusty-cli scripts run`
+  and never creates a window, so `rusty usb-reset` is a command and `rusty` alone is the
+  app (TICKET-010). A name that matches nothing falls through to the window, which is why
+  an unknown command opens the workspace rather than reporting an error.
 - Layout: a top bar (`TopBar.qml`: the brand, the command button, one glyph per agent
   CLI on `PATH` with a click for a new tab and a right-click for the agent pane, the
   vault's state, memory, CPU, the clock), a ribbon (new note, daily note, graph, Tasks,
@@ -197,6 +204,12 @@ the desktop. A folder's menu offers one entry per installed agent and a shell, e
 manager, and Refresh. Links, backlinks, graph and search never see a root. File operations
 and git decorations are TICKET-019 and TICKET-020.
 
+The Skills tab (`SkillsPage.qml`) carries a Scripts section beside the skill list, fed by
+`script_list` and `script_view` and saved through `script_update`. A script is edited
+where its skill is, because that is where it lives on disk, and Run opens it in a terminal
+tab rather than capturing its output in the page — the same script the command line runs,
+shown running.
+
 The Decisions view (`DecisionsPage.qml`, opened from the ribbon, the palette or
 `openView("decisions")`) is fed by one tool, `brain_due`: the follow-ups due first, then
 every decision with its status and dates; a click opens the page. The graph view draws a
@@ -219,6 +232,8 @@ an agent run it are in `workflow-and-gates.md`.
   file are the back end's; a value reaches the page only through a tool answer.
 - The disk is not the store: a folder root is read by the app alone, part one writes
   nothing under it, and no root reaches a brain tool.
+- The command path never starts Qt. It resolves and execs before any Qt object exists,
+  so a script inherits the terminal it was typed in rather than the app's environment.
 
 ## Failure modes
 
@@ -228,6 +243,9 @@ an agent run it are in `workflow-and-gates.md`.
 - Anchors inside a page do not scroll yet; live preview is not built.
 - A bookmark keeps the path it was made with: a renamed or deleted page leaves it
   pointing at a page that is no longer there, and the user removes it.
+- `rusty <name>` with a name no script answers to opens the workspace instead of
+  reporting an unknown command, because the check is a lookup and its miss is the app's
+  ordinary start. A script that exists but is pending exits 126 with the reason.
 
 ## Extension points
 

@@ -110,3 +110,30 @@ Commands and their real output, run 2026-09-03 21:0x–21:2x with
   next session here runs `openwiki update` to `openwiki_finish`, takes the receipt, then
   archives this pair and closes the ticket.
 
+
+## Phase 5: the OpenWiki step, closed 2026-09-05
+
+Run `ad27c398-ec96-494f-8663-4d5d4ea62a33`, mode `update`; `openwiki_begin` reported the
+previous run as `interrupted` and four claim issues.
+
+- `mcp-back-end.md`: a Scripts tool family (the four tools, a script as a `*.sh` inside a
+  skill directory so it inherits that skill's approval state, `script_run` as the only
+  executing tool), one invariant (a script runs only from an approved skill, checked on
+  both paths) and one failure mode (the cap, the 124 with `timed_out`, the 64 KiB
+  truncation, and that `exec_script` has neither).
+- `workspace-app.md`: the command path in ownership and runtime flow (`rusty <name>`
+  resolves and execs before Qt exists), the Skills tab's Scripts section, one invariant
+  (the command path never starts Qt) and one failure mode (an unknown name opens the
+  workspace; a pending script exits 126).
+- Three claims on `mcp-back-end.md` were stale on line ranges alone, because the
+  `EXPECTED` tool-name list moved when the four script tools were added. Updated to the
+  current ranges (`L1998-L2080`, `L1287-L1313`, `smoke.rs#L263-L276`) rather than
+  retracted: the statements still hold.
+- `quickstart.md` needed no edit; its tool count already read 80.
+
+`openwiki_finish` returned `{"status":"complete"}` and `.last-update.json` records
+`status: complete`. The PostToolUse hook did not fire in this session, which bulletin 3
+of 2026-09-03 anticipates: the genuine result was fed to
+`.claude/hooks/record-pipeline-tool-use.sh` on stdin with the pair still under `active/`,
+and the hook wrote the receipt for pipeline `0cbefd28-f640-49c3-a2cf-78bc996d66c2`. The
+receipt was never written by hand.

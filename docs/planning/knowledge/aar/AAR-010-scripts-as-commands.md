@@ -67,4 +67,4 @@ the tests and the evidence, and delivered.
 | 3 Implement | 1h | 1h 10m (Fable, interrupted) |
 | 3.5 Inspect | 20m | 25m (Opus: four defects, two rejections) |
 | 4 Validate | 30m | 30m (Opus) |
-| 5 Complete | 20m | 20m (Opus; the wiki step outstanding) |
+| 5 Complete | 20m | 20m (Opus) + 25m (Opus 5, 2026-09-05: the wiki step, which needed a session inside this repository) |

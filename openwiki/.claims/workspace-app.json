@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:5e125038d788cdbb9087209d83fbcfcef477b09799ff1b73cce08798998fdd70",
+  "pageVersion": "sha256:854d8f22b4cc27af73ead4160a434c34ba37891cfab7d1d43bf299ad21a48ff0",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -431,10 +431,38 @@
           "version": "repo-lines-v1:sha256:e17a6470bc24625cb475961bdeb843f1be785fd6e00d522c252a34858e5e95fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTE3YTY0NzBiYzI0NjI1Y2I0NzU5NjFiZGViODQzZjFiZTc4NWZkNmUwMGQ1MjJjMjUyYTM0ODU4ZTVlOTVmZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTE3YTY0NzBiYzI0NjI1Y2I0NzU5NjFiZGViODQzZjFiZTc4NWZkNmUwMGQ1MjJjMjUyYTM0ODU4ZTVlOTVmZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTJkZDJjODU2MGVlNzFjOWJhY2NiOTM0Njc5YzA5NjFkOTIyMjc4NTE1NTUwYjI5MTcyMDYxOGI0YjBiNDU5MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDRmMTA3YTUxZjRhMDVlNWYxMDYzYzgxMTIwODY0MDgzOWViMGIxMTEwZTMyZDhjNWJmYjJhYjEwOTZmNzNjOSJ9"
         }
       ]
+    },
+    {
+      "id": "claim_cf2c7a43fd0b4acd938ccf92dcbab179",
+      "statement": "The app binary doubles as the command front end: `rusty <name>` checks the active skills store for a matching script before Qt starts and, on a hit, execs `rusty-cli scripts run` in place of opening the window, so no GUI is created for a command invocation.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/main.rs#L36-L66",
+          "version": "repo-lines-v1:sha256:61b739967aeac722adfe01d04b565cc51fb845413db0adc3484e4725f3928da0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2ODliMWFkMjExMzU3MzRjNzIwNGFiYTUwYWRhMTg4ZmZmMWExZWRlOGMwNDk5MmY0Y2NkNWVjOTc5YmI1MzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAzOTFlOTNiYzBiYzc2YTJiMzIxM2UxYzZiOGUxOGJlNDA4NjE2NTAzMDExMjBhYzllZGRhMjBjYjAzZGU5NjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhNzA4MGZhYjQyOWYzOTIxNDMzNDIzNDgxYjg4YjNkYzZjOTY0NGY5ZjkwNzhkOWQ1ZTZiYjQzMzJiZWNhZGYifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/main.rs#L68-L80",
+          "version": "repo-lines-v1:sha256:f7f45791c8323ce9af9e4fcb76a5af90c4f46839b339fbbe984ee85b45d47955:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1Yjg4NzAzOTY1M2EwMmY0ZmM1YWMyMWU3NTVhNTdkZjk1OGE0YjA3M2ExYzAxYjhiM2RkNGZjYmI1MjU1YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2NGExNTA1ODc1MDRiNjhkMDhlYTE3ODcyMjdjM2U3MTAwMTMzNWZhN2JlY2QyNzJkNTZmMmJhZTFlZDM0ZmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_37cde606ce6948aab7b149ce2cdebe8e",
+      "statement": "The Skills tab carries a Scripts section beside the skill list, reading `script_list` and `script_view` and saving through `script_update`, so a script is edited where its skill is.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/SkillsPage.qml#L16-L45",
+          "version": "repo-lines-v1:sha256:7b657e3ee544b7382bd846161978c855720a7675f0325530bac4b524f37756c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3OTZiMGQwY2JhNzA4NmI5NDM2NWFkM2ZhNmM1ZGVkYjM0M2Q4MmNkZjA4NGM4OTQwMGIxODkwNDI0YmIxZmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNiZjQwMTExYTdmN2M2Y2JiNjBhODRiYzBjNjEzMmRlZjdhZGYyOGVkYWNmZGVjMzllODFhZmEyNWI1NjRhYTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwM2M4NWY1MjZlMWNiM2M0NGIwOTVmYTQ2MWJmZDViZDU4YzI3NDY0MTk3MDUyNWQyMTc0NmYxMDIxYjFjZmUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/SkillsPage.qml#L60-L75",
+          "version": "repo-lines-v1:sha256:45c2a51856cc81a491c316bf94166127d73f711b635206554157667f897e6c35:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MWI2NTAzMjE2ZjU4ZjQ5YmQ4ODA0MzY0Mzk2ZmY5ZmQ2ZWQzNjY4MmU0NzYxM2Q3M2UzZmEwNTcxMmIyYzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZDM1MDA2NmIxZTc0ZDEzYTg2ZGRkZmMzMWMxZDAyZmQyYzA1ZDU4N2ViNzk5YTMxZWE5NDY5OTFiN2NiMjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4OTYyODJkNmIwMTcyNzhlNTI3NTFjMWJjODZiNWQ0NWMxMGVjZjFiMmU4YmQ4ZDY2ODU4M2M0ZDMyOWMxMjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyZWE3YTcyY2Q1NTdlNmU1ZWE5MWZjMThlZDI4YTI4NTRlNDNlNjZlYzA0ZTE0OGUyZGQ3N2Q1ODY3OTc4ZmIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T23:29:57.910Z"
+    "at": "2026-09-05T03:04:53.524Z"
   }
 }
