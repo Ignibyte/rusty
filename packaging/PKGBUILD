@@ -52,8 +52,7 @@ package() {
   # The user unit as shipped points at ~/.local/bin; the package puts the binary on PATH.
   sed 's|%h/.local/bin/rusty-mcp|/usr/bin/rusty-mcp|' omarchy/rusty-mcp.service \
     | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/rusty-mcp.service"
-  install -Dm755 omarchy/rusty-session.sh "$pkgdir/usr/bin/rusty-session"
-  sed 's|%h/.local/bin/rusty-session|/usr/bin/rusty-session|' omarchy/rusty-app.service \
+  sed 's|%h/.local/bin/rusty session run|/usr/bin/rusty session run|' omarchy/rusty-app.service \
     | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/rusty-app.service"
   install -Dm644 omarchy/wayland-wm-oom.conf "$pkgdir/usr/share/rusty/wayland-wm-oom.conf"
   install -Dm644 omarchy/hyprland-bindings.conf "$pkgdir/usr/share/rusty/hyprland-bindings.conf"

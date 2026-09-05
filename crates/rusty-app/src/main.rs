@@ -6,7 +6,8 @@
 //! `dev.ignibyte.rusty`. Rust supplies `Theme` (Omarchy colours and tokens, terminal
 //! font and colour scheme), `Terminals` (tabs and tmux), `Backend` (the MCP client) and
 //! the source editor's tokenizer behind the C++ `MarkdownHighlighter`. Data comes from
-//! `rusty-mcp` over local HTTP; the app holds no store of its own.
+//! `rusty-mcp` over local HTTP; the app holds no store of its own. `session.rs` answers
+//! `rusty <noun> <verb>` before Qt starts.
 
 mod assistant;
 mod backend;
@@ -14,6 +15,7 @@ mod desk;
 mod folders;
 mod markdown;
 mod omarchy;
+mod session;
 mod skin;
 mod terminals;
 mod theme;
@@ -67,12 +69,34 @@ fn exec_store_script(name: &str, args: &[String]) -> String {
 }
 
 fn main() {
-    // `rusty <name> [args]`: a store script runs in place of the window (TICKET-010).
+    // `rusty <noun> <verb>` (TICKET-029) and `rusty <script>` (TICKET-010) run in place
+    // of the window; an argument that starts with a dash is Qt's.
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if let Some(name) = args.first() {
-        if store_script_exists(name) {
-            eprintln!("rusty {name}: {}", exec_store_script(name, &args[1..]));
+    match session::parse(&args, store_script_exists) {
+        session::Request::Window => {}
+        session::Request::Help => {
+            println!("{}", session::USAGE);
+            return;
+        }
+        session::Request::Session(session::Verb::Start) => std::process::exit(session::start()),
+        session::Request::Session(session::Verb::Stop) => std::process::exit(session::stop()),
+        session::Request::Session(session::Verb::Status) => std::process::exit(session::status()),
+        session::Request::Session(session::Verb::Run) => session::complete_path(),
+        session::Request::SessionUsage(verb) => {
+            if let Some(verb) = verb {
+                eprintln!("rusty session: unknown verb '{verb}'");
+            }
+            eprintln!("{}", session::USAGE);
+            std::process::exit(2);
+        }
+        session::Request::Script(name, rest) => {
+            eprintln!("rusty {name}: {}", exec_store_script(&name, &rest));
             std::process::exit(126);
+        }
+        session::Request::Unknown(word) => {
+            eprintln!("rusty: unknown command '{word}'");
+            eprintln!("{}", session::USAGE);
+            std::process::exit(2);
         }
     }
     // Wayland first on Omarchy; Qt still falls back to X11 when there is no compositor.

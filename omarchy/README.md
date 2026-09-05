@@ -5,18 +5,18 @@ What makes Rusty an Omarchy app rather than a program that happens to run there.
 
 | File | Purpose |
 |---|---|
-| `install.sh` | dependencies through `omarchy pkg add`, release builds of the three binaries into `~/.local/bin`, the desktop entry and icon, `rusty-session`, the two user services, and the pointers below |
-| `rusty-session.sh` | installed as `rusty-session`: `up`, `down`, `status`, and `run`, the app unit's command |
+| `install.sh` | dependencies through `omarchy pkg add`, release builds of the three binaries into `~/.local/bin`, the desktop entry and icon, the two user services, and the pointers below |
 | `rusty-mcp.service` | the back end over Streamable HTTP on localhost, wanted by `default.target`, restarted after any exit but a stop |
-| `rusty-app.service` | the app, wanted by `graphical-session.target`, restarted when it is killed, left alone when it is quit |
+| `rusty-app.service` | the app, wanted by `graphical-session.target`, restarted when it is killed, left alone when it is quit; its command is `rusty session run` |
 | `wayland-wm-oom.conf` | a drop-in for uwsm's compositor unit so Hyprland is the last of the session to go under memory pressure; pointed at, never applied |
-| `com.ignibyte.rusty.desktop`, `com.ignibyte.rusty.svg` | the launcher entry and icon; `Exec` is `rusty-session up` |
-| `hyprland-bindings.conf` | SUPER+ALT+R: focus the window, or `rusty-session up`; append it to `~/.config/hypr/bindings.conf` |
+| `com.ignibyte.rusty.desktop`, `com.ignibyte.rusty.svg` | the launcher entry and icon; `Exec` is `rusty session start` |
+| `hyprland-bindings.conf` | SUPER+ALT+R: focus the window, or `rusty session start`; append it to `~/.config/hypr/bindings.conf` |
 | `mcp-config.json` | the `mcpServers` entries for Claude Code and Codex (stdio) and for HTTP clients |
 
 Conventions Rusty follows: apps run in their own user units or through `uwsm-app`, the
-theme lives in `~/.config/omarchy/current/theme/`, windows are found and focused with
-`omarchy-launch-or-focus`, and nothing under `~/.local/share/omarchy/` is ever edited.
+theme is read from `~/.local/state/omarchy/current/theme/` (Omarchy 4; before it,
+`~/.config/omarchy/current/theme/`), windows are found and focused with
+`omarchy-launch-or-focus`, and nothing under `/usr/share/omarchy/` is ever edited.
 
 ## The session
 
@@ -29,17 +29,20 @@ login starts it, a kill or a crash starts it again two seconds later, and a quit
 leaves it stopped. Five starts inside ten seconds trip systemd's start limit, which ends
 a crash loop.
 
-`rusty-session` is the one path in. `up` starts the back end, copies the display
-variables into the user manager when a compositor started outside uwsm left them out,
-refuses to open a second window when a `rusty` started from a terminal is still running,
-and starts the app unit. `down` stops the app and keeps the back end. `status` reads both
-units, posts an `initialize` to the port, and lists the app's processes. `run` is the
-unit's command: it completes PATH with `~/.local/bin` and `~/.cargo/bin`, where the agent
-CLIs tend to live, and execs `rusty`.
+`rusty session` is the one path in, a noun of the app binary (TICKET-029; a
+`rusty-session` script did this before, and the installer removes a stale copy). `start`
+starts the back end, copies the display variables into the user manager when a compositor
+started outside uwsm left them out, refuses to open a second window when a `rusty`
+started from a terminal is still running, and starts the app unit. `stop` stops the app
+and keeps the back end. `status` reads both units, posts an `initialize` to the port, and
+lists the app's processes. `run` is the unit's command: it completes PATH with
+`~/.local/bin` and `~/.cargo/bin`, where the agent CLIs tend to live, and opens the window
+in the same process. Every other bare word is a store script or an error; `rusty help`
+lists the nouns.
 
 ```bash
-rusty-session up
-rusty-session status
+rusty session start
+rusty session status
 journalctl --user -u rusty-app -f      # or: journalctl -t rusty
 journalctl --user -u rusty-mcp -f
 ```

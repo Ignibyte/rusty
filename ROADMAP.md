@@ -203,8 +203,9 @@ What using the app every day asks for, added as it comes up.
 
 - [x] Session resilience (TICKET-009, 2026-09-03): the back end restarts after any exit but
       a stop, the app runs as a user service bound to the graphical session, `rusty-session
-      up|down|status` is the entry point the installer, the desktop entry and the key share,
-      and the compositor drop-in and the earlyoom line ship as pointers
+      up|down|status` was the entry point the installer, the desktop entry and the key shared
+      (now `rusty session`, TICKET-029), and the compositor drop-in and the earlyoom line
+      ship as pointers
 
 - [x] Top bar, command and agents (TICKET-011, 2026-09-03): the command button and one glyph
       per agent CLI move into the top bar (click for a tab, right-click for the agent pane), the
@@ -298,6 +299,11 @@ workflow in `CONSTITUTION.md`.
       click on a rendered block opens that section alone as a highlighted source editor, the
       rest stays rendered, the same autosave and Ctrl+S; the editing mode (live by default)
       kept per user; `page_sections` in Rust, joined back byte for byte
+- [x] TICKET-029 Session commands (2026-09-05): `rusty <noun> <verb>` as the command
+      convention of the app binary, `rusty session start|stop|status|run` replacing the
+      `rusty-session` script (nouns before store scripts, an unknown word prints the usage),
+      and the theme read from Omarchy 4's `~/.local/state/omarchy/current/theme` with the
+      Omarchy 3 path as the fallback
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

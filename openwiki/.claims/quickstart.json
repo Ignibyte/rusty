@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1eca0b77860202e7839c3abd86dfb87286daad3702714c231fb3ca754a35d5a4",
+  "pageVersion": "sha256:a09e94c667e7c76093dec6b0afac2d2741a810f9bad131d9acc5850d2aeb6927",
   "claims": [
     {
       "id": "claim_9e9c10ea2bb241a7a0f7b9b28a1928f6",
@@ -14,21 +14,21 @@
     },
     {
       "id": "claim_59796b5c11f0472b80b11dd59e8b5070",
-      "statement": "`rusty-session up`, `down` and `status` are the one entry point into a running Rusty: the back end then the app unit, the app stopped with the back end kept, and both units with the port answering.",
+      "statement": "`rusty session start`, `stop` and `status` are the one entry point into a running Rusty: the back end then the app unit, the app stopped with the back end kept, and both units with whether the port answers; they are verbs of the app binary and run to completion without Qt.",
       "evidence": [
         {
-          "resource": "repo://omarchy/rusty-session.sh#L59-L93",
-          "version": "repo-lines-v1:sha256:9410dba1b1c74b253c4084b884f6aec5e77be17c66c411a35ee1df2c0e6b75c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3ZjYzZTE5N2U1NzVmOGY2NmQ1OTM4MTI5OGNjM2ZkYmExZDc5MTRjY2VmYTA3Mjk3MmQxMjZlMjk3YjhiZGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhNTU0MjkyYWIxMGJkYzNiNGYwMDc5ZjY3YjU2MDJkNDllZWM3MmFjMjdiZjgxZmFiZGExNGVjYTUyNTFkZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjZDdmMmIwY2ZlODZhZjIyMWE3MjcyM2I5NmRmNTQ5YmZhN2NhZjQzY2YzZDk0YzJkYmFlMjVmNjZhYjNjNzMifQ"
+          "resource": "repo://crates/rusty-app/src/session.rs#L94-L159",
+          "version": "repo-lines-v1:sha256:2bfa16f895225f3d9d6dd5bfb206cf00ba62503bfd2492da95b9a88697ed9e83:eyJzZWxlY3RlZExpbmVDb3VudCI6NjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1MGY5YzU4OWVkNTQ2MWNjMjZkYTYxNTYxOTU5YzEzZTRlNjU0YjhmZDg4ZGY4NGJiZWZhYzljNGY0ZmNlNTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM3MDU2YTRjZDIyNmQzNmE0NGZmZmU1NTg1OWEzN2Y3OTAwNjA3ZTI5ZWE3ZjMxMDQ1YjFmYjE1MzcyMDYxZjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkMDg5ZmUxY2JkM2YzMTQ4ZGQwOGE0ZmU0MzI1NDAxZDk3YTI5ZDU4NzI2ODFiMjBkZmRjZjIyYTQwOTllNjAifQ"
         },
         {
-          "resource": "repo://omarchy/rusty-session.sh#L108-L115",
-          "version": "repo-lines-v1:sha256:1f7b91bf47484973a730fc019490cb1ffaafbfe5ec0efdacd92e2532e5ab042e:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjAwNTZhNjNkZmYxNGNmNTdhMGY1OTUyYjJiMTRkNWUwNDA1YWFmNTdkNjhlNTNlOGQzMmU2Y2ZjOGVlN2QxYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzRhMmJlY2ZmOGFmYjM0ZGIyNjBkYWJjOTY5MTVmZmVjZmRlODQ4OTI5NTQxYzYxOTNkZTZkMTY0YzIxZThkYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWQwYWIzMjk3NmYwYmYyOTE4YzY0YTY4MjU5ZGRjYzMxZGNjN2ZkMDY1NzVjOWY2OWVjMGE3NzkxMTljNDlmNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+          "resource": "repo://crates/rusty-app/src/main.rs#L71-L101",
+          "version": "repo-lines-v1:sha256:96329d870bafe6512c684ef242082fd6feda75850c4f50b371b15e5526aac351:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1Yjg4NzAzOTY1M2EwMmY0ZmM1YWMyMWU3NTVhNTdkZjk1OGE0YjA3M2ExYzAxYjhiM2RkNGZjYmI1MjU1YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjY2NiOTBiZjU2MWVjODYzZjNiNzM5YTk2Njg1YmY2M2U0NzliNmUwNDdjMjdjYjdiYWFmM2NiODIxNGZkNmIifQ"
         }
       ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T19:38:17.213Z"
+    "at": "2026-09-05T14:39:51.324Z"
   }
 }

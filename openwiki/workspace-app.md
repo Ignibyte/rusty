@@ -2,7 +2,7 @@
 type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
-generated: {by: "claude-code", at: "2026-09-05T05:26:45.338Z"}
+generated: {by: "claude-code", at: "2026-09-05T14:39:51.324Z"}
 sources:
   - id: openwiki-source-4059556410fe6db8498fe8e9
     resource: repo://crates/rusty-app/build.rs
@@ -54,6 +54,10 @@ sources:
     resource: repo://crates/rusty-app/src/main.rs
   - id: openwiki-source-659b16aac0bb21abcdfa4b6f
     resource: repo://crates/rusty-app/src/markdown.rs
+  - id: openwiki-source-040df95238fa90bd4e7ad29b
+    resource: repo://crates/rusty-app/src/omarchy.rs
+  - id: openwiki-source-188c50fac039d5c4d0e7eca9
+    resource: repo://crates/rusty-app/src/session.rs
   - id: openwiki-source-c3978cc62c783d6d3ec4b39d
     resource: repo://crates/rusty-app/src/skin.rs
   - id: openwiki-source-720644bc52136dc05589b8d5
@@ -66,7 +70,7 @@ sources:
     resource: repo://scripts/screenshot.sh
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T05:26:45.338Z
+    at: 2026-09-05T14:39:51.324Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -96,10 +100,13 @@ every view backed by the MCP server that agents share.
   and the new.
 - `src/theme.rs` and `src/omarchy.rs`: `Theme` exposes the tokens, the faces, the radius
   and the switch as properties, `select()` switches the skin from the choice the shell
-  keeps in the workspace state, `reload()` re-reads the desktop, and a watcher on
-  `~/.config/omarchy/current` reloads on `omarchy theme set`; `omarchy.rs` reads the
-  palette, the Alacritty font and colours, and writes the Konsole scheme. `main.rs` sets
-  the application font from the saved skin before any item exists.
+  keeps in the workspace state, `reload()` re-reads the desktop, and a watcher on the
+  directory that holds the current theme (`~/.local/state/omarchy/current` on Omarchy 4,
+  `~/.config/omarchy/current` before it) reloads on `omarchy theme set`; `omarchy.rs`
+  finds the theme directory (`RUSTY_OMARCHY_THEME_DIR`, else the Omarchy 4 path when it
+  exists, else the Omarchy 3 path; TICKET-029), reads the palette, the Alacritty font and
+  colours, and writes the Konsole scheme, every reader through that one function.
+  `main.rs` sets the application font from the saved skin before any item exists.
   Since TICKET-012 the theme also carries `baseSize` (12 to 18, default 14, or
   `RUSTY_TEXT_SIZE` when set, which then wins) and `scale` (`baseSize / 12`); every QML
   text size is `Math.round(n * theme.scale)` for the drawn value `n`, the reading view's
@@ -107,6 +114,11 @@ every view backed by the MCP server that agents share.
   font. `textSize` in the workspace state, Ctrl with plus, minus and zero, three palette
   commands and a stepper under "This machine" in Settings set it; a Rust test in
   `theme.rs` refuses a literal `pixelSize` anywhere in the QML.
+- `src/session.rs`: the commands the binary answers before Qt starts (TICKET-029):
+  `parse` (nouns first, store scripts second, dash-prefixed arguments Qt's, anything else
+  an error), `USAGE`, and the `session` verbs: `start`, `stop` and `status` over
+  `systemctl --user`, a hand-written HTTP `POST` of the MCP `initialize` as the port
+  probe, the unmanaged-window check from `/proc`, and `complete_path` for `run`.
 - `src/desk.rs`: `Desk`, what the top bar reads: memory in use, the CPU's share, the
   clock, the login name. It asks the compositor for nothing; the Hyprland workspace strip
   went with TICKET-011, since waybar shows the workspaces.
@@ -123,11 +135,15 @@ every view backed by the MCP server that agents share.
 
 ## Runtime flow
 
-- The binary is two programs. Before Qt starts, `rusty <name> [args]` looks in the active
-  skills store for a script of that basename; on a hit it execs `rusty-cli scripts run`
-  and never creates a window, so `rusty usb-reset` is a command and `rusty` alone is the
-  app (TICKET-010). A name that matches nothing falls through to the window, which is why
-  an unknown command opens the workspace rather than reporting an error.
+- The binary is two programs. Before Qt starts, `main` asks `session::parse` what the
+  arguments mean: none, or a dash-prefixed first one, opens the window with the arguments
+  left to Qt; `help`, `--help` and `-h` print the usage; `session start`, `stop` and
+  `status` run to completion and exit with their status; `session run`, the unit's
+  command, completes PATH and continues into the window; any other word is looked up in
+  the active skills store as a script and on a hit execs `rusty-cli scripts run`, never
+  creating a window, so `rusty usb-reset` is a command (TICKET-010); a word that is
+  neither prints the usage on stderr and exits 2 (TICKET-029), so a typo never opens the
+  workspace. A store script named `session` is shadowed by the noun.
 - Every drag handle is `Splitter.qml` (TICKET-023), listed in `build.rs` and shared by the
   sidebars and the Skills page. The owner binds `value`, `min`, `max` and `invert` and
   applies the result in `onMoved`; the handle clamps and reports but never writes a value
@@ -387,20 +403,25 @@ an agent run it are in `workflow-and-gates.md`.
   reaches a brain tool, and no disk write overwrites anything — an existing target is
   refused, a delete is a move to the trash, a text save is an atomic rename. A root's git
   status is read the same way and the repository is never written.
-- The command path never starts Qt. It resolves and execs before any Qt object exists,
-  so a script inherits the terminal it was typed in rather than the app's environment.
+- The command path never starts Qt: nouns, scripts and errors are decided before any Qt
+  object exists, so a script inherits the terminal it was typed in rather than the app's
+  environment, and `rusty session start` from the desktop entry or the key needs no
+  display of its own. Built-in nouns come before store scripts.
 
 ## Failure modes
 
 - No back end: pages show "waiting for rusty-mcp" and the tree keeps its last state.
 - Qt's messages go to journald when stderr is not a tty: `journalctl --user -t rusty`
   or `QT_FORCE_STDERR_LOGGING=1`; `RUSTY_DEBUG=1` adds a line per event.
-- Anchors inside a page do not scroll yet; live preview is not built.
+- Anchors inside a page do not scroll yet.
 - A bookmark keeps the path it was made with: a renamed or deleted page leaves it
   pointing at a page that is no longer there, and the user removes it.
-- `rusty <name>` with a name no script answers to opens the workspace instead of
-  reporting an unknown command, because the check is a lookup and its miss is the app's
-  ordinary start. A script that exists but is pending exits 126 with the reason.
+- `rusty <word>` with a word that is neither a noun nor a script prints the usage on
+  stderr and exits 2 (TICKET-029; until then the miss opened the workspace). A script that
+  exists but is pending exits 126 with the reason. `rusty session status` with no back end
+  says `not answering` inside the probe's two-second timeouts and still exits 0; `start`
+  starts the back end unit first; `run` without a `HOME` leaves PATH alone and still opens
+  the window.
 - A disk write that fails (a name in use, a permission, a root that vanished) comes back
   as `{ok: false, error}` and the explorer shows the reason in its notice; a root that is
   the vault folder itself takes disk writes past the index until the watcher's next
@@ -425,7 +446,11 @@ an agent run it are in `workflow-and-gates.md`.
 ## Tests
 
 - `cargo test -p rusty-app`: the tokenizer, the tabs JSON, the skin (presets, the
-  Omarchy mapping, theme files, tokens), the colour math, the desk readings.
+  Omarchy mapping, theme files, tokens), the colour math, the desk readings; `session::`
+  covers the dispatch (nouns, scripts, flags, errors), PATH completion, the display
+  variables to import, the unmanaged-window filter and the probe's status line, and the
+  shipped files under `omarchy/` and `packaging/` refusing the old wrapper; `omarchy::`
+  covers the theme directory's two locations against a scratch home.
 - `scripts/screenshot.sh` for the visual record; pointer and keyboard walks are done
   by hand, never by synthetic input on the user's desktop.
 - `cargo test -p rusty-app folders::` covers the listing, the kind sniff, the text cut,

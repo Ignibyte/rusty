@@ -21,7 +21,7 @@ first release.
 ## Run it
 
 ```bash
-rusty-session up         # the back end, then the app, each under its user service; also down, status
+rusty session start      # the back end, then the app, each under its user service; also stop, status
 rusty                    # the app on its own, tied to this terminal
 rusty-mcp                # the back end over stdio (agents); the user service serves HTTP
 rusty-cli brain search "orbit"
@@ -171,12 +171,12 @@ rusty-mcp --http                 # Streamable HTTP at http://127.0.0.1:4174/mcp
 ```
 
 On a machine that will run Rusty for real, `omarchy/install.sh` builds the three binaries
-into `~/.local/bin`, installs `rusty-session` and the two user services, starts the back end
-and the app, and points at the two protections it leaves to you. Run it again after pulling;
+into `~/.local/bin`, installs the two user services, starts the back end and the app, and
+points at the two protections it leaves to you. Run it again after pulling;
 every step is idempotent. The back end restarts after any exit but a stop; the app starts
 with the graphical session, comes back when it is killed, and stays quit when you quit it;
-`rusty-session up` from any terminal is the by-hand recovery. `omarchy/README.md` has the
-details.
+`rusty session start` from any terminal is the by-hand recovery, and `rusty help` lists the
+commands. `omarchy/README.md` has the details.
 
 ## Semantic search
 
@@ -206,13 +206,16 @@ says where the notes went, and points `notes_path` at the new folder.
 
 A `*.sh` file beside a skill in the store is a command: `rusty usb-reset` runs
 `dev-box-usb/usb-reset.sh` from any terminal, with its arguments, in place of the window
-(the app binary checks the store before Qt starts and hands the process to `rusty-cli
-scripts run`, which resolves the name and execs the script). A script is named by its
+(the app binary checks its own nouns, then the store, before Qt starts and hands the
+process to `rusty-cli scripts run`, which resolves the name and execs the script). A script is named by its
 basename without the suffix; `skill/name` picks one when two skills share a name. A
 script inside a pending skill does not run until the skill is approved, and the safety
 scan that reads a skill reads a script's text too. The Skills tab lists scripts under the
 skills, shows and edits them, and Run opens a terminal tab that runs the script and keeps
-a shell. Every write commits the store.
+a shell. Every write commits the store. The binary's own nouns come first (TICKET-029):
+`rusty session start|stop|status|run` is built in, a script named `session` is shadowed,
+and a bare word that is neither a noun nor a script prints the usage and exits 2; an
+argument that starts with a dash goes to Qt as it always has.
 
 ```bash
 rusty-cli scripts list [--all]

@@ -3,7 +3,7 @@
 #
 #   install -Dm644 omarchy/rusty-app.service ~/.config/systemd/user/rusty-app.service
 #   systemctl --user daemon-reload && systemctl --user enable rusty-app
-#   rusty-session up
+#   rusty session start
 #
 # graphical-session.target is what uwsm brings up at login and takes down at logout, so
 # the app follows the session, and app-graphical.slice is stopped before the compositor.
@@ -19,7 +19,7 @@ Wants=rusty-mcp.service
 [Service]
 Type=simple
 Slice=app-graphical.slice
-ExecStart=%h/.local/bin/rusty-session run
+ExecStart=%h/.local/bin/rusty session run
 Restart=always
 RestartPreventExitStatus=0
 RestartSec=2

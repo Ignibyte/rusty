@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:b08918604c9a1255069c50de2c6e154b7800c7de6c6694b05d0b63f0ce938499",
+  "pageVersion": "sha256:d9e9220653467f40eff208ddfe25a274e1a7e18e87b99bacea290b08fbfd0099",
   "claims": [
     {
       "id": "claim_22450b6b90104af6bdb4515cac214f43",
@@ -31,8 +31,8 @@
       "statement": "Task boxes render as `rusty:task/<n>` links and the app toggles the n-th box in the raw source.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L128-L149",
-          "version": "repo-lines-v1:sha256:874e7ef1a8d6ce3a8e20dfe2a4f71b0ebaa8fb47611e3e807776fd2fa2594137:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgzODEyNjk1OGYzZDU4YjY0NzE1OGVlYjJjOTRlZjgwMGQ5NGMzNzJmZWY4NjA3ZGUwMDU4NzhhMjM3NTY5YmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY2ODJkM2RmNGNiN2I4ODBkMDc2MGIwZWIyNzc4ODU0OTkyOWUwZjI3NGZlNjM5MjU0Y2Q2ZGFlYTg3NjI2Y2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmNTc0YzQzY2UyNjNmMzExODI3YTkwYWM1YmYxZTg3NTE0Yjk3NjExOGJkMTQ0OGRjMGQ0ODg1NDQ0ODFiYTAifQ"
+          "resource": "repo://crates/rusty-app/qml/NoteTab.qml#L249-L275",
+          "version": "repo-lines-v1:sha256:cca347fae21555ede30966032389517ac3d9454ef1904b04cba125c28781f016:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkNjU1YmNiMzI5YmNlOGM0ZTA0YTliNTMyOGNjMjhmZmE2OWI5NThjODY5YmY0NjYwOWZjNzRhNWE5MjNhZTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1MjJjNDJjZDE5YzZkMDNkODA4YzQ1MjcyMDU1MjgyNWI3ZWExYzViNDkxYjIxODUxMWNhYzc0MTVjZjlkOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdjYWFkYjNmYjg3NTIzZTA5NTdjNTlmYTFmNDA0YjY2YWIzNmYwYjY5ZmM4YWFjMmJmNTczNjUxODljNzBiYWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU2NTNjZDI4MmVkNGE4ODEyM2FiMmIxZTFhM2RlOGNmNjE5OTk3Yzk2MjE5YzUyODYyZGI2YzM1YWE1MDVhMzgifQ"
         },
         {
           "resource": "repo://crates/rusty-core/src/brain/render.rs#L680-L701",
@@ -79,6 +79,6 @@
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T13:09:51.830Z"
+    "at": "2026-09-05T14:39:51.324Z"
   }
 }

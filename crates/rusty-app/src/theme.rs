@@ -359,8 +359,10 @@ impl qobject::Theme {
         }
     }
 
-    /// Watch `~/.config/omarchy/current` from a background thread. Omarchy repoints the
-    /// `theme` link there on `omarchy theme set`; every change is coalesced for a moment
+    /// Watch the directory that holds the current theme from a background thread:
+    /// `~/.local/state/omarchy/current` on Omarchy 4, `~/.config/omarchy/current` before
+    /// it (see `omarchy::theme_dir`). `omarchy theme set` rewrites `theme.name`, relinks
+    /// `background` and rebuilds `theme/` there; every change is coalesced for a moment
     /// and then `reload()` runs on the Qt thread. Safe to call once per object.
     pub fn watch(self: Pin<&mut Self>) {
         let qt_thread = self.qt_thread();

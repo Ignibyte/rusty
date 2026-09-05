@@ -61,7 +61,9 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - **Front end.** QML on Qt 6 with `cxx-qt` exposing Rust models: task list, note tree, page
   search results, memory list, skills catalog, settings. The Brain tab is search plus a
   rendered read view (QML `TextArea` renders markdown; anything richer opens in Obsidian
-  through the CLI). Theme colours come from `~/.config/omarchy/current/theme/colors.toml`.
+  through the CLI). Theme colours come from the current theme's `colors.toml`, under
+  `~/.local/state/omarchy/current/theme/` on Omarchy 4 and `~/.config/omarchy/current/theme/`
+  before it.
 - **Terminals.** `qmltermwidget` (Konsole's emulator, Qt 6, in Arch extra) per terminal tab.
   Each tab attaches to a tmux session (`tmux new -A -s rusty-<name> claude`), so sessions
   survive an app restart and are reachable from any terminal or over SSH, the way the
@@ -124,9 +126,15 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   style derive from it, the terminals keep the Alacritty font.
 - Session-bound on 2026-09-03 (TICKET-009): the app runs as `rusty-app.service`, wanted by
   uwsm's `graphical-session.target`, restarted when it is killed and left alone when it is
-  quit; the back end restarts after any exit but a stop; `rusty-session` is the one entry
-  point the installer, the desktop entry and the key share; the compositor's OOM score is a
+  quit; the back end restarts after any exit but a stop; `rusty-session` was the one entry
+  point the installer, the desktop entry and the key shared; the compositor's OOM score is a
   drop-in the installer points at, at 100, the floor a user unit can reach.
+- Commands as nouns on 2026-09-05 (TICKET-029): the app binary answers `rusty <noun> <verb>`
+  before Qt starts (`crates/rusty-app/src/session.rs`); `session` (`start`, `stop`, `status`,
+  `run`) replaces the `rusty-session` script and the app unit runs `rusty session run`;
+  built-in nouns come before store scripts, an unknown bare word prints the usage and exits
+  2, and dash-prefixed arguments stay Qt's. The same ticket moved the theme directory to
+  Omarchy 4's `~/.local/state/omarchy/current/theme`, the Omarchy 3 path as the fallback.
 - Vault rules, applied by `rusty-cli brain migrate`: the timeline is a `## Timeline` section (the
   bare `---` rule is read for compatibility, never written), and wikilinks are vault paths,
   `[[projects/orbit]]`, which is also what Obsidian now writes (`newLinkFormat: absolute`).
@@ -192,6 +200,6 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
 - `crates/rusty-cli`: the terminal counterpart, including `brain migrate`, `brain embed`,
   `brain semantic`, and `notes adopt` (2026-09-03, TICKET-014: the notes folder lives in
   the vault under `notes/`, and the one-shot moves an older `~/.rusty/notes` in).
-- `omarchy/`: installer, the `rusty-session` script, the two user services (back end and
-  app), the compositor drop-in, desktop entry and icon, key binding snippet, MCP config
+- `omarchy/`: installer, the two user services (back end and app; the app unit runs
+  `rusty session run`), the compositor drop-in, desktop entry and icon, key binding snippet, MCP config
   snippet.

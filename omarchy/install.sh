@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Install Rusty on this machine: the three binaries, the rusty-session script, the two
-# user services and a reminder of the MCP config. Every step is idempotent, so run it
+# Install Rusty on this machine: the three binaries, the two user services and a
+# reminder of the MCP config. Every step is idempotent, so run it
 # again after pulling.
 set -euo pipefail
 
@@ -41,7 +41,7 @@ if pkg-config --exists Qt6Quick 2>/dev/null || command -v qmake6 >/dev/null 2>&1
   cargo install --path "$repo/crates/rusty-app" --root "$HOME/.local" --force --locked
   install -Dm644 "$here/com.ignibyte.rusty.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/com.ignibyte.rusty.svg"
   install -Dm644 "$here/com.ignibyte.rusty.desktop" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
-  sed -i "s|^Exec=.*|Exec=$bin/rusty-session up|" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
+  sed -i "s|^Exec=.*|Exec=$bin/rusty session start|" "$HOME/.local/share/applications/com.ignibyte.rusty.desktop"
   command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
   app_built=yes
 else
@@ -52,8 +52,9 @@ case ":$PATH:" in
   *) echo "    note: $bin is not on PATH yet" ;;
 esac
 
-echo "==> rusty-session and the user services"
-install -Dm755 "$here/rusty-session.sh" "$bin/rusty-session"
+echo "==> the user services"
+# Earlier installs put a rusty-session wrapper here; `rusty session` replaced it (TICKET-029).
+rm -f "$bin/rusty-session"
 install -Dm644 "$here/rusty-mcp.service" "$unit_dir/rusty-mcp.service"
 install -Dm644 "$here/rusty-app.service" "$unit_dir/rusty-app.service"
 systemctl --user daemon-reload
@@ -77,16 +78,16 @@ echo "    answering on $mcp_url"
 if [ -n "$app_built" ]; then
   systemctl --user enable rusty-app >/dev/null
   if systemctl --user is-active --quiet graphical-session.target; then
-    "$bin/rusty-session" up
+    "$bin/rusty" session start
   else
-    echo "    no graphical session; the app starts with the next login, or now with: rusty-session up"
+    echo "    no graphical session; the app starts with the next login, or now with: rusty session start"
   fi
 fi
 
 echo "==> desktop"
-echo "    launch or focus:  omarchy-launch-or-focus '^(rusty|com\\.ignibyte\\.rusty)\$' 'rusty-session up'"
-if [ -f "$HOME/.config/hypr/bindings.conf" ] && ! grep -q 'rusty-session up' "$HOME/.config/hypr/bindings.conf"; then
-  echo "    key binding:      append $here/hyprland-bindings.conf to ~/.config/hypr/bindings.conf (SUPER+ALT+R)"
+echo "    launch or focus:  omarchy-launch-or-focus '^(rusty|com\\.ignibyte\\.rusty)\$' 'rusty session start'"
+if [ -f "$HOME/.config/hypr/bindings.conf" ] && ! grep -q 'rusty session start' "$HOME/.config/hypr/bindings.conf"; then
+  echo "    key binding:      append $here/hyprland-bindings.conf to ~/.config/hypr/bindings.conf (SUPER+ALT+R), or replace an older Rusty line"
 fi
 echo "    under memory pressure, two steps this script leaves to you (another program's unit; root):"
 echo "      compositor last:  install -Dm644 $here/wayland-wm-oom.conf ~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/60-oom.conf && systemctl --user daemon-reload"

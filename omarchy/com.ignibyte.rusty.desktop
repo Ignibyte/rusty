@@ -2,7 +2,7 @@
 Type=Application
 Name=Rusty
 Comment=Agent terminals, tasks and the brain, on Omarchy
-Exec=rusty-session up
+Exec=rusty session start
 Icon=com.ignibyte.rusty
 Terminal=false
 Categories=Development;Utility;

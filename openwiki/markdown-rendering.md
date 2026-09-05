@@ -12,6 +12,9 @@ sources:
   - id: openwiki-source-b0fccdb632d2710022a80345
     resource: repo://crates/rusty-core/src/brain/render.rs
 generated: {by: "claude-code", at: "2026-09-03T13:09:51.830Z"}
+verified:
+  - by: openwiki/0.3.3
+    at: 2026-09-05T14:39:51.324Z
 ---
 
 # Markdown rendering: Obsidian's flavour to Qt rich text

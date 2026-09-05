@@ -4,13 +4,15 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - Open tickets: [`open/`](open/)
 - Closed tickets: [`closed/`](closed/)
-- **Next ticket number: `029`**
+- **Next ticket number: `031`**
 
 ## Open queue
 
+- [`TICKET-030` — Omarchy 4 key binding](open/TICKET-030-omarchy-4-key-binding.md) (open, 2026-09-05; follow-up of TICKET-029)
 
 ## Closed
 
+- [`TICKET-029` — Session commands](closed/TICKET-029-session-commands.md) (2026-09-05)
 - [`TICKET-028` — Live preview editing](closed/TICKET-028-live-preview-editing.md) (2026-09-05)
 - [`TICKET-027` — Personal search engine](closed/TICKET-027-personal-search-engine.md) (2026-09-05)
 - [`TICKET-026` — Obsidian vault migration](closed/TICKET-026-obsidian-vault-migration.md) (2026-09-05)

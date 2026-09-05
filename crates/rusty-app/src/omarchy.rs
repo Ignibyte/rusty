@@ -6,7 +6,7 @@
 //! app also runs on a machine that is not Omarchy.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// The name of the generated scheme; the file lives under the user's config dir.
 pub const SCHEME_NAME: &str = "Omarchy";
@@ -39,13 +39,24 @@ fn home() -> PathBuf {
     dirs::home_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// `~/.config/omarchy/current/theme`, where Omarchy keeps the active theme, unless
-/// `RUSTY_OMARCHY_THEME_DIR` points somewhere else (screenshots of another theme).
+/// The active theme's directory: `RUSTY_OMARCHY_THEME_DIR` when set (screenshots of another
+/// theme), else the one Omarchy keeps under the home directory (see [`theme_dir_under`]).
 pub fn theme_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("RUSTY_OMARCHY_THEME_DIR").filter(|d| !d.is_empty()) {
         return PathBuf::from(dir);
     }
-    home().join(".config/omarchy/current/theme")
+    theme_dir_under(&home())
+}
+
+/// Where Omarchy keeps the active theme under `home`: since Omarchy 4 a generated
+/// directory, `.local/state/omarchy/current/theme` (TICKET-029); before it, the link
+/// `.config/omarchy/current/theme`. The newer wins when it exists.
+pub fn theme_dir_under(home: &Path) -> PathBuf {
+    let state = home.join(".local/state/omarchy/current/theme");
+    if state.is_dir() {
+        return state;
+    }
+    home.join(".config/omarchy/current/theme")
 }
 
 /// Alacritty's ANSI palette from the theme, as `red`, `bright-red`, ... plus the
@@ -333,6 +344,23 @@ white = "#acb0d0"
         assert_eq!(shade("#000000", 0.5), "#808080");
         assert_eq!(shade("#ffffff", -0.5), "#808080");
         assert!(is_dark("#1a1b26") && !is_dark("#f3eee2"));
+    }
+
+    #[test]
+    fn the_theme_dir_is_omarchy_fours_then_omarchy_threes() {
+        let home = std::env::temp_dir().join(format!("rusty-theme-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        std::fs::create_dir_all(&home).unwrap();
+        assert_eq!(
+            theme_dir_under(&home),
+            home.join(".config/omarchy/current/theme")
+        );
+        std::fs::create_dir_all(home.join(".local/state/omarchy/current/theme")).unwrap();
+        assert_eq!(
+            theme_dir_under(&home),
+            home.join(".local/state/omarchy/current/theme")
+        );
+        let _ = std::fs::remove_dir_all(&home);
     }
 
     #[test]

@@ -5,12 +5,14 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
-  - id: openwiki-source-d69551212a861c7f2b6e6197
-    resource: repo://omarchy/rusty-session.sh
-generated: {by: "claude-code", at: "2026-09-03T19:38:17.213Z"}
+  - id: openwiki-source-c8c0347aa7a687c601520d1a
+    resource: repo://crates/rusty-app/src/main.rs
+  - id: openwiki-source-188c50fac039d5c4d0e7eca9
+    resource: repo://crates/rusty-app/src/session.rs
+generated: {by: "claude-code", at: "2026-09-05T14:39:51.324Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T19:38:17.213Z
+    at: 2026-09-05T14:39:51.324Z
 ---
 
 # Rusty engineering quickstart
@@ -25,16 +27,17 @@ box without a setting that says so.
 | Part | What it owns | Page |
 |---|---|---|
 | `crates/rusty-core` | the managers: tasks, notes, memories, the brain vault and its SQLite index, the renderer, semantic search, skills, secrets, settings, the file watcher | [Vault and brain](vault-and-brain.md), [Markdown rendering](markdown-rendering.md) |
-| `crates/rusty-mcp` | the back end: 80 tools, five resources, change notifications, a background indexer; stdio for agents, Streamable HTTP for the app | [MCP back end](mcp-back-end.md) |
-| `crates/rusty-app` | the desktop app (binary `rusty`): the workspace in QML on cxx-qt, terminals on tmux, theme from Omarchy | [Workspace app](workspace-app.md) |
+| `crates/rusty-mcp` | the back end: 85 tools, five resources, change notifications, a background indexer; stdio for agents, Streamable HTTP for the app | [MCP back end](mcp-back-end.md) |
+| `crates/rusty-app` | the desktop app (binary `rusty`): the workspace in QML on cxx-qt, terminals on tmux, theme from Omarchy, and the `rusty session …` commands answered before Qt starts | [Workspace app](workspace-app.md) |
 | `crates/rusty-cli` | terminal access to the same store (brain, tasks, notes, refresh, conversation ingest) | [MCP back end](mcp-back-end.md) |
 | `CONSTITUTION.md`, `docs/planning/`, `bin/`, `.claude/`, `scripts/` | the workflow: phases, record, gate and receipts, hooks, CodeGraph, OpenWiki | [Workflow and gates](workflow-and-gates.md) |
 
 ## Run it
 
-- `rusty-session up` starts the back end and the app under their user units
-  (`down`, `status`); SUPER+ALT+R under Omarchy runs it. `rusty` alone opens the app tied
-  to the terminal it was typed in.
+- `rusty session start` starts the back end and the app under their user units (`stop`,
+  `status`; `rusty help` lists the nouns); SUPER+ALT+R under Omarchy runs it. `rusty` alone
+  opens the app tied to the terminal it was typed in; a bare word that is neither a noun
+  nor a store script prints the usage and exits 2.
 - `rusty-mcp` serves agents over stdio; the user service `rusty-mcp.service` serves the
   app at `http://127.0.0.1:4174/mcp` and comes back on its own after a kill.
 - `rusty-cli --help` lists the terminal commands; `rusty-cli refresh` nudges the watcher
@@ -49,7 +52,7 @@ cargo build                       # one cargo command at a time, never killed
 bin/gate.sh --fast                # fmt, clippy (-D warnings), tests
 bin/gate.sh --diff                # the delivery gate; green writes .git/rusty-gate-receipt
 bin/gate.sh --verify              # do the receipts match this worktree
-omarchy/install.sh                # release build into ~/.local/bin, rusty-session, both units
+omarchy/install.sh                # release build into ~/.local/bin, both units, the desktop entry
 scripts/screenshot.sh <dir>       # the docs' screenshots, offscreen, scratch vault
 ```
 
@@ -68,3 +71,4 @@ for each area so a change can find both quickly.
 - `README.md`, `AGENTS.md` (also `CLAUDE.md`), `CONSTITUTION.md`, `ROADMAP.md`
 - `docs/architecture.md`
 - `bin/gate.sh`, `omarchy/install.sh`, `scripts/screenshot.sh`
+- `crates/rusty-app/src/session.rs` (the `rusty session` verbs and the dispatch)

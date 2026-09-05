@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:e78b5a113629fb28c4c03db161b7e3aa9ebe6881d55704b707b4bdb72055b39b",
+  "pageVersion": "sha256:d375e681c435e68e0fbcdbb2f73687a4ed1df512166f524d5e6500652a0e9c70",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -458,15 +458,19 @@
     },
     {
       "id": "claim_cf2c7a43fd0b4acd938ccf92dcbab179",
-      "statement": "The app binary doubles as the command front end: `rusty <name>` checks the active skills store for a matching script before Qt starts and, on a hit, execs `rusty-cli scripts run` in place of opening the window, so no GUI is created for a command invocation.",
+      "statement": "The app binary doubles as the command front end and answers `rusty <noun> <verb>` before Qt starts: `help`, `--help` and `-h` print the usage; any other argument starting with a dash goes to Qt untouched; `session` with `start`, `stop` or `status` runs to completion and exits with its status, and `session run` completes `PATH` and continues into the window; any other bare word is looked up in the active skills store as a script and, on a hit, execs `rusty-cli scripts run` in place of the window; a word that is neither prints the usage on stderr and exits 2, so a typo never opens a window.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/src/main.rs#L36-L66",
-          "version": "repo-lines-v1:sha256:61b739967aeac722adfe01d04b565cc51fb845413db0adc3484e4725f3928da0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2ODliMWFkMjExMzU3MzRjNzIwNGFiYTUwYWRhMTg4ZmZmMWExZWRlOGMwNDk5MmY0Y2NkNWVjOTc5YmI1MzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAzOTFlOTNiYzBiYzc2YTJiMzIxM2UxYzZiOGUxOGJlNDA4NjE2NTAzMDExMjBhYzllZGRhMjBjYjAzZGU5NjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVhNzA4MGZhYjQyOWYzOTIxNDMzNDIzNDgxYjg4YjNkYzZjOTY0NGY5ZjkwNzhkOWQ1ZTZiYjQzMzJiZWNhZGYifQ"
+          "resource": "repo://crates/rusty-app/src/session.rs#L75-L95",
+          "version": "repo-lines-v1:sha256:f19a1c3bb04e0e330020934200130553c3d2c1347b4c6b490604ec0fddbca77a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3ZTg5MjM1MzA3YWIzNmM5ZGJhZGVkYWI4YWQyNzU5NzRjOGMzMGNhODhhNGZjMmI3NGVkOThmZGIyMjU4NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NzA4ODU3YThhZjQxMmE2NTlhYWNkNjljY2I4ODBkNjZlODdjMTRkOWRhODk1MzA3NWE0Y2U5NDFlNGJkYTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTBlODQzZDgwODUzMWUzZDNkYzdmNjI4MmQxM2NjNzkwZWUzZGEyMjQxOThlOGM4MzJkY2Q2ZWFlOTM1MjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY0MGJhODc0ZDlhMDA3OTczMWU1MTk0YjdmY2Y2NjA5NWViOTk2NzFkNTY5NzZlMjc3ZTVkZTAxNjlmNjM3ODYifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/src/main.rs#L68-L80",
-          "version": "repo-lines-v1:sha256:f7f45791c8323ce9af9e4fcb76a5af90c4f46839b339fbbe984ee85b45d47955:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1Yjg4NzAzOTY1M2EwMmY0ZmM1YWMyMWU3NTVhNTdkZjk1OGE0YjA3M2ExYzAxYjhiM2RkNGZjYmI1MjU1YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2NGExNTA1ODc1MDRiNjhkMDhlYTE3ODcyMjdjM2U3MTAwMTMzNWZhN2JlY2QyNzJkNTZmMmJhZTFlZDM0ZmUifQ"
+          "resource": "repo://crates/rusty-app/src/main.rs#L36-L69",
+          "version": "repo-lines-v1:sha256:1bfef1efde2b904c358558eb3b706e9e54e605bf5c66b1801b036be32c28b568:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhNDhjZGU4MTNlMjJkMmFmMmM4MTIwZTYxYmRiMWI2NzhlZWU3NTg5ZjEyMjBiMmQzOTg0NDg0N2E4ZDdmMzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3Njc3MjA3YTU5MzhiOTFjYWI4YTk2OGQ5YTU2ZTI5MGI4ZjNmYTgzMGRkZjJhZTI3Y2YzYjI1ZTUxYjUwM2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVmNmRjNTc1NDI2NDBlMDkzMDBiNjk4NjU4NjZmMDk3YWJjNjg2MWJhNDVhOGRiODBjYjk3YjdjZjgzZGI3NmUifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/main.rs#L71-L101",
+          "version": "repo-lines-v1:sha256:96329d870bafe6512c684ef242082fd6feda75850c4f50b371b15e5526aac351:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAwYjllZWU5MWJjMGIxYTc3YjVmMjI0ZmQ2OTQ1ZjNkZWMyMzRlNTU5NmI5NDc1YzkwYzVhZWM5ZTZhZTIwYjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI1Yjg4NzAzOTY1M2EwMmY0ZmM1YWMyMWU3NTVhNTdkZjk1OGE0YjA3M2ExYzAxYjhiM2RkNGZjYmI1MjU1YTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVjY2NiOTBiZjU2MWVjODYzZjNiNzM5YTk2Njg1YmY2M2U0NzliNmUwNDdjMjdjYjdiYWFmM2NiODIxNGZkNmIifQ"
         }
       ]
     },
@@ -945,10 +949,28 @@
           "version": "repo-lines-v1:sha256:6363b32e3fbb7ab48b4cd56452872c1c1f54af0e714fda3c39120a27c31accf6:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTZiZWU1ZjZjYzFkMjZkOTVhMDkzNmZlZDc3NWEzYWJjZDlkMjA4Njg3NjllNzk5ZmNjOTFlMTZlMzI4M2EwOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODRkMzYxODE2NzBhYjlmM2Q4ZTAzZDY5MGU0N2I1YmExMDFkY2M3NzhhNzVjNDA0ZWFiYjc1NDJmYTUxMzczYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzNiM2U0YTlkZjgwZTgwYmUzMzQxYWI2NjFkYTdhMmY1MzRkODczYmQ5NzBhODcyNjA0MzJkOTZkZmVhZmJmNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTFhZTJmYTM3ZmY5OWExZmFlMjVhZDJmNTI0NzNmMzNmOWQxNzcyYjgxMDdlMGNkZTg0MjkyOGY1NzhmYzQ0YyJ9"
         }
       ]
+    },
+    {
+      "id": "claim_84fcc0f11fb4497b81dd5e32a9aa4bdf",
+      "statement": "The theme directory is `RUSTY_OMARCHY_THEME_DIR` when set, else `~/.local/state/omarchy/current/theme` when that directory exists (Omarchy 4's generated theme), else `~/.config/omarchy/current/theme` (Omarchy 3); the palette, the Alacritty font and colours and the Konsole scheme are all read through that one function, and the watcher watches the chosen directory's parent, where a theme switch rewrites `theme.name`, relinks `background` and rebuilds `theme/`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/omarchy.rs#L42-L60",
+          "version": "repo-lines-v1:sha256:a6690bcce71b84615342252b6a009efc4a9cd7c03b9558380e60600c65e31b63:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4OWVhZjYwZThmZGFmZWMwNmM4YWNlY2Y4MDFjZTY3N2RhN2Q0Y2UxNTczOGEwN2EyMGY5MDM4N2E1MGU0ODgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRiNDE1Y2Q4NWIyZjA2MWU2MGJlYTZhYzQxNThhMDM3OGU2ZmZkYTg2ZDUyY2NmM2E2NWUyYzJiNTRkODY1NDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk0Y2M2NjFkODJhMGE0YTAyN2NhNzZkNWEzNGFiNjA2ZGE4YzVhZjU1ODIwMTdlNjNkY2I2NDY2YWU0MTMzMmYifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/theme.rs#L362-L372",
+          "version": "repo-lines-v1:sha256:df029360f9708afc3f4a4ad81686edef6a856781162d8dc232f422fca29b0b6b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3ZWY0MDBkMTg0MTFkYTdiMDc2NzNiOWQ2YTdiYmExYjI1OWQ2OWY1N2M4MjYyYmJmNWI5NmZkMmU5N2IzZDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxYzY2NzAyY2JjN2M5NjRiNDcyMGFjODQzY2VlMTdmN2ZmMGFhYTE1MTNhMmU3YzZmYTAzODU4OGMzNmE1ZDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5OWJkZWZlZWFjYTYzNDBlMDI5MGRjODZlODg5Yzg5ZDVlMTg5YWE1YmE0NGI1ODViM2I3MDczNGY0YTYyZDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRjNDM0Mjc5YTdmM2Q5YzM0MzAyOWIyOTc1MGI1MTFkZDg0NzA0Y2VjODE1ZDE4YWEyY2Q4NTJiZmNlM2Q2ZWIifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/omarchy.rs#L349-L364",
+          "version": "repo-lines-v1:sha256:bb5e344cec4f05d02dcbbb93d8ed50220ca8653353c39abb37036d8511538a88:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkyYjVlZGY1OTQ5Y2ZlYTY3ODIyY2Y2OTExMzIzNjNkNjhkNmYxZTE2OWY1ZTBkNGY3YzE0ZTVmYTFlNmQ0ZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNiYzU4MDdkMzk3ZTFmMmUzNWQzMTRiYjkzY2NlM2E2NGZmY2JhNjc0ZDY4NjZmYTNkNzRkODZiMzFhYWQ4YzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE4MjNkOWVjNjQwNTRkMDRiM2QwOGIwYmQxYjM5OWQyYWIwYTU1MDE5ODYxYTk1MGIyNzI3MzFhMThkNzg1NmEifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T05:26:45.338Z"
+    "at": "2026-09-05T14:39:51.324Z"
   }
 }
