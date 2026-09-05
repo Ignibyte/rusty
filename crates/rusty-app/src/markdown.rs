@@ -80,10 +80,54 @@ mod ffi {
         /// Tokenize one line. `prev_state` is the previous block's state, or -1 for the
         /// first line of the document.
         fn highlight_line(line: &str, prev_state: i32) -> LineSpans;
+        /// A page as the frontmatter (or an empty string) followed by one part per
+        /// section, joining back to the page byte for byte (TICKET-028).
+        fn page_sections(raw: &str) -> Vec<String>;
     }
 }
 
 pub use ffi::{LineSpans, Span};
+
+/// A page as parts: the frontmatter (or an empty string) first, then the text before
+/// the first heading when there is any, then one part per heading line (`#` × 1–6 and
+/// a space, or `#`s alone) outside fenced code (``` or `~~~` toggle a fence). The parts
+/// joined give the page back byte for byte, which is what lets a section be edited on
+/// its own and the page assembled from the rest (TICKET-028).
+pub fn page_sections(raw: &str) -> Vec<String> {
+    let (frontmatter, body) = match raw.strip_prefix("---\n") {
+        Some(rest) => match rest.find("\n---\n") {
+            Some(i) => raw.split_at(4 + i + 5),
+            None => match rest.strip_suffix("\n---") {
+                Some(_) => (raw, ""),
+                None => ("", raw),
+            },
+        },
+        None => ("", raw),
+    };
+    let mut parts = vec![frontmatter.to_string()];
+    let mut current = String::new();
+    let mut in_fence = false;
+    for line in body.split_inclusive('\n') {
+        let trimmed = line.trim_end_matches('\n');
+        let start = trimmed.trim_start();
+        if start.starts_with("```") || start.starts_with("~~~") {
+            in_fence = !in_fence;
+        } else if !in_fence && is_heading_line(trimmed) && !current.is_empty() {
+            parts.push(std::mem::take(&mut current));
+        }
+        current.push_str(line);
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
+}
+
+/// `#` × 1–6 then a space or nothing else: an ATX heading line.
+fn is_heading_line(line: &str) -> bool {
+    let hashes = line.chars().take_while(|c| *c == '#').count();
+    (1..=6).contains(&hashes) && line[hashes..].chars().next().is_none_or(|c| c == ' ')
+}
 
 /// A span in byte offsets, converted to UTF-16 units at the end.
 struct ByteSpan {
@@ -475,6 +519,30 @@ fn finish(line: &str, spans: Vec<ByteSpan>, state: i32) -> LineSpans {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn page_sections_split_at_headings_outside_fences() {
+        let raw = "---\ntitle: T\n---\n\nPreamble line.\n\n# One\n\ntext\n```\n# not a heading\n```\n## Two\n###### Six\n#notatag\n#\nend";
+        let parts = page_sections(raw);
+        assert_eq!(parts[0], "---\ntitle: T\n---\n");
+        assert_eq!(parts[1], "\nPreamble line.\n\n");
+        assert_eq!(parts[2], "# One\n\ntext\n```\n# not a heading\n```\n");
+        assert_eq!(parts[3], "## Two\n");
+        assert_eq!(parts[4], "###### Six\n#notatag\n");
+        assert_eq!(parts[5], "#\nend");
+        assert_eq!(parts.concat(), raw, "the parts give the page back");
+        assert_eq!(
+            page_sections("no frontmatter\n# H\n"),
+            vec!["", "no frontmatter\n", "# H\n"]
+        );
+        assert_eq!(page_sections("# H\nbody"), vec!["", "# H\nbody"]);
+        assert_eq!(page_sections(""), vec![""]);
+        assert_eq!(
+            page_sections("---\nopen frontmatter"),
+            vec!["", "---\nopen frontmatter"]
+        );
+        assert_eq!(page_sections("---\na: 1\n---"), vec!["---\na: 1\n---"]);
+    }
 
     fn kinds(line: &str, state: i32) -> (Vec<(u32, u32, u8)>, i32) {
         let out = highlight_line(line, state);

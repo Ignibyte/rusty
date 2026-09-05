@@ -15,6 +15,48 @@ Item {
     property string slug: ""
     property bool isCurrent: false
     property bool editing: false
+    // Live preview (TICKET-028): the page as parts (the frontmatter first, then one per
+    // section) lined up with the rendered blocks; a click turns one section into a
+    // source editor while the rest stay rendered. `editMode` is the user's ("live" or
+    // "source"); `tools` splits the page by the Rust rule.
+    property string editMode: "live"
+    // Named apart from the window's `tools` id: an unqualified `tools` inside the tab
+    // would find this property first and bind it to itself.
+    property var sectionTools: null
+    readonly property bool live: editing && editMode === "live"
+    property var parts: []
+    readonly property bool partsMatch: parts.length > 0 && parts.length - 1 === chunks.length
+    property int liveIndex: -1
+    property bool liveWhole: false
+    property bool renderHeld: false
+    readonly property bool sourceVisible: editing && (editMode !== "live" || liveWhole)
+    function splitParts() { parts = sectionTools && raw.length > 0 ? sectionTools.pageSections(raw) : (raw.length > 0 ? [raw] : []) }
+    // The page assembled from the parts, the open section's text in place of its part.
+    function assemble() {
+        const p = parts.slice()
+        if (liveIndex >= 0 && partsMatch) {
+            const item = chunkRepeater.itemAt(liveIndex)
+            if (item) p[liveIndex + 1] = item.sourceText()
+        }
+        return p.join("")
+    }
+    function editSection(index, fraction) {
+        if (!live) return
+        if (!partsMatch) { liveWhole = true; editor.forceActiveFocus(); return }
+        if (liveIndex >= 0 && liveIndex !== index) commitSection()
+        liveIndex = index
+        const item = chunkRepeater.itemAt(index)
+        if (item) item.openSource(parts[index + 1], fraction === undefined ? 0 : fraction)
+    }
+    // The open section goes back into its part; a held render runs.
+    function commitSection() {
+        if (liveIndex < 0) return
+        const item = chunkRepeater.itemAt(liveIndex)
+        if (item && partsMatch) { const p = parts.slice(); p[liveIndex + 1] = item.sourceText(); parts = p }
+        liveIndex = -1
+        if (dirty) save()
+        if (renderHeld) { renderHeld = false; load() }
+    }
 
     // Read by the tab strip, the right pane and the status bar.
     property string title: ""
@@ -146,18 +188,18 @@ Item {
         ask("brain_graph", { around: slug, depth: 3 }, "graph")
         ask("brain_get_links", { slug: slug }, "links")
     }
-    function reload() { if (!dirty) load() }
+    function reload() { if (dirty) return; if (liveIndex >= 0) { renderHeld = true; return } load() }
     // The reading view is rendered at the base size, so a size change renders it again.
     Connections { target: note.theme; function onScaleChanged() { note.reload() } }
     function save() {
         if (!dirty || !editing) return
         dirty = false
-        raw = editor.text
-        ask("brain_write_page", { slug: slug, content: editor.text }, "saved")
+        raw = sourceVisible ? editor.text : assemble()
+        ask("brain_write_page", { slug: slug, content: raw }, "saved")
     }
     function toggleEditing() {
-        if (editing) { save(); editing = false }
-        else { editing = true; editor.forceActiveFocus() }
+        if (editing) { commitSection(); save(); editing = false; liveWhole = false }
+        else { editing = true; liveWhole = false; if (editMode !== "live") editor.forceActiveFocus() }
     }
     function editTitle() { titleField.forceActiveFocus(); titleField.selectAll() }
     function renameTo(name) {
@@ -248,7 +290,7 @@ Item {
     function scrollToHeading(i) {
         if (i < 0 || i >= outline.length) return
         const h = outline[i]
-        if (editing) {
+        if (sourceVisible) {
             const lines = editor.text.split("\n")
             let pos = 0
             for (let k = 0; k < h.line && k < lines.length; k++) pos += lines[k].length + 1
@@ -261,16 +303,16 @@ Item {
             if (item) flick.contentY = Math.max(0, Math.min(readingColumn.y + item.y - 12, flick.contentHeight - flick.height))
         }
     }
-    function ensureCursorVisible() {
-        if (!editing) return
-        const r = editor.cursorRectangle
-        const top = editor.mapToItem(flick.contentItem, r.x, r.y).y
+    function ensureCursorVisible() { if (sourceVisible) ensureVisibleIn(editor) }
+    function ensureVisibleIn(ed) {
+        const r = ed.cursorRectangle
+        const top = ed.mapToItem(flick.contentItem, r.x, r.y).y
         const bottom = top + r.height
         if (top < flick.contentY + 8) flick.contentY = Math.max(0, top - 8)
         else if (bottom > flick.contentY + flick.height - 8) flick.contentY = bottom - flick.height + 8
     }
 
-    onIsCurrentChanged: if (isCurrent && editing) editor.forceActiveFocus()
+    onIsCurrentChanged: if (isCurrent && sourceVisible) editor.forceActiveFocus()
 
     Timer { id: autosave; interval: 1500; onTriggered: note.save() }
 
@@ -303,6 +345,7 @@ Item {
                 note.chunks = data.html.split("<!--h-->").filter(function (c) { return c.length > 0 })
                 if (data.raw !== note.raw) note.raw = data.raw
                 if (!note.dirty && editor.text !== data.raw) { note.applying = true; editor.text = data.raw; note.applying = false }
+                if (!note.dirty) note.splitParts()
                 note.loaded = true
                 note.missing = false
                 note.navigated(note.slug, note.title)
@@ -310,7 +353,7 @@ Item {
             }
             case "links": note.links = JSON.parse(json); break
             case "graph": note.graphInfo = note.summariseGraph(JSON.parse(json)); break
-            case "saved": note.load(); break
+            case "saved": if (note.liveIndex >= 0) note.renderHeld = true; else note.load(); break
             case "toggled": note.load(); break
             case "created": note.open(JSON.parse(json)); break
             case "property": note.load(); break
@@ -355,14 +398,14 @@ Item {
                     ToolTip.delay: 600
                 }
                 Text {
-                    text: note.editing ? "[ EDIT ]" : "[ READ ]"
+                    text: note.editing ? (note.sourceVisible ? "[ EDIT ]" : "[ LIVE ]") : "[ READ ]"
                     color: readHover.hovered ? note.theme.accent : note.theme.muted
                     font.pixelSize: Math.round(10 * note.theme.scale)
                     font.letterSpacing: 1
                     HoverHandler { id: readHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: note.toggleEditing() }
                     ToolTip.visible: readHover.hovered
-                    ToolTip.text: note.editing ? "Reading view (Ctrl+E)" : "Edit (Ctrl+E)"
+                    ToolTip.text: note.editing ? "Reading view (Ctrl+E)" : (note.editMode === "live" ? "Live preview: click a section to edit it (Ctrl+E)" : "Edit the source (Ctrl+E)")
                     ToolTip.delay: 600
                 }
                 HeaderButton { icon: "more"; tip: "More options"; onClicked: moreMenu.popup() }
@@ -537,23 +580,76 @@ Item {
                     ColumnLayout {
                         id: readingColumn
                         Layout.fillWidth: true
-                        visible: !note.editing
+                        visible: !note.sourceVisible
                         spacing: 0
                         Repeater {
                             id: chunkRepeater
                             model: note.chunks
-                            delegate: Text {
+                            // One section: its rendered block, and in live preview the
+                            // source editor that takes its place while it is open.
+                            delegate: Item {
+                                id: block
+                                required property int index
                                 required property var modelData
+                                readonly property bool open: note.live && note.liveIndex === index
                                 Layout.fillWidth: true
-                                text: modelData
-                                textFormat: Text.RichText
-                                wrapMode: Text.WordWrap
-                                color: note.theme.foreground
-                                linkColor: note.theme.link
-                                font.pixelSize: Math.round(15 * note.theme.scale)
-                                lineHeight: 1.5
-                                onLinkActivated: (link) => note.onLink(link)
-                                HoverHandler { cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                                implicitHeight: open ? sectionEditor.implicitHeight + 8 : rendered.implicitHeight
+                                function sourceText() { return sectionEditor.text }
+                                function openSource(text, fraction) {
+                                    note.applying = true
+                                    sectionEditor.text = text
+                                    note.applying = false
+                                    sectionEditor.forceActiveFocus()
+                                    const lines = text.split("\n")
+                                    const target = Math.min(lines.length - 1, Math.max(0, Math.floor(fraction * lines.length)))
+                                    let pos = 0
+                                    for (let k = 0; k < target; k++) pos += lines[k].length + 1
+                                    sectionEditor.cursorPosition = pos
+                                }
+                                Text {
+                                    id: rendered
+                                    visible: !block.open
+                                    width: parent.width
+                                    text: block.modelData
+                                    textFormat: Text.RichText
+                                    wrapMode: Text.WordWrap
+                                    color: note.theme.foreground
+                                    linkColor: note.theme.link
+                                    font.pixelSize: Math.round(15 * note.theme.scale)
+                                    lineHeight: 1.5
+                                    onLinkActivated: (link) => note.onLink(link)
+                                    HoverHandler { cursorShape: rendered.hoveredLink.length > 0 ? Qt.PointingHandCursor : (note.live ? Qt.IBeamCursor : Qt.ArrowCursor) }
+                                    // In live preview a click on the text (not on a link) opens the section.
+                                    TapHandler {
+                                        enabled: note.live
+                                        onTapped: (eventPoint) => { if (rendered.hoveredLink.length === 0) note.editSection(block.index, eventPoint.position.y / Math.max(1, rendered.height)) }
+                                    }
+                                }
+                                TextArea {
+                                    id: sectionEditor
+                                    visible: block.open
+                                    width: parent.width
+                                    wrapMode: TextEdit.Wrap
+                                    textFormat: TextEdit.PlainText
+                                    font.family: note.theme.termFont
+                                    font.pointSize: 11 * note.theme.scale
+                                    color: note.theme.foreground
+                                    selectionColor: note.theme.accent
+                                    selectedTextColor: note.theme.background
+                                    selectByMouse: true
+                                    padding: 4
+                                    background: Rectangle { color: "transparent"; border.color: note.theme.line; border.width: 1; radius: 4 }
+                                    tabStopDistance: 32
+                                    onTextChanged: if (block.open && note.loaded && !note.applying) { note.dirty = true; autosave.restart() }
+                                    onCursorRectangleChanged: if (block.open) note.ensureVisibleIn(sectionEditor)
+                                    onActiveFocusChanged: if (!activeFocus && block.open) note.commitSection()
+                                    Keys.onPressed: (event) => {
+                                        if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_S) { note.save(); event.accepted = true }
+                                        else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_E) { note.toggleEditing(); event.accepted = true }
+                                        else if (event.key === Qt.Key_Escape) { note.commitSection(); event.accepted = true }
+                                    }
+                                }
+                                MarkdownHighlighter { target: sectionEditor.textDocument; tokens: note.theme.tokens; monoFamily: note.theme.termFont }
                             }
                         }
                         Text { visible: note.chunks.length === 0; text: "Empty page"; color: note.theme.faint; font.pixelSize: Math.round(14 * note.theme.scale); font.italic: true }
@@ -561,7 +657,7 @@ Item {
 
                     // The mock's footer: who links here.
                     RowLayout {
-                        visible: !note.editing && note.backlinkCount > 0
+                        visible: !note.sourceVisible && note.backlinkCount > 0
                         Layout.fillWidth: true
                         Layout.topMargin: 28
                         spacing: 13
@@ -583,7 +679,7 @@ Item {
                     // Source editor: the whole file, highlighted, autosaved.
                     TextArea {
                         id: editor
-                        visible: note.editing
+                        visible: note.sourceVisible
                         Layout.fillWidth: true
                         wrapMode: TextEdit.Wrap
                         textFormat: TextEdit.PlainText
@@ -597,7 +693,7 @@ Item {
                         padding: 0
                         background: null
                         tabStopDistance: 32
-                        onTextChanged: if (note.editing && note.loaded && !note.applying) { note.dirty = true; autosave.restart() }
+                        onTextChanged: if (note.sourceVisible && note.loaded && !note.applying) { note.dirty = true; autosave.restart() }
                         onCursorRectangleChanged: note.ensureCursorVisible()
                         onActiveFocusChanged: if (!activeFocus && note.dirty) note.save()
                         Keys.onPressed: (event) => {

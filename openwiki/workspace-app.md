@@ -2,10 +2,14 @@
 type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
-generated: {by: "claude-code", at: "2026-09-05T05:12:39.191Z"}
+generated: {by: "claude-code", at: "2026-09-05T05:26:45.338Z"}
 sources:
   - id: openwiki-source-4059556410fe6db8498fe8e9
     resource: repo://crates/rusty-app/build.rs
+  - id: openwiki-source-fa382d435f8c22ac0f23d0c6
+    resource: repo://crates/rusty-app/cpp/tools.cpp
+  - id: openwiki-source-d2bdf6ec1c7f1e0a3412e424
+    resource: repo://crates/rusty-app/cpp/tools.h
   - id: openwiki-source-a2d65a21b1f78042c4d974ff
     resource: repo://crates/rusty-app/qml/AgentTerminal.qml
   - id: openwiki-source-1762a766e47a090b0ce4e932
@@ -48,6 +52,8 @@ sources:
     resource: repo://crates/rusty-app/src/folders.rs
   - id: openwiki-source-c8c0347aa7a687c601520d1a
     resource: repo://crates/rusty-app/src/main.rs
+  - id: openwiki-source-659b16aac0bb21abcdfa4b6f
+    resource: repo://crates/rusty-app/src/markdown.rs
   - id: openwiki-source-c3978cc62c783d6d3ec4b39d
     resource: repo://crates/rusty-app/src/skin.rs
   - id: openwiki-source-720644bc52136dc05589b8d5
@@ -60,7 +66,7 @@ sources:
     resource: repo://scripts/screenshot.sh
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T05:18:20.718Z
+    at: 2026-09-05T05:26:45.338Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -158,8 +164,10 @@ every view backed by the MCP server that agents share.
   a `Dialog`'s content and the field used to spill past the edge.
 - A page tab (`NoteTab`) asks `brain_render` with the theme's style and
   `brain_get_links`, shows the inline title (Enter renames through `brain_rename`), the
-  properties, then the reading view as one rich-text block per top-level section, or
-  the source in a `TextArea` with the highlighter. The properties block is the editor:
+  properties, then one of three views: the reading view as one rich-text block per
+  top-level section, live preview (TICKET-028: the same blocks, a click on one opening
+  that section alone as a highlighted source editor), or the whole source in a
+  `TextArea` with the highlighter. The properties block is the editor:
   each value edits by its type (a text or date field, a number, a checkbox, list chips
   with add and remove; tag chips also open a `tag:` search), a row can be removed, and
   "Add property" adds a key of a chosen type, all through `brain_set_property` and
@@ -177,7 +185,20 @@ every view backed by the MCP server that agents share.
   duplicate refused without case, a scalar `tags:` kept as one tag), and the counts,
   `tag:` search and the graph follow the same change notification. Edits autosave
   after 1.5 s and on Ctrl+S through `brain_write_page`; a `dataChanged` reloads only
-  when the editor is clean. Each tab keeps its own history.
+  when the editor is clean. Each tab keeps its own history. Live preview is the default
+  editing mode (`ui.editMode`, `live` or `source`, per the user; `Ctrl+E` and the header
+  toggle reading against it, "View: Reading view", "View: Live preview" and "View:
+  Source mode" set it, the header reads `[ READ ]`, `[ LIVE ]` or `[ EDIT ]`). The page
+  is split into parts by `page_sections` in Rust — the frontmatter, then one part per
+  heading line outside fenced code, joined back byte for byte, tested — reached through
+  `Tools.pageSections`, and the parts line up with the renderer's `HEADING_MARK` blocks
+  one to one; when they do not (a setext heading, a heading inside a footnote), live
+  preview edits the whole body in the source editor rather than guess. A click opens a
+  section with the caret on the line the click's height points at; a save assembles the
+  page from the parts with the open section's text in place; while a section is open the
+  page is not re-rendered (a save's answer and a change notification wait), and
+  committing it — Escape, a click elsewhere, leaving edit mode — renders again. A link
+  in a rendered block still opens on a click.
 - Terminals (`AgentTerminal`): `qmltermwidget` running `tmux new-session -A -s
   <session> -c <dir> <program>` with `set-titles on`, so Claude Code's and Codex's
   titles reach the tab; output in a hidden tab marks it unread, a title that asks for
@@ -438,6 +459,10 @@ an agent run it are in `workflow-and-gates.md`.
 - `scripts/screenshot.sh <out> "open:sources/example-com-launchers"` photographs a
   source page the script seeds; the script maps the `reading` scene alone to the empty
   scene (an exact match, since a scene path may hold the word).
+- `cargo test -p rusty-app markdown::tests::page_sections_split_at_headings_outside_fences`
+  covers the split live preview edits by: the frontmatter, the preamble, six levels, a
+  fenced `#` kept in its section, the parts concatenating to the page.
+  `scripts/screenshot.sh <out> "live:1"` photographs a page with one section open.
 
 ## Primary sources
 

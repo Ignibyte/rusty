@@ -294,6 +294,10 @@ workflow in `CONSTITUTION.md`.
       (a fetch, an in-house HTML extractor, `pdftotext` for PDF), indexed like any page; three
       tools, `rusty-cli source capture|search`, a capture dialog and a glyph in the tree; every
       answer an agent gets about a source marked untrusted and normalised; 85 tools
+- [x] TICKET-028 Live preview editing (2026-09-05): a third view at the section grain — a
+      click on a rendered block opens that section alone as a highlighted source editor, the
+      rest stays rendered, the same autosave and Ctrl+S; the editing mode (live by default)
+      kept per user; `page_sections` in Rust, joined back byte for byte
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

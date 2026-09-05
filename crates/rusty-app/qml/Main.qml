@@ -75,6 +75,8 @@ ApplicationWindow {
         property string skillsLayout: ""
         // The agent pane's session id per page, as JSON (TICKET-025).
         property string agentSessions: "{}"
+        // The editing mode a page opens in on Ctrl+E: "live" or "source" (TICKET-028).
+        property string editMode: "live"
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
@@ -82,6 +84,7 @@ ApplicationWindow {
         onLeftOpenChanged: save()
         onSkillsLayoutChanged: save()
         onAgentSessionsChanged: save()
+        onEditModeChanged: save()
         onRightOpenChanged: save()
         onLeftPaneChanged: save()
         onRightPaneChanged: save()
@@ -110,6 +113,7 @@ ApplicationWindow {
                 if (typeof s.theme === "string") ui.theme = s.theme
                 if (typeof s.skillsLayout === "string") ui.skillsLayout = s.skillsLayout
                 if (typeof s.agentSessions === "string") ui.agentSessions = s.agentSessions
+                if (s.editMode === "live" || s.editMode === "source") ui.editMode = s.editMode
                 if (typeof s.textSize === "number" && s.textSize > 0) { theme.setTextSize(s.textSize); ui.textSize = theme.baseSize }
             } catch (e) {}
             ui.loaded = true
@@ -117,7 +121,7 @@ ApplicationWindow {
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize, skillsLayout: ui.skillsLayout, agentSessions: ui.agentSessions }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize, skillsLayout: ui.skillsLayout, agentSessions: ui.agentSessions, editMode: ui.editMode }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -530,6 +534,7 @@ ApplicationWindow {
                 else if (p.startsWith("agent:ask:")) { win.showRight("agent"); rightPane.askAgent(p.slice(10)) }
                 else if (p.startsWith("import:")) win.planImport(shot.resolve(p.slice(7)))
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
+                else if (p.startsWith("live:") && win.currentNote) { ui.editMode = "live"; win.currentNote.editing = true; const n = parseInt(p.slice(5)); Qt.callLater(function () { win.currentNote.editSection(isNaN(n) ? 0 : n, 0) }) }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
@@ -591,6 +596,9 @@ ApplicationWindow {
             { name: "View: Reset text size", keys: "Ctrl+0", run: function () { win.setTextSize(14) } },
             { name: "Daily notes: Open today's daily note", keys: "", run: function () { win.todayNote() } },
             { name: "Toggle reading view", keys: "Ctrl+E", enabled: win.currentNote !== null, run: function () { win.currentNote.toggleEditing() } },
+            { name: "View: Reading view", keys: "", enabled: win.currentNote !== null, run: function () { if (win.currentNote.editing) win.currentNote.toggleEditing() } },
+            { name: "View: Live preview", keys: "", enabled: win.currentNote !== null, run: function () { ui.editMode = "live"; if (!win.currentNote.editing) win.currentNote.toggleEditing() } },
+            { name: "View: Source mode", keys: "", enabled: win.currentNote !== null, run: function () { ui.editMode = "source"; if (win.currentNote.editing) { win.currentNote.commitSection(); win.currentNote.liveWhole = false } else win.currentNote.toggleEditing() } },
             { name: "Save current file", keys: "Ctrl+S", enabled: win.currentNote !== null, run: function () { win.currentNote.save() } },
             { name: "Files: Reveal current file in explorer", keys: "", enabled: win.currentNote !== null, run: function () { win.showLeft("files"); explorer.reveal(win.currentNote.slug) } },
             { name: "Files: Rename current file", keys: "F2", enabled: win.currentNote !== null, run: function () { win.currentNote.editTitle() } },
@@ -786,6 +794,8 @@ ApplicationWindow {
                 backend: win.backend
                 theme: win.theme
                 tags: win.tags
+                sectionTools: tools
+                editMode: ui.editMode
                 isCurrent: host.isCurrent
                 Component.onCompleted: open(host.slug)
                 onNavigated: (s, t) => win.tabNavigated(host.index, s, t)

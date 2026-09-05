@@ -1,6 +1,6 @@
 ---
 title: TICKET-028-live-preview-editing
-status: open
+status: done
 ticket_number: 028
 type: feature
 created: 2026-09-04
