@@ -262,6 +262,11 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-010 Scripts as commands (2026-09-03): a `*.sh` beside a skill is `rusty <name>`,
       dispatched by the app binary through `rusty-cli scripts run`; the CLI's `scripts` family,
       four tools, a Scripts section of the Skills tab with Run in a terminal tab
+- [x] TICKET-021 Terminal clipboard (2026-09-05): Ctrl+Shift+C and Ctrl+Shift+V, middle
+      click pasting the primary selection, a right-click menu whose Copy follows the widget's
+      own selection state; the chords attach to the terminal item so plain Ctrl+C stays the
+      interrupt, and the middle button takes an exclusive grab so the widget's native paste
+      does not fire a second time
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

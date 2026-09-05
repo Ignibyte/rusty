@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:854d8f22b4cc27af73ead4160a434c34ba37891cfab7d1d43bf299ad21a48ff0",
+  "pageVersion": "sha256:6675a0097b854ba4101dd30d1a7873e4f90d42e174406cb2ecf790072de05e37",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -41,11 +41,11 @@
       "statement": "Each terminal is a tmux session with titles forwarded; a title that asks for attention raises a desktop notification once per title and at most once a minute.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L45-L47",
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L48-L50",
           "version": "repo-lines-v1:sha256:1b8a09518234e4abeaeb60b465a06935f4e2daa0cd94f6ac8615da3106d60b5a:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTM2OTBhYTE1NGY2ZTY0MGI2MDI5ZmJlNWQzY2VjNGMyYjUzMjhmYzJjNTMzMTFmN2IxOTY4Y2UwN2IzYjc0OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODE3MWQyNDMyOTY2NWI5YjkwY2U4MjA1NzQ1ZWQyZTJmYzJjMTQzNDYxZDRlYmFjNDRlNjFkM2Q4OTg0ZmEwNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjM2ZjM0YWQ0ZGE3ZDBlYzI4OGU1MmNlZjY3N2JkYjUyYzIwY2ZmMjgwZGZhZTg4ZTFmYzQ5MzBlM2EzNmRjMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmUwMmM2NWZmMmU2ZGM3NGQ0ZDRjODZhMjczNWJmZDdmOTNhOGJhYjAwMWY4Nzk3ZDU5M2ZhZWQwZGI2OTJkMiJ9"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L67-L81",
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L99-L113",
           "version": "repo-lines-v1:sha256:e52f1ce948ba60399b405db7a905d46ec06b3947fc307978e5b1ed8777bf7478:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxZjgwNDNlYmNiNDIyMGFhMTk2OTAxMzM0Zjg5ZTk4NGVmMmRhNjZhZjIyNmRhZGE0YjU4ZjFkMTgxYTZlMzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllMWFiNTU2NDllMzkyMzI1OGFlMTAwN2QwMzU4ZDJhMzYwMDAxZDVjMjYyMDYyOWI4ZTFiOGRkZmY3YjVhZTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU5Nzk4MjZkNGQxNDc1OTJkZDgwODg3MGMxNTkzY2E3ZWJkNzA0N2I3ZDZjZjlhZWFkZjA2YjMzZWMyZWE4YTIifQ"
         }
       ]
@@ -261,7 +261,7 @@
           "version": "repo-lines-v1:sha256:b95146517f33c2be1968849ea12a4b2e73120be5f3c6814895a48cfbedf1b9d3:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjk1MTQ2NTE3ZjMzYzJiZTE5Njg4NDllYTEyYTRiMmU3MzEyMGJlNWYzYzY4MTQ4OTVhNDhjZmJlZGYxYjlkMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjk1MTQ2NTE3ZjMzYzJiZTE5Njg4NDllYTEyYTRiMmU3MzEyMGJlNWYzYzY4MTQ4OTVhNDhjZmJlZGYxYjlkMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2JkN2RjNzgwZjlmYTQzOGI4NzFmOWRmZmQ2YWQ4NTA4YTJlMzVmMDg1MGQxNzM3YjM0YzJhMzNhMjQ2Yzk0NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzNhZTZlZTY2NDA5NjUyOWVjY2JhNmEwZjVhOGU4ZGNlYWMxN2ZlYWIwOWMxNTMyODgwNmIwMzc1YzY5Yjk5ZiJ9"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L36-L37",
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L39-L40",
           "version": "repo-lines-v1:sha256:7129ce9b2c867de3c11f80123b9392a49000fedceed84aeccdf5972264956aac:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQwNDc5NjRiOGQxOGQ2ZWQxNmFmYjJmNTY4OGFmYTE4OTAxYzJlMGIwNzI1OWFjODJkMTI1NzUxM2NhMGNkZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmVlODc3YjlkNjI0NjkwMjM0MWVmZTBmMjdmZWMwMDFlNDEzZTY3ZDU1NTViYWVmNmFhMDU0YjA5YmY1OGM0NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTk4MjdkMDA5M2M3N2E2YTMzNzIwYTNhMDU4YThkZjlmZWM5YThjNzAyYmFjOTdhZTU1MDM4MzdjZjdiOGJmYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2VjYTk1NDZmOTlkODc3YThlZTk2Mzk3OWQ4Nzc0YjU1YjMzZTg4NDNlMjc0N2FjYmRlOTcxOWM3YTA1NjhlNCJ9"
         }
       ]
@@ -459,10 +459,28 @@
           "version": "repo-lines-v1:sha256:45c2a51856cc81a491c316bf94166127d73f711b635206554157667f897e6c35:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk4MWI2NTAzMjE2ZjU4ZjQ5YmQ4ODA0MzY0Mzk2ZmY5ZmQ2ZWQzNjY4MmU0NzYxM2Q3M2UzZmEwNTcxMmIyYzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZDM1MDA2NmIxZTc0ZDEzYTg2ZGRkZmMzMWMxZDAyZmQyYzA1ZDU4N2ViNzk5YTMxZWE5NDY5OTFiN2NiMjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY4OTYyODJkNmIwMTcyNzhlNTI3NTFjMWJjODZiNWQ0NWMxMGVjZjFiMmU4YmQ4ZDY2ODU4M2M0ZDMyOWMxMjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUyZWE3YTcyY2Q1NTdlNmU1ZWE5MWZjMThlZDI4YTI4NTRlNDNlNjZlYzA0ZTE0OGUyZGQ3N2Q1ODY3OTc4ZmIifQ"
         }
       ]
+    },
+    {
+      "id": "claim_4aae567f7a6043059af4e64452ea2c2b",
+      "statement": "A terminal's clipboard is bound on the widget itself: Ctrl+Shift+C and Ctrl+Shift+V call the exported `copyClipboard` and `pasteClipboard`, attached with `Keys.priority: BeforeItem` so they run before the widget's own key handling and plain Ctrl+C stays the shell's interrupt; a `TapHandler` accepting only the middle and right buttons pastes the primary selection (`pasteSelection`) or opens a Copy/Paste menu, taking an exclusive grab (`ReleaseWithinBounds`) so the widget's native middle-click paste cannot fire a second time and a left-button drag still selects; the menu's Copy is enabled by the widget's `copyAvailable` signal, read through `Connections { ignoreUnknownSignals: true }`.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L54-L76",
+          "version": "repo-lines-v1:sha256:a03517931bb379cb1bfb11c3d6d2d321e919613cc46bcb86307dcc55749a5b3e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0ODgxZjE1NWRjMTVmZjdmNGUwZmZmNzc4MTViZWQ1MGM0MGMyZDAyZDllZWM0ZDgxOWJhZWU2ZjU4OGI1MDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJlMDJjNjVmZjJlNmRjNzRkNGQ0Yzg2YTI3MzViZmQ3ZjkzYThiYWIwMDFmODc5N2Q1OTNmYWVkMGRiNjkyZDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ4ODk1OTMxNjYzMjM4M2E1MzlhYzZhYzkyNjJmMzZmZDlmZjcxOWRjODdhYjJlNDNmNmViNzU5MWU0ZTkzZmIifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L79-L83",
+          "version": "repo-lines-v1:sha256:ef0264d7d36c01983fa87eca30deb2fb585b4f45ad3a68efea1478d0abad4ad5:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGIyZmU4NjRiM2JiM2JkZTVkM2I2ODA3NTE5MzRkMTY5MWFhMmQwOGNlYTczMWU2OGE5MWU0MjNmMDNkNmQ1OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTk5YmRlZmVlYWNhNjM0MGUwMjkwZGM4NmU4ODljODlkNWUxODlhYTViYTQ0YjU4NWIzYjcwNzM0ZjRhNjJkOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODNhY2RhMTk2NDdmMGU4M2FhNDQyZjk4ODMwMDY5MjU3YTk4YWNiMDdlNDM1YWEwN2M3ZmM1NzZiZWQ2MDQ0NSJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/AgentTerminal.qml#L124-L132",
+          "version": "repo-lines-v1:sha256:7002cb16dd4e9008d34ef649a693f6d2b6db787c568f491fb3d01ffaf4b485f3:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTUxNTQzNTNjY2RmNGI5ZGM1YjFiYjg3YWZkMjI2MmJkNTg4YmZlODE4NGUxOTI2YmQ3ZjU0NTYyY2Q3YTdmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGIwODQ0MmU2NzExM2JlZmYxNDU0MjM3ZmFjNGRhNTcxNzdiMDY2NzFmMzBmY2Y5YmVhNDkwYjBhN2IyNjVjNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjEsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T03:04:53.524Z"
+    "at": "2026-09-05T03:17:22.876Z"
   }
 }

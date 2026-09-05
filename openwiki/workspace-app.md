@@ -47,10 +47,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-05T03:04:53.524Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:17:22.876Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:04:53.524Z
+    at: 2026-09-05T03:17:22.876Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -139,7 +139,18 @@ every view backed by the MCP server that agents share.
   <session> -c <dir> <program>` with `set-titles on`, so Claude Code's and Codex's
   titles reach the tab; output in a hidden tab marks it unread, a title that asks for
   attention raises a desktop notification once per title and at most once a minute. A
-  terminal starts its session when first shown.
+  terminal starts its session when first shown. Its clipboard (TICKET-021) is bound on
+  the widget itself, because the workspace's shortcuts stand down while a terminal has
+  focus and a window-level `Shortcut` would never fire: Ctrl+Shift+C and Ctrl+Shift+V
+  call the exported `copyClipboard` and `pasteClipboard`, attached with `Keys.priority:
+  BeforeItem` so plain Ctrl+C still reaches the shell as an interrupt. A `TapHandler`
+  accepting only the middle and right buttons pastes the primary selection
+  (`pasteSelection`) or opens a Copy/Paste menu; it takes an exclusive grab
+  (`ReleaseWithinBounds`) because Konsole's `TerminalDisplay` pastes on a middle click
+  natively and a passive area above it would paste twice, and a left-button drag still
+  selects because that button is never accepted. Copy in the menu follows the widget's
+  `copyAvailable` signal, read through `Connections { ignoreUnknownSignals: true }` as
+  every other third-party signal here is.
 - The graph (`GraphView`, tab kind `graph`, Ctrl+G, the ribbon, "Open local graph" on a
   page): `brain_graph` supplies nodes and edges; a force simulation on a timer
   (repulsion between every pair, springs on the edges toward the link distance, a pull

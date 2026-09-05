@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QMLTermWidget
 import dev.ignibyte.rusty
 
@@ -22,6 +23,8 @@ Item {
     property string title: ""
     signal unread()
     signal attention(string message)
+    // Whether there is a selection to copy; the widget says so through copyAvailable.
+    property bool copyAvailable: false
 
     onIsCurrentChanged: if (isCurrent) term.forceActiveFocus()
     onReadyChanged: if (ready) start()
@@ -48,6 +51,35 @@ Item {
         }
         Component.onCompleted: { if (tab.ready) tab.start(); if (tab.isCurrent) term.forceActiveFocus() }
         QMLTermScrollbar { terminal: term; width: 8; Rectangle { anchors.fill: parent; color: tab.theme.accent; opacity: 0.4; radius: 4 } }
+        // The terminal convention: the shifted chords copy and paste, so plain Ctrl+C
+        // stays the interrupt. Attached before the widget's own handling, because the
+        // workspace's shortcuts stand down while a terminal has focus and would never
+        // see these.
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: (event) => {
+            const chord = (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier)
+            if (!chord) return
+            if (event.key === Qt.Key_C) { term.copyClipboard(); event.accepted = true }
+            else if (event.key === Qt.Key_V) { term.pasteClipboard(); event.accepted = true }
+        }
+        // Middle click pastes the primary selection, right click opens the menu. A
+        // handler rather than a MouseArea: it never touches the wheel, it accepts only
+        // these two buttons so a left-button drag still selects, and its exclusive grab
+        // keeps the widget's own middle-click handling from pasting a second time.
+        TapHandler {
+            acceptedButtons: Qt.MiddleButton | Qt.RightButton
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: (point, button) => {
+                if (button === Qt.MiddleButton) term.pasteSelection()
+                else termMenu.popup()
+            }
+        }
+    }
+
+    Menu {
+        id: termMenu
+        MenuItem { text: "Copy"; enabled: tab.copyAvailable; onTriggered: term.copyClipboard() }
+        MenuItem { text: "Paste"; onTriggered: term.pasteClipboard() }
     }
 
     function markUnread() { if (!tab.isCurrent) tab.unread() }
@@ -93,6 +125,7 @@ Item {
         ignoreUnknownSignals: true
         // imagePainted fires whenever the emulation has new output, shown or not.
         function onImagePainted() { tab.markUnread() }
+        function onCopyAvailable(available) { tab.copyAvailable = available }
         function onActivity() { tab.markUnread() }
         function onBell() { tab.rang() }
         function onNotifyBell() { tab.rang() }

@@ -1,6 +1,6 @@
 ---
 title: TICKET-021-terminal-clipboard
-status: open
+status: done
 ticket_number: 021
 type: fix
 created: 2026-09-04
