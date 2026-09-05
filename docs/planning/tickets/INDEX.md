@@ -4,13 +4,21 @@ This directory is the authoritative ticket store for Ignibyte/rusty.
 
 - Open tickets: [`open/`](open/)
 - Closed tickets: [`closed/`](closed/)
-- **Next ticket number: `021`**
+- **Next ticket number: `029`**
 
 ## Open queue
 
-- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (in progress 2026-09-03)
+- [`TICKET-010` — Scripts as commands](open/TICKET-010-scripts-as-commands.md) (in progress 2026-09-03; delivered per ROADMAP — close it out)
 - [`TICKET-019` — Folders, part two: file operations](open/TICKET-019-folder-file-operations.md) (queued 2026-09-03)
 - [`TICKET-020` — Folders, part three: git decorations](open/TICKET-020-folder-git-decorations.md) (queued 2026-09-03)
+- [`TICKET-021` — Terminal clipboard](open/TICKET-021-terminal-clipboard.md) (queued 2026-09-04)
+- [`TICKET-022` — Workspace chrome fixes](open/TICKET-022-workspace-chrome-fixes.md) (queued 2026-09-04)
+- [`TICKET-023` — Skills page layout](open/TICKET-023-skills-page-layout.md) (queued 2026-09-04)
+- [`TICKET-024` — First-class tagging](open/TICKET-024-first-class-tagging.md) (queued 2026-09-04)
+- [`TICKET-025` — Native agent pane](open/TICKET-025-native-agent-pane.md) (queued 2026-09-04)
+- [`TICKET-026` — Obsidian vault migration](open/TICKET-026-obsidian-vault-migration.md) (queued 2026-09-04)
+- [`TICKET-027` — Personal search engine](open/TICKET-027-personal-search-engine.md) (queued 2026-09-04, from intake)
+- [`TICKET-028` — Live preview editing](open/TICKET-028-live-preview-editing.md) (queued 2026-09-04)
 
 ## Closed
 

@@ -1,8 +1,8 @@
 ---
 title: INTAKE-personal-search-engine
-status: candidate
+status: promoted
 created: 2026-09-04
-ticket:
+ticket: TICKET-027
 ---
 
 # INTAKE-personal-search-engine
@@ -92,6 +92,6 @@ product; without those cuts it is a months-long project of its own.
 
 ## Promotion
 
-- [ ] Ticket created under `docs/planning/tickets/open/` and rowed into `INDEX.md`.
+- [x] Ticket created under `docs/planning/tickets/open/` and rowed into `INDEX.md`.
 - [ ] Spec/notes pair created under `docs/planning/pipeline/active/`.
-- [ ] `ticket:` set; `status:` set to `promoted`.
+- [x] `ticket:` set; `status:` set to `promoted`.
