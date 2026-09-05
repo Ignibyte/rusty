@@ -1,6 +1,6 @@
 ---
 title: TICKET-019-folder-file-operations
-status: open
+status: done
 ticket_number: 019
 type: feature
 created: 2026-09-03

@@ -51,10 +51,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-05T03:38:24.130Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:55:21.200Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:38:24.130Z
+    at: 2026-09-05T03:55:21.200Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -234,13 +234,30 @@ listing cached until Refresh (folders first, names without case, dotfiles skippe
 by extension and then a sniff of the first eight kilobytes (`markdown`, `image`, `text`,
 `other`), text up to a megabyte, and `xdg-open` for the rest. The disk rows join the
 explorer's one list with their own kinds (`section`, `root`, `dir`, `disk`), so keys and
-the current row work as they do for the vault. A click on a file opens a read-only `file`
-tab: markdown rendered by `brain_render` given the text (a Source toggle shows the
-numbered text), text as numbered monospace lines, an image fitted; any other kind goes to
-the desktop. A folder's menu offers one entry per installed agent and a shell, each
+the current row work as they do for the vault. A click on a file opens a `file` tab:
+markdown rendered by `brain_render` given the text (a Source toggle shows the numbered
+text), text as numbered monospace lines, an image fitted; any other kind goes to the
+desktop. A folder's menu offers one entry per installed agent and a shell, each
 `openTerminal` with that folder as the working directory, copy path, reveal in the file
-manager, and Refresh. Links, backlinks, graph and search never see a root. File operations
-and git decorations are TICKET-019 and TICKET-020.
+manager, and Refresh. Links, backlinks, graph and search never see a root.
+
+Part two (TICKET-019) writes the disk through the same `Folders` type, six invokables
+that answer `{ok, path}` or `{ok, error}`: `createFile`, `createDir`, `renameEntry`,
+`moveEntry`, `trash`, `writeText`. A folder's menu adds New file…, New folder…, Rename…,
+Move to… and Delete; F2 renames inline and Delete opens the delete dialog on the current
+row, disk or vault; a disk row drags onto a folder or root row under the same root
+(`DragHandler`, no target of its own, the drop found by `indexAt` — never across roots,
+never onto the vault, a drop on its own folder a no-op). Every write refuses an existing
+target; a name that is empty, `.`, `..` or holds a slash is refused before the disk is
+touched; Delete moves the entry to the XDG home trash (`$XDG_DATA_HOME/Trash`, else
+`~/.local/share/Trash`) with its `.trashinfo` record written first and a copy across
+devices, so a file manager can restore it. On `ok` the explorer drops the root's listing
+cache and rebuilds; an error shows in its notice and changes nothing else. A text or
+markdown file's tab has Edit: a `TextArea` in the terminal face with no highlighter, a
+dirty mark, a save one and a half seconds after the last keystroke and on Ctrl+S through
+`writeText` (a sibling temporary file renamed over the path, the mode kept), Reload
+refused with a notice while dirty, the rendered view refreshed after a save. Git
+decorations are TICKET-020.
 
 The Skills tab (`SkillsPage.qml`) carries a Scripts section beside the skill list, fed by
 `script_list` and `script_view` and saved through `script_update`. A script is edited
@@ -273,8 +290,9 @@ an agent run it are in `workflow-and-gates.md`.
   owns, not in QtCore `Settings` (which rewrote string properties with their defaults).
 - The app touches nothing under `~/.rusty` itself: the PIN, its hash and the secrets
   file are the back end's; a value reaches the page only through a tool answer.
-- The disk is not the store: a folder root is read by the app alone, part one writes
-  nothing under it, and no root reaches a brain tool.
+- The disk is not the store: a folder root is read and written by the app alone, no root
+  reaches a brain tool, and no disk write overwrites anything — an existing target is
+  refused, a delete is a move to the trash, a text save is an atomic rename.
 - The command path never starts Qt. It resolves and execs before any Qt object exists,
   so a script inherits the terminal it was typed in rather than the app's environment.
 
@@ -289,6 +307,11 @@ an agent run it are in `workflow-and-gates.md`.
 - `rusty <name>` with a name no script answers to opens the workspace instead of
   reporting an unknown command, because the check is a lookup and its miss is the app's
   ordinary start. A script that exists but is pending exits 126 with the reason.
+- A disk write that fails (a name in use, a permission, a root that vanished) comes back
+  as `{ok: false, error}` and the explorer shows the reason in its notice; a root that is
+  the vault folder itself takes disk writes past the index until the watcher's next
+  burst, as any outside editor does; a text save over a symlink leaves a real file where
+  the link was.
 
 ## Extension points
 
@@ -303,6 +326,11 @@ an agent run it are in `workflow-and-gates.md`.
   Omarchy mapping, theme files, tokens), the colour math, the desk readings.
 - `scripts/screenshot.sh` for the visual record; pointer and keyboard walks are done
   by hand, never by synthetic input on the user's desktop.
+- `cargo test -p rusty-app folders::` covers the listing, the kind sniff, the text cut,
+  and the writes on temporary trees: names refused, existing targets refused, rename and
+  move inside the tree, the trash record and its free-name suffix, the atomic write
+  keeping the mode. `scripts/screenshot.sh <out> "file:<path>,file:edit"` photographs the
+  edit mode.
 
 ## Primary sources
 

@@ -272,6 +272,10 @@ workflow in `CONSTITUTION.md`.
       reorder by drag (the Tasks page's handler, turned sideways); the rename dialog lays its
       field out; the tab strip's `+` is a menu — the page switcher, every top-bar agent by
       name, the custom terminal
+- [x] TICKET-019 Folders, part two (2026-09-05): new file, new folder, rename, move by drag or
+      dialog and delete under a folder root act on the disk through the app's `Folders` type,
+      delete a move to the XDG trash with its record; a text or markdown file's tab has an
+      edit mode with the note editor's autosave and Ctrl+S, saved atomically
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

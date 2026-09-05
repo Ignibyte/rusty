@@ -117,7 +117,20 @@ Item {
         if (clean.length === 0) return
         ask("brain_new_folder", { path: parent.length > 0 ? parent + "/" + clean : clean }, "folder")
     }
+    function isDiskRow(r) { return r !== null && r !== undefined && (r.kind === "dir" || r.kind === "disk") }
+    // A disk write answers `{ok, path}` or `{ok, error}`; the tree follows the disk on
+    // success and the reason shows in the notice otherwise (TICKET-019).
+    function diskResult(json) {
+        try { const r = JSON.parse(json); if (r.ok) { notice = ""; refreshDisk() } else notice = r.error }
+        catch (e) { notice = String(e) }
+    }
+    function newDiskFile(dir, name) { diskResult(folders.createFile(dir, name)) }
+    function newDiskFolder(dir, name) { diskResult(folders.createDir(dir, name)) }
+    function moveDisk(path, into) { diskResult(folders.moveEntry(path, into)) }
+    // The root that holds `path`, or "" — a drag never crosses roots or reaches the vault.
+    function rootOf(path) { for (const r of roots) if (path === r.path || path.startsWith(r.path + "/")) return r.path; return "" }
     function rename(row, newName) {
+        if (isDiskRow(row)) { diskResult(folders.renameEntry(row.path, newName)); return }
         const clean = newName.trim().replace(/\//g, "-")
         if (clean.length === 0 || clean === row.name) return
         const dir = row.path.indexOf("/") >= 0 ? row.path.slice(0, row.path.lastIndexOf("/") + 1) : ""
@@ -125,6 +138,7 @@ Item {
     }
     function moveTo(row, folder) { ask("brain_rename", { from: row.path, to: folder + "/" }, "renamed") }
     function remove(row) {
+        if (isDiskRow(row)) { diskResult(folders.trash(row.path)); return }
         if (row.kind === "folder") ask("brain_delete_folder", { path: row.path }, "deleted")
         else ask("brain_delete_page", { slug: row.path }, "deleted")
     }
@@ -209,7 +223,15 @@ Item {
             spacing: 0
             keyNavigationEnabled: true
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            property int dragFrom: -1
             Keys.onReturnPressed: { const r = explorer.rowAt(currentIndex); if (r) { if (r.kind === "page") explorer.openPage(r.path); else if (r.kind === "disk") explorer.openFile(r.path); else if (explorer.isDirRow(r)) explorer.toggle(r.path) } }
+            // F2 and Delete act on the current row whichever half of the list it is in.
+            Keys.onPressed: (event) => {
+                const r = explorer.rowAt(currentIndex)
+                if (!r || r.kind === "section" || r.kind === "root" || r.kind === "file") return
+                if (event.key === Qt.Key_F2) { explorer.renaming = r.path; event.accepted = true }
+                else if (event.key === Qt.Key_Delete) { deleteDialog.openFor(r); event.accepted = true }
+            }
             Keys.onRightPressed: { const r = explorer.rowAt(currentIndex); if (explorer.isDirRow(r) && !explorer.expanded[r.path]) explorer.toggle(r.path) }
             Keys.onLeftPressed: { const r = explorer.rowAt(currentIndex); if (explorer.isDirRow(r) && explorer.expanded[r.path]) explorer.toggle(r.path) }
             delegate: Item {
@@ -284,6 +306,30 @@ Item {
                     }
                 }
                 HoverHandler { id: rowHover }
+                // Drag a file or folder on disk onto a folder or root under the same root
+                // to move it there; the handler moves nothing itself, and a press that
+                // becomes a drag never fires the tap below.
+                DragHandler {
+                    id: rowDrag
+                    enabled: explorer.isDiskRow(row.modelData)
+                    target: null
+                    xAxis.enabled: false
+                    onActiveChanged: {
+                        if (active) { list.dragFrom = row.index; return }
+                        const from = list.dragFrom
+                        list.dragFrom = -1
+                        if (from < 0) return
+                        const p = row.mapToItem(list.contentItem, 0, rowDrag.centroid.position.y)
+                        const to = list.indexAt(4, p.y)
+                        const src = explorer.rowAt(from); const dst = explorer.rowAt(to)
+                        if (!src || !dst || to === from) return
+                        if (dst.kind !== "dir" && dst.kind !== "root") return
+                        if (dst.path === src.path.slice(0, src.path.lastIndexOf("/"))) return
+                        const root = explorer.rootOf(src.path)
+                        if (root.length === 0 || explorer.rootOf(dst.path) !== root) return
+                        explorer.moveDisk(src.path, dst.path)
+                    }
+                }
                 TapHandler {
                     acceptedButtons: Qt.LeftButton
                     onTapped: {
@@ -338,6 +384,12 @@ Item {
         }
         MenuItem { text: "Open a shell here"; onTriggered: explorer.openAgentAt("shell", diskMenu.dir) }
         MenuSeparator {}
+        MenuItem { text: "New file…"; onTriggered: diskNameDialog.openFor("file", diskMenu.dir) }
+        MenuItem { text: "New folder…"; onTriggered: diskNameDialog.openFor("folder", diskMenu.dir) }
+        MenuItem { text: "Rename…"; visible: explorer.isDiskRow(diskMenu.row); height: visible ? implicitHeight : 0; onTriggered: explorer.renaming = diskMenu.row.path }
+        MenuItem { text: "Move to…"; visible: explorer.isDiskRow(diskMenu.row); height: visible ? implicitHeight : 0; onTriggered: diskMoveDialog.openFor(diskMenu.row) }
+        MenuItem { text: "Delete"; visible: explorer.isDiskRow(diskMenu.row); height: visible ? implicitHeight : 0; onTriggered: deleteDialog.openFor(diskMenu.row) }
+        MenuSeparator {}
         MenuItem { text: "Open"; visible: diskMenu.row !== null && diskMenu.row.kind === "disk"; height: visible ? implicitHeight : 0; onTriggered: explorer.openFile(diskMenu.row.path) }
         MenuItem { text: "Open outside"; visible: diskMenu.row !== null && diskMenu.row.kind === "disk"; height: visible ? implicitHeight : 0; onTriggered: explorer.folders.openExternally(diskMenu.row.path) }
         MenuItem { text: "Copy path"; onTriggered: explorer.copyText(diskMenu.row.path) }
@@ -388,7 +440,42 @@ Item {
         property var row: null
         function openFor(r) { row = r; open() }
         onAccepted: if (row) explorer.remove(row)
-        Label { text: deleteDialog.row ? "Delete " + deleteDialog.row.path + "? It moves to archive/ and can be restored by hand." : "" }
+        Label { text: deleteDialog.row ? (explorer.isDiskRow(deleteDialog.row) ? "Move " + deleteDialog.row.path + " to the trash? A file manager can restore it." : "Delete " + deleteDialog.row.path + "? It moves to archive/ and can be restored by hand.") : "" }
+    }
+
+    // A name for a new file or folder on disk (TICKET-019).
+    Dialog {
+        id: diskNameDialog
+        title: what === "folder" ? "New folder" : "New file"
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property string what: "file"
+        property string dir: ""
+        function openFor(kind, folder) { what = kind; dir = folder; diskName.text = ""; open(); diskName.forceActiveFocus() }
+        onAccepted: { if (what === "folder") explorer.newDiskFolder(dir, diskName.text); else explorer.newDiskFile(dir, diskName.text) }
+        ColumnLayout {
+            spacing: 8
+            Label { text: "Inside " + diskNameDialog.dir; elide: Text.ElideMiddle; Layout.preferredWidth: 320 }
+            TextField { id: diskName; Layout.preferredWidth: 320; placeholderText: diskNameDialog.what === "folder" ? "Folder name" : "File name"; onAccepted: diskNameDialog.accept() }
+        }
+    }
+
+    // Move a file or folder on disk by typing where; the keyboard's path beside the drag.
+    Dialog {
+        id: diskMoveDialog
+        title: "Move to folder"
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property var row: null
+        function openFor(r) { row = r; diskTarget.text = r.path.slice(0, r.path.lastIndexOf("/")); open(); diskTarget.forceActiveFocus(); diskTarget.selectAll() }
+        onAccepted: if (row) explorer.moveDisk(row.path, diskTarget.text.trim())
+        ColumnLayout {
+            spacing: 8
+            Label { text: diskMoveDialog.row ? "Move " + diskMoveDialog.row.name + " into" : ""; elide: Text.ElideMiddle; Layout.preferredWidth: 360 }
+            TextField { id: diskTarget; Layout.preferredWidth: 360; placeholderText: "An existing folder"; onAccepted: diskMoveDialog.accept() }
+        }
     }
 
     function openMenuFor(slug) {

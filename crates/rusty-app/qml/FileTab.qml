@@ -2,9 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// A file from a folder root, read-only in part one (TICKET-016): markdown rendered like
-// a page with a Source toggle, text in a monospace viewer with line numbers, an image
-// fitted to the tab. The disk is read through `folders`; the renderer is the back end's.
+// A file from a folder root: markdown rendered like a page with a Source toggle, text
+// in a monospace viewer with line numbers, an image fitted to the tab (TICKET-016); and,
+// for text and markdown, an edit mode that saves through `folders` after a pause and on
+// Ctrl+S (TICKET-019). The disk is read and written through `folders`; the renderer is
+// the back end's.
 Item {
     id: file
     required property var theme
@@ -19,6 +21,36 @@ Item {
     property string notice: ""
     property var pending: ({})
     readonly property string name: folders.baseName(path)
+    // Edit mode (TICKET-019): the note editor's shape — a dirty mark, autosave 1.5 s
+    // after the last keystroke, Ctrl+S, Reload refused while dirty.
+    readonly property bool editable: kind === "text" || kind === "markdown"
+    property bool editing: false
+    property bool dirty: false
+    property bool applying: false
+    function toggleEditing() {
+        if (!editable) return
+        if (editing) { if (dirty) save(); editing = false; return }
+        applying = true; editor.text = text; applying = false
+        editing = true
+        editor.forceActiveFocus()
+    }
+    function save() {
+        if (!dirty) return
+        let r
+        try { r = JSON.parse(folders.writeText(path, editor.text)) } catch (e) { notice = String(e); return }
+        if (!r.ok) { notice = r.error; return }
+        dirty = false
+        notice = ""
+        text = editor.text
+        lines = text.length > 0 ? text.split("\n") : []
+        if (kind === "markdown") render()
+    }
+    function reload() {
+        if (dirty) { notice = "unsaved changes — Ctrl+S saves them first"; return }
+        load()
+        if (editing) { applying = true; editor.text = text; applying = false }
+    }
+    Timer { id: autosave; interval: 1500; onTriggered: file.save() }
 
     function style() {
         const t = JSON.parse(theme.tokens || "{}")
@@ -73,16 +105,38 @@ Item {
                 Text { text: file.name; color: file.theme.bright; font.pixelSize: Math.round(16 * file.theme.scale); font.bold: true; elide: Text.ElideMiddle; Layout.fillWidth: true }
                 Text { text: file.path; color: file.theme.faint; font.pixelSize: Math.round(11 * file.theme.scale); font.family: file.theme.termFont; elide: Text.ElideMiddle; Layout.fillWidth: true }
             }
+            Text { visible: file.dirty; text: "•"; color: file.theme.accent; font.pixelSize: Math.round(14 * file.theme.scale) }
             Text { text: file.kind === "markdown" ? "markdown" : file.kind === "image" ? "image" : file.kind === "text" ? file.lines.length + " lines" : "file"; color: file.theme.muted; font.pixelSize: Math.round(11 * file.theme.scale) }
-            Button { visible: file.kind === "markdown"; flat: true; text: file.showSource ? "Rendered" : "Source"; onClicked: file.showSource = !file.showSource }
-            Button { flat: true; text: "Reload"; onClicked: file.load() }
+            Button { visible: file.editable; flat: true; text: file.editing ? "View" : "Edit"; onClicked: file.toggleEditing() }
+            Button { visible: file.kind === "markdown" && !file.editing; flat: true; text: file.showSource ? "Rendered" : "Source"; onClicked: file.showSource = !file.showSource }
+            Button { flat: true; text: "Reload"; onClicked: file.reload() }
             Button { flat: true; text: "Open outside"; onClicked: file.folders.openExternally(file.path) }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: file.theme.line }
 
+        // The editor: the file's text in the terminal face, no highlighter — a script or a
+        // config file wants none of the note editor's markdown colouring.
+        ScrollView {
+            visible: file.editing
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            TextArea {
+                id: editor
+                font.family: file.theme.termFont
+                font.pixelSize: Math.round(12 * file.theme.scale)
+                color: file.theme.foreground
+                wrapMode: TextEdit.NoWrap
+                selectByMouse: true
+                background: Rectangle { color: "transparent" }
+                onTextChanged: if (file.editing && !file.applying) { file.dirty = true; autosave.restart() }
+                Keys.onPressed: (event) => { if (event.key === Qt.Key_S && (event.modifiers & Qt.ControlModifier)) { file.save(); event.accepted = true } }
+            }
+        }
+
         // Markdown, rendered by the back end the way a page is.
         Flickable {
-            visible: file.kind === "markdown" && !file.showSource
+            visible: file.kind === "markdown" && !file.showSource && !file.editing
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -104,7 +158,7 @@ Item {
         // Text, and markdown's source: numbered monospace lines.
         ListView {
             id: source
-            visible: file.kind === "text" || (file.kind === "markdown" && file.showSource)
+            visible: !file.editing && (file.kind === "text" || (file.kind === "markdown" && file.showSource))
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true

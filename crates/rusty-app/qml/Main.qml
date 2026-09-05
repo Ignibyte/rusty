@@ -421,13 +421,14 @@ ApplicationWindow {
                 else if (p === "rename") renameDialog.openFor(stack.currentIndex)
                 else if (p === "plus") plusMenu.popup(plusButton, 0, plusButton.height)
                 else if (p.startsWith("skills:")) ui.skillsLayout = JSON.stringify({ width: 300, skills: p.slice(7) !== "collapse-skills", scripts: p.slice(7) !== "collapse-scripts" })
+                else if (p === "file:edit") Qt.callLater(function () { const h = hosts.itemAt(stack.currentIndex); if (h && h.kind === "file" && h.item) h.item.toggleEditing() })
+                else if (p.startsWith("file:")) { const f = p.slice(5); win.openFile(f.startsWith("/") ? f : theme.homeDir + "/" + f) }
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
                 else if (p.startsWith("search:")) win.searchFor(p.slice(7))
                 else if (p.startsWith("open:")) win.openPage(p.slice(5), false)
                 else if (p.startsWith("root:")) { win.addRoot(p.slice(5)); explorer.expandPath(p.slice(5)) }
-                else if (p.startsWith("file:")) win.openFile(p.slice(5))
                 else if (p.startsWith("view:")) win.openView(p.slice(5))
                 else if (p.startsWith("theme:")) { const parts = p.slice(6).split(":"); win.selectTheme(parts[0], parts[1] || "") }
                 else if (p === "graph") win.openGraph(false)
