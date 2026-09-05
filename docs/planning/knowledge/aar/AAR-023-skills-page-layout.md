@@ -4,6 +4,7 @@ ticket: TICKET-023
 pipeline: 2e5afa0a-3edb-46f2-aa18-f2c0a1d69379
 status: closed
 created: 2026-09-05
+submitted: 2026-09-05
 ---
 
 # AAR-023: Skills page layout

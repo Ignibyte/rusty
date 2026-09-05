@@ -4,6 +4,7 @@ ticket: TICKET-019
 pipeline: 1140d5ef-f95d-4c95-a05e-8e977e5af3f5
 status: closed
 created: 2026-09-05
+submitted: 2026-09-05
 ---
 
 # AAR-019: Folders, part two — file operations
