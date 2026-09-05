@@ -282,6 +282,10 @@ workflow in `CONSTITUTION.md`.
 - [x] TICKET-024 First-class tagging (2026-09-05): Tags as a property type writing the
       `tags:` list, completions from the tag index under the tags field, the Tags pane
       tagging the open page (a `+`, a menu, `T`), a "Tags: Tag this page" command
+- [x] TICKET-025 Native agent pane (2026-09-05): the pane beside a note is a headless
+      Claude Code over stream-json — one process per page, sessions resumed by id, tool
+      calls and results as items, permissions as Allow/Deny, Rusty as its MCP server —
+      rendered by the app; the terminal tabs stay tmux terminals
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

@@ -9,7 +9,15 @@ Item {
     id: pane
     required property var backend
     required property var theme
-    required property var terminals
+    // The agent beside the note (TICKET-025): a headless Claude Code the window owns,
+    // and the session id per page it keeps.
+    required property var assistant
+    property string sessions: "{}"
+    property string agentSlug: ""
+    // Whether the running process announced itself; an exit before that with a session
+    // to resume means the session is gone, and it is forgotten so the next message
+    // starts afresh instead of failing the same way.
+    property bool sawInit: false
     property var note: null
     property var titles: ({})
     // [{tag, count}] from brain_tags, sorted; rows carry the depth and the last segment.
@@ -17,17 +25,85 @@ Item {
     readonly property var tagRows: tags.map(function (t) { return { tag: t.tag, count: t.count, depth: (t.tag.match(/\//g) || []).length, name: t.tag.split("/").pop() } })
     property string current: "backlinks"
     property bool windowActive: true
-    property var programs: []
-    property string program: ""
     signal openPage(string slug)
     signal createPage(string name)
     signal paneChanged(string name)
     signal searchTag(string tag)
     signal tagPage(string tag)
     signal bookmarkHeading(string text)
+    signal sessionStarted(string slug, string sessionId)
+    signal forgetSession(string slug)
 
     function titleOf(slug) { return titles[slug] || slug.slice(slug.lastIndexOf("/") + 1) }
-    function focusAgent() { if (current === "agent") agentTerm.focusTerminal() }
+    function focusAgent() { if (current === "agent") chatInput.forceActiveFocus() }
+
+    // The conversation: one item per thing said or done. `extra` is a tool_use id on a
+    // tool call and its result, a request id on a permission; `input` the JSON handed
+    // back on Allow.
+    ListModel { id: chat }
+    function push(kind, name, text, extra, input) { chat.append({ kind: kind, name: name, text: text, extra: extra, input: input, answered: "" }) }
+    function lastOf(kind) { for (let i = chat.count - 1; i >= 0; i--) if (chat.get(i).kind === kind) return i; return -1 }
+    function brief(s) { return s.length > 600 ? s.slice(0, 600) + "…" : s }
+    function sessionFor(slug) { try { const m = JSON.parse(sessions || "{}"); return typeof m[slug] === "string" ? m[slug] : "" } catch (e) { return "" } }
+    function systemPromptFor(n) {
+        return "You are the assistant beside a page in Rusty, a local-first knowledge workspace on this machine. The open page is `" + n.slug + "` (\"" + n.title + "\"). "
+            + "Rusty's MCP tools (mcp__rusty__*) are the way to read and change pages, tasks, notes and memories; brain_read_page reads the open page by slug. Answer briefly."
+    }
+    // One process per page: the same page keeps its process, another page stops it,
+    // clears the list and starts again with that page's session when there is one.
+    function openAgent() {
+        if (!assistant.available) return
+        const slug = note ? note.slug : ""
+        if (slug === agentSlug && assistant.running) return
+        agentSlug = slug
+        chat.clear()
+        if (slug.length === 0) { assistant.stop(); return }
+        const resume = sessionFor(slug)
+        if (resume.length > 0) push("notice", "", "Continuing this page's conversation.", "", "")
+        sawInit = false
+        assistant.start(theme.homeDir, resume, systemPromptFor(note), backend.url)
+    }
+    function newConversation() { if (!note) return; forgetSession(note.slug); agentSlug = ""; assistant.stop(); openAgent() }
+    function sendMessage() {
+        const text = chatInput.text.trim()
+        if (text.length === 0 || !note) return
+        if (!assistant.running) { agentSlug = ""; openAgent() }
+        if (!assistant.send(text)) { push("notice", "", "The assistant is not running; press New to start it.", "", ""); return }
+        push("user", "", text, "", "")
+        chatInput.text = ""
+    }
+    function askAgent(text) { chatInput.text = text; sendMessage() }
+    function answerPermission(index, allow) {
+        const item = chat.get(index)
+        if (!item || item.answered.length > 0) return
+        if (assistant.answer(item.extra, allow, item.input)) chat.setProperty(index, "answered", allow ? "Allowed" : "Denied")
+    }
+    onCurrentChanged: if (current === "agent") openAgent()
+    onNoteChanged: if (current === "agent") openAgent()
+    Connections {
+        target: pane.assistant
+        function onStarted(sessionId) { pane.sawInit = true; if (pane.agentSlug.length > 0) pane.sessionStarted(pane.agentSlug, sessionId) }
+        function onBlockStarted(kind, name, id) {
+            if (kind === "text") pane.push("text", "", "", "", "")
+            else if (kind === "tool_use") pane.push("tool", name, "", id, "")
+        }
+        function onTextDelta(text) { const i = pane.lastOf("text"); if (i >= 0) chat.setProperty(i, "text", chat.get(i).text + text); else pane.push("text", "", text, "", "") }
+        function onTextFinal(text) { const i = pane.lastOf("text"); if (i >= 0) chat.setProperty(i, "text", text); else pane.push("text", "", text, "", "") }
+        function onToolInput(id, name, input) {
+            for (let i = chat.count - 1; i >= 0; i--) { const it = chat.get(i); if (it.kind === "tool" && it.extra === id) { chat.setProperty(i, "text", pane.brief(input)); return } }
+            pane.push("tool", name, pane.brief(input), id, "")
+        }
+        function onToolResult(id, text, isError) { pane.push("result", isError ? "error" : "", pane.brief(text), id, "") }
+        function onPermissionAsked(requestId, tool, input, description) { pane.push("permission", tool, description.length > 0 ? description : pane.brief(input), requestId, input) }
+        function onTurnDone(ok, cost, turns, text) { if (!ok && text.length > 0) pane.push("notice", "", text, "", "") }
+        function onNotice(text) { pane.push("notice", "", text, "", "") }
+        function onExited(code, message) {
+            const stale = !pane.sawInit && pane.agentSlug.length > 0 && pane.sessionFor(pane.agentSlug).length > 0
+            if (stale) pane.forgetSession(pane.agentSlug)
+            pane.push("notice", "", "The assistant stopped" + (code !== 0 ? " (exit " + code + ")" : "") + (message.length > 0 ? ": " + message : "")
+                + (stale ? ". The earlier session could not be resumed; the next message starts a new one." : ". Send a message to start it again."), "", "")
+        }
+    }
     function focusTags() { if (current === "tags") tagList.forceActiveFocus() }
 
     ColumnLayout {
@@ -44,7 +120,7 @@ Item {
             Text { visible: pane.current === "agent"; text: "✦"; color: pane.theme.accent; font.pixelSize: Math.round(15 * pane.theme.scale) }
             Text { text: pane.current === "agent" ? "Rusty / Assistant" : pane.current === "backlinks" ? "Backlinks" : pane.current === "outgoing" ? "Outgoing links" : pane.current === "outline" ? "Outline" : "Tags"; color: pane.theme.bright; font.pixelSize: Math.round(10 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
             Item { Layout.fillWidth: true }
-            Text { visible: pane.current === "agent"; text: "● " + (pane.program.length > 0 ? "Ready" : "Idle"); color: pane.theme.alive; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
+            Text { visible: pane.current === "agent"; text: "● " + (pane.assistant.running ? (pane.assistant.busy ? "Working" : "Ready") : "Idle"); color: pane.assistant.busy ? pane.theme.accent : pane.theme.alive; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1; font.capitalization: Font.AllUppercase }
         }
         Rectangle { Layout.fillWidth: true; height: 1; color: pane.theme.line }
         RowLayout {
@@ -254,71 +330,112 @@ Item {
             Text { visible: pane.tags.length === 0; text: "No tags yet."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale) }
         }
 
-        // The agent pane: one terminal that stays with the sidebar.
+        // The agent pane (TICKET-025): a conversation with a headless `claude -p` beside
+        // the note, rendered here — text, tool calls, results and permission prompts as
+        // their own items — while the terminal tabs stay real terminals.
         ColumnLayout {
             visible: pane.current === "agent"
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-            // The mock's context card: what the assistant has in front of it.
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.margins: 12
-                Layout.bottomMargin: 4
-                implicitHeight: contextCol.implicitHeight + 20
-                color: pane.theme.panel3
-                border.width: 1
-                border.color: pane.theme.lineBright
-                ColumnLayout {
-                    id: contextCol
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 6
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "Context loaded"; color: pane.theme.accent; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
-                        Item { Layout.fillWidth: true }
-                        Text { text: pane.note ? pane.note.words + " words" : "—"; color: pane.theme.accent; font.pixelSize: Math.round(9 * pane.theme.scale); font.capitalization: Font.AllUppercase }
-                    }
-                    Text { text: pane.note ? pane.note.title + (pane.note.backlinkCount > 0 ? " + " + pane.note.backlinkCount + (pane.note.backlinkCount === 1 ? " backlink" : " backlinks") : "") : "no page open"; color: pane.theme.foreground; font.pixelSize: Math.round(10 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 3
-                        color: pane.theme.line
-                        Rectangle { width: parent.width * (pane.note ? Math.min(1, pane.note.words / 1500) : 0); height: 3; color: pane.theme.alive }
-                    }
-                }
-            }
             RowLayout {
                 Layout.fillWidth: true
-                Layout.margins: 6
+                Layout.margins: 8
                 spacing: 6
-                Text { text: "Agent"; color: pane.theme.muted; font.pixelSize: Math.round(9 * pane.theme.scale); font.letterSpacing: 1.2; font.capitalization: Font.AllUppercase }
-                ComboBox {
-                    id: programBox
-                    Layout.fillWidth: true
-                    model: pane.programs
-                    font.pixelSize: Math.round(12 * pane.theme.scale)
-                    onActivated: pane.program = currentText
-                    Component.onCompleted: { const i = pane.programs.indexOf(pane.program); currentIndex = i >= 0 ? i : 0; if (pane.program.length === 0 && pane.programs.length > 0) pane.program = pane.programs[0] }
-                }
+                Text { text: pane.note ? pane.note.title : "No page open"; color: pane.theme.foreground; font.pixelSize: Math.round(12 * pane.theme.scale); elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { text: pane.assistant.status; color: pane.assistant.busy ? pane.theme.accent : pane.theme.faint; font.pixelSize: Math.round(10 * pane.theme.scale); elide: Text.ElideRight; Layout.maximumWidth: 150 }
+                Button { flat: true; text: "New"; visible: pane.assistant.available && pane.note !== null; ToolTip.text: "Start a new conversation for this page"; ToolTip.visible: hovered; ToolTip.delay: 600; onClicked: pane.newConversation() }
             }
-            Rectangle {
+            Rectangle { Layout.fillWidth: true; height: 1; color: pane.theme.line }
+            ListView {
+                id: chatList
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: pane.theme.background
-                AgentTerminal {
-                    id: agentTerm
-                    anchors.fill: parent
-                    visible: pane.current === "agent" && pane.program.length > 0
-                    theme: pane.theme
-                    terminals: pane.terminals
-                    program: pane.program
-                    session: pane.program.length > 0 ? "rusty-pane-" + pane.program : ""
-                    isCurrent: pane.current === "agent"
-                    ready: pane.current === "agent"
-                    windowActive: pane.windowActive
+                clip: true
+                model: chat
+                spacing: 6
+                topMargin: 8
+                bottomMargin: 8
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                // Follow the conversation as items arrive and as streamed text grows.
+                onCountChanged: Qt.callLater(positionViewAtEnd)
+                onContentHeightChanged: Qt.callLater(positionViewAtEnd)
+                delegate: Item {
+                    id: bubble
+                    required property int index
+                    required property string kind
+                    required property string name
+                    required property string text
+                    required property string extra
+                    required property string input
+                    required property string answered
+                    readonly property bool mono: kind === "tool" || kind === "result"
+                    width: chatList.width
+                    height: box.implicitHeight + 2
+                    Rectangle {
+                        id: box
+                        x: bubble.kind === "user" ? 36 : 8
+                        width: parent.width - 44
+                        implicitHeight: col.implicitHeight + 16
+                        radius: 6
+                        color: bubble.kind === "user" ? pane.theme.active : bubble.kind === "permission" ? pane.theme.panel3 : bubble.kind === "notice" ? "transparent" : pane.theme.hover
+                        border.width: bubble.kind === "permission" ? 1 : 0
+                        border.color: pane.theme.accent
+                        ColumnLayout {
+                            id: col
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 8
+                            spacing: 4
+                            Text { Layout.fillWidth: true; elide: Text.ElideMiddle; visible: bubble.kind === "tool" || bubble.kind === "result" || bubble.kind === "permission"; text: bubble.kind === "tool" ? "⚙ " + bubble.name : bubble.kind === "result" ? (bubble.name === "error" ? "↳ error" : "↳ result") : "Permission: " + bubble.name; color: bubble.kind === "permission" ? pane.theme.accent : pane.theme.muted; font.pixelSize: Math.round(10 * pane.theme.scale); font.letterSpacing: 0.5 }
+                            TextEdit {
+                                Layout.fillWidth: true
+                                visible: bubble.text.length > 0
+                                text: bubble.text
+                                readOnly: true
+                                selectByMouse: true
+                                wrapMode: TextEdit.Wrap
+                                textFormat: TextEdit.PlainText
+                                color: bubble.kind === "notice" ? pane.theme.faint : pane.theme.foreground
+                                selectionColor: pane.theme.accent
+                                font.family: bubble.mono ? pane.theme.termFont : Qt.application.font.family
+                                font.pixelSize: Math.round((bubble.mono ? 11 : 13) * pane.theme.scale)
+                            }
+                            RowLayout {
+                                visible: bubble.kind === "permission"
+                                spacing: 6
+                                Button { text: "Allow"; enabled: bubble.answered.length === 0; onClicked: pane.answerPermission(bubble.index, true) }
+                                Button { text: "Deny"; flat: true; enabled: bubble.answered.length === 0; onClicked: pane.answerPermission(bubble.index, false) }
+                                Text { visible: bubble.answered.length > 0; text: bubble.answered; color: pane.theme.faint; font.pixelSize: Math.round(11 * pane.theme.scale) }
+                            }
+                        }
+                    }
                 }
+            }
+            Text { visible: chat.count === 0 && pane.assistant.available; text: pane.note ? "Ask about " + pane.note.title + ". Claude Code answers here with Rusty's tools; a write asks first." : "Open a page to talk about it."; color: pane.theme.faint; font.pixelSize: Math.round(12 * pane.theme.scale); wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.margins: 12 }
+            Text { visible: !pane.assistant.available; text: "Claude Code is not installed: the pane needs `claude` on PATH. The terminal tabs still run any agent on the machine."; color: pane.theme.muted; font.pixelSize: Math.round(12 * pane.theme.scale); wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.margins: 12 }
+            Rectangle { Layout.fillWidth: true; height: 1; color: pane.theme.line }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.margins: 8
+                spacing: 6
+                visible: pane.assistant.available
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.maximumHeight: 120
+                    TextArea {
+                        id: chatInput
+                        placeholderText: pane.note ? "Message Claude about this page — Enter sends, Shift+Enter breaks a line" : "Open a page first"
+                        enabled: pane.note !== null
+                        wrapMode: TextEdit.Wrap
+                        font.pixelSize: Math.round(13 * pane.theme.scale)
+                        Keys.onPressed: (event) => {
+                            if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !(event.modifiers & Qt.ShiftModifier)) { pane.sendMessage(); event.accepted = true }
+                        }
+                    }
+                }
+                Button { text: pane.assistant.busy ? "Stop" : "Send"; enabled: pane.note !== null && (pane.assistant.busy || chatInput.text.trim().length > 0); onClicked: pane.assistant.busy ? pane.assistant.interrupt() : pane.sendMessage() }
             }
         }
     }

@@ -2,6 +2,10 @@
 type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
+generated: {by: "claude-code", at: "2026-09-05T04:40:31.961Z"}
+verified:
+  - by: openwiki/0.3.3
+    at: 2026-09-05T04:40:31.961Z
 sources:
   - id: openwiki-source-4059556410fe6db8498fe8e9
     resource: repo://crates/rusty-app/build.rs
@@ -37,6 +41,8 @@ sources:
     resource: repo://crates/rusty-app/qml/Splitter.qml
   - id: openwiki-source-f536fe8c8de4eb428d24ba4b
     resource: repo://crates/rusty-app/qml/TopBar.qml
+  - id: openwiki-source-e85475b7b040fd879ddef935
+    resource: repo://crates/rusty-app/src/assistant.rs
   - id: openwiki-source-68599611588cfbbf1f2b222b
     resource: repo://crates/rusty-app/src/backend.rs
   - id: openwiki-source-c20a2a4e587e9ab45705b8d4
@@ -55,10 +61,6 @@ sources:
     resource: repo://crates/rusty-core/src/brain/mod.rs
   - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
     resource: repo://scripts/screenshot.sh
-generated: {by: "claude-code", at: "2026-09-05T04:22:26.145Z"}
-verified:
-  - by: openwiki/0.3.3
-    at: 2026-09-05T04:22:26.145Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -192,6 +194,30 @@ every view backed by the MCP server that agents share.
   selects because that button is never accepted. Copy in the menu follows the widget's
   `copyAvailable` signal, read through `Connections { ignoreUnknownSignals: true }` as
   every other third-party signal here is.
+- The agent pane (`RightPane.qml`, `src/assistant.rs`; TICKET-025) is a conversation
+  with a headless Claude Code beside the note, not a terminal. `Assistant` spawns
+  `claude -p --input-format stream-json --output-format stream-json
+  --include-partial-messages --verbose --permission-prompt-tool stdio --permission-mode
+  default --strict-mcp-config`, with Rusty's own server as an HTTP MCP server
+  (`--mcp-config` at `Backend.url`), its read-only tools pre-allowed by name
+  (`READ_TOOLS`; a write prompts), the open page named in `--append-system-prompt`,
+  `HOME` as the working directory, and `--resume <id>` when the page has a session. A
+  reader thread hands every stdout line to the Qt thread, where `parse_line` turns it
+  into typed signals — init, a block starting, a text delta and the final text, a tool
+  call's input, a tool result, a permission asked, a turn done, a notice, the exit with
+  the tail of stderr — and the pane renders them as its own items: the user's bubble,
+  selectable text, a tool call with its input, its result in the terminal face, a
+  permission prompt whose Allow or Deny writes a `control_response`, a notice. Enter
+  sends a `user` message (Shift+Enter breaks a line), Send becomes Stop while a turn
+  runs and sends an `interrupt` control request, New forgets the page's session. One
+  process per page: another page stops it, clears the list and starts with that page's
+  session; the session id comes from the `init` event into `ui.agentSessions`, and an
+  exit before `init` with an id to resume forgets it, so a stale transcript never fails
+  twice. The wire was read off this box's `claude` 2.1.260 with two probes:
+  `--permission-prompts host` denies unless a host announces itself;
+  `--permission-prompt-tool stdio` is what prompts on stdout. The terminal tabs stay
+  tmux terminals (`AD-rusty-agents-are-terminals-001`, qualified); Codex has no print
+  mode, so the pane is Claude-only and says so when `claude` is missing.
 - The graph (`GraphView`, tab kind `graph`, Ctrl+G, the ribbon, "Open local graph" on a
   page): `brain_graph` supplies nodes and edges; a force simulation on a timer
   (repulsion between every pair, springs on the edges toward the link distance, a pull
@@ -318,6 +344,9 @@ an agent run it are in `workflow-and-gates.md`.
   owns, not in QtCore `Settings` (which rewrote string properties with their defaults).
 - The app touches nothing under `~/.rusty` itself: the PIN, its hash and the secrets
   file are the back end's; a value reaches the page only through a tool answer.
+- The agent pane never bypasses a permission: a write through Claude Code's own tools
+  or Rusty's asks, a read of the store does not; the pane's process is Claude Code's,
+  so nothing leaves the machine that a terminal session would not send.
 - The disk is not the store: a folder root is read and written by the app alone, no root
   reaches a brain tool, and no disk write overwrites anything — an existing target is
   refused, a delete is a move to the trash, a text save is an atomic rename. A root's git
@@ -344,6 +373,11 @@ an agent run it are in `workflow-and-gates.md`.
 - A `git` that is missing, a root outside any repository, or a root whose real path git
   does not report as under its top level (a bind mount) all answer `{repo: false}`: the
   tree shows no mark rather than a wrong one, and nothing is reported.
+- The agent pane without `claude` on `PATH` (or `RUSTY_CLAUDE_BIN`) says so and hides
+  its input; a process that fails to start or exits appends a notice with the exit code
+  and the tail of stderr, and the next message starts it again; a session id whose
+  transcript is gone is forgotten on that exit. `rusty-pane-<program>` tmux sessions
+  from before the pane became a conversation end on their own.
 
 ## Extension points
 
@@ -375,9 +409,18 @@ an agent run it are in `workflow-and-gates.md`.
   counts and in `tag:` search, and a tag removed through the property leaves both.
   `scripts/screenshot.sh <out> "tagfield:r" "right:tags"` photographs the completion
   list and the pane.
+- `cargo test -p rusty-app assistant::` covers the wire without Qt: `parse_line` on the
+  lines the probes recorded (init, block starts, deltas, the assistant's tool input, tool
+  results, a `control_request`, results good and bad, a denied permission), the
+  messages out (`user`, `control_response` allow and deny, `interrupt`), `build_args`
+  (both formats, the prompt tool, the MCP config, the allowed reads, `--resume`), and
+  `spawn` against a fake script (its lines, then `Exit(3)` with stderr's tail; a missing
+  binary refused; a kill ending a waiting process).
+  `scripts/screenshot.sh <out> "right:agent,agent:ask:<text>"` photographs a canned
+  turn from the fake `claude` the script seeds.
 
 ## Primary sources
 
-- `crates/rusty-app/qml/Main.qml`, `NoteTab.qml`, `Explorer.qml`, `RightPane.qml`, `AgentTerminal.qml`
+- `crates/rusty-app/qml/Main.qml`, `NoteTab.qml`, `Explorer.qml`, `RightPane.qml`, `AgentTerminal.qml`, `src/assistant.rs`
 - `crates/rusty-app/src/backend.rs`, `theme.rs`, `omarchy.rs`, `terminals.rs`
 - `crates/rusty-app/cpp/highlighter.cpp`, `crates/rusty-app/cpp/tools.cpp`

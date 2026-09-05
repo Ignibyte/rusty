@@ -1,6 +1,6 @@
 ---
 title: TICKET-025-native-agent-pane
-status: open
+status: done
 ticket_number: 025
 type: feature
 created: 2026-09-04

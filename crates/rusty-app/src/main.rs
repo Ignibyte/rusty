@@ -8,6 +8,7 @@
 //! the source editor's tokenizer behind the C++ `MarkdownHighlighter`. Data comes from
 //! `rusty-mcp` over local HTTP; the app holds no store of its own.
 
+mod assistant;
 mod backend;
 mod desk;
 mod folders;

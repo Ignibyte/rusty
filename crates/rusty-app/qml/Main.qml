@@ -52,6 +52,9 @@ ApplicationWindow {
     }
     onWidthChanged: if (visible) win_settings.width = width
     onHeightChanged: if (visible) win_settings.height = height
+    // The agent beside the note (TICKET-025): one headless Claude Code the pane drives.
+    Assistant { id: assistant }
+
     QtObject {
         id: ui
         property int lastTab: win_settings.lastTab
@@ -70,12 +73,15 @@ ApplicationWindow {
         property int textSize: 0
         // The Skills page's split and which of its sections are open, as JSON (TICKET-023).
         property string skillsLayout: ""
+        // The agent pane's session id per page, as JSON (TICKET-025).
+        property string agentSessions: "{}"
         property bool loaded: false
         onLastTabChanged: win_settings.lastTab = lastTab
         onLeftWidthChanged: save()
         onRightWidthChanged: save()
         onLeftOpenChanged: save()
         onSkillsLayoutChanged: save()
+        onAgentSessionsChanged: save()
         onRightOpenChanged: save()
         onLeftPaneChanged: save()
         onRightPaneChanged: save()
@@ -103,6 +109,7 @@ ApplicationWindow {
                 if (typeof s.roots === "string") ui.roots = s.roots
                 if (typeof s.theme === "string") ui.theme = s.theme
                 if (typeof s.skillsLayout === "string") ui.skillsLayout = s.skillsLayout
+                if (typeof s.agentSessions === "string") ui.agentSessions = s.agentSessions
                 if (typeof s.textSize === "number" && s.textSize > 0) { theme.setTextSize(s.textSize); ui.textSize = theme.baseSize }
             } catch (e) {}
             ui.loaded = true
@@ -110,7 +117,7 @@ ApplicationWindow {
         function save() { if (ui.loaded) saveTimer.restart() }
         function write() {
             terminals.saveState(JSON.stringify({ leftWidth: ui.leftWidth, rightWidth: ui.rightWidth, leftOpen: ui.leftOpen, rightOpen: ui.rightOpen,
-                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize, skillsLayout: ui.skillsLayout }))
+                                                 leftPane: ui.leftPane, rightPane: ui.rightPane, expanded: ui.expanded, paneProgram: ui.paneProgram, graph: ui.graph, bookmarks: ui.bookmarks, roots: ui.roots, theme: ui.theme, textSize: ui.textSize, skillsLayout: ui.skillsLayout, agentSessions: ui.agentSessions }))
         }
     }
     Timer { id: saveTimer; interval: 400; onTriggered: ui.write() }
@@ -149,6 +156,8 @@ ApplicationWindow {
     function saveGraphSettings(s) { ui.graph = JSON.stringify(s) }
     // Folder roots: `[{path, name}]` under `roots` in the state, per machine.
     readonly property var rootList: { try { return JSON.parse(ui.roots || "[]") } catch (e) { return [] } }
+    // The agent pane's session per page, from the state.
+    function sessionMap() { try { const m = JSON.parse(ui.agentSessions || "{}"); return m !== null && typeof m === "object" ? m : {} } catch (e) { return {} } }
     function addRoot(chosen) {
         const p = String(chosen).replace(/^file:\/\//, "").replace(/\/+$/, "")
         if (!p.startsWith("/")) return
@@ -392,8 +401,6 @@ ApplicationWindow {
         theme.watch()
         backend.start()
         agents = terminals.programs()
-        rightPane.programs = agents
-        rightPane.program = ui.paneProgram.length > 0 && agents.indexOf(ui.paneProgram) >= 0 ? ui.paneProgram : (agents.length > 0 ? agents[0] : "")
         rightPane.current = ui.rightPane
         try { explorer.expanded = JSON.parse(ui.expanded) } catch (e) { explorer.expanded = ({}) }
         const saved = JSON.parse(terminals.load())
@@ -429,6 +436,7 @@ ApplicationWindow {
                 else if (p.startsWith("root:")) { const f = shot.resolve(p.slice(5)); win.addRoot(f); Qt.callLater(function () { explorer.expandPath(f) }) }
                 else if (p.startsWith("expand:")) explorer.expandPath(shot.resolve(p.slice(7)))
                 else if (p.startsWith("tagfield:")) { if (win.currentNote) win.currentNote.focusTagAdd(p.slice(9)) }
+                else if (p.startsWith("agent:ask:")) { win.showRight("agent"); rightPane.askAgent(p.slice(10)) }
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
@@ -796,7 +804,7 @@ ApplicationWindow {
             onQuit: Qt.quit()
             onCommandRequested: palette.show()
             onAgentRequested: (p) => win.openTerminal(p, "", "", "")
-            onAgentPaneRequested: (p) => { rightPane.program = p; win.showRight("agent") }
+            onAgentPaneRequested: (p) => win.showRight("agent")
         }
 
         RowLayout {
@@ -1091,7 +1099,8 @@ ApplicationWindow {
                     anchors.fill: parent
                     backend: win.backend
                     theme: win.theme
-                    terminals: win.terminals
+                    assistant: assistant
+                    sessions: ui.agentSessions
                     note: win.currentNote
                     titles: win.titles
                     tags: win.tags
@@ -1102,7 +1111,8 @@ ApplicationWindow {
                     onTagPage: (tag) => { if (win.currentNote) win.currentNote.tagThePage(tag) }
                     onBookmarkHeading: (text) => { if (win.currentNote) win.addBookmark({ kind: "heading", path: win.currentNote.slug, heading: text, title: win.currentNote.title + " › " + text }) }
                     onPaneChanged: (name) => ui.rightPane = name
-                    onProgramChanged: ui.paneProgram = program
+                    onSessionStarted: (slug, id) => { const m = win.sessionMap(); m[slug] = id; ui.agentSessions = JSON.stringify(m) }
+                    onForgetSession: (slug) => { const m = win.sessionMap(); delete m[slug]; ui.agentSessions = JSON.stringify(m) }
                 }
                 SideTab { anchors.right: parent.right; anchors.top: parent.top; anchors.rightMargin: 6; anchors.topMargin: 4; icon: "panel-right"; tip: "Collapse"; onClicked: ui.rightOpen = false }
             }

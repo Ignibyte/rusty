@@ -146,7 +146,10 @@ rewrites on rename, backlinks as Obsidian resolves them, command-palette actions
   colours and the tokens read from the theme's `obsidian.css` and Alacritty palette, font,
   generated colour scheme, live re-theme), `Terminals` (tabs and the workspace state as JSON
   files, tmux), `Backend` (the MCP client, one session, reconnecting, `result` and
-  `dataChanged` signals), and two small C++ classes registered in the same QML module:
+  `dataChanged` signals), `Assistant` (the agent beside the note since TICKET-025: a
+  headless `claude -p` over stream-json, one process per page, permissions answered from
+  the pane; the terminal tabs stay tmux terminals), and two small C++ classes registered
+  in the same QML module:
   `MarkdownHighlighter` (a `QSyntaxHighlighter` whose spans come from the Rust tokenizer in
   `src/markdown.rs`) and `Tools` (`grabWindow`, for offscreen screenshots). QML pages parse
   the tool JSON themselves and match replies to their own request ids.
