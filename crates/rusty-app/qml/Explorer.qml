@@ -34,6 +34,9 @@ Item {
     property var agents: []
     property var agentNames: ({})
     property var listing: ({})
+    // The git status per root (TICKET-020), read once per cache lifetime in `rebuild`
+    // and dropped with the listing; the rows only read it.
+    property var git: ({})
     signal openFile(string path)
     signal openAgentAt(string program, string cwd)
     signal addRootRequested()
@@ -49,7 +52,22 @@ Item {
             if (e.kind === "folder" && expanded[e.path]) walkDisk(e.path, depth + 1, out)
         }
     }
-    function refreshDisk() { listing = ({}); rebuild() }
+    function refreshDisk() { listing = ({}); git = ({}); rebuild() }
+    function gitOf(root) {
+        if (git[root] === undefined) { const g = git; try { g[root] = JSON.parse(folders.gitStatus(root)) } catch (e) { g[root] = { repo: false } } git = g }
+        return git[root]
+    }
+    // `M`, `A`, `?` or "" for a disk row: its own entry, or the strongest below a folder.
+    function gitState(row) {
+        if (row.kind !== "disk" && row.kind !== "dir") return ""
+        const root = rootOf(row.path)
+        const s = root.length > 0 ? git[root] : undefined
+        if (!s || !s.repo) return ""
+        const rel = row.path.slice(root.length + 1)
+        return s.files[rel] || s.dirs[rel] || ""
+    }
+    function branchOf(root) { const s = git[root]; return s && s.repo ? s.branch : "" }
+    function gitColor(state, fallback) { return state === "M" ? theme.gold : state === "A" ? theme.alive : state === "?" ? theme.accentSoft : fallback }
     onRootsChanged: refreshDisk()
     function expandPath(path) { if (!expanded[path]) toggle(path) }
     function copyText(t) { copier.text = t; copier.selectAll(); copier.copy(); copier.text = "" }
@@ -64,6 +82,7 @@ Item {
         if (tree) walk(tree.children, 0, out)
         if (roots.length > 0) out.push({ name: "Folders", path: "", kind: "section", depth: 0 })
         for (const r of roots) {
+            gitOf(r.path)
             out.push({ name: r.name, path: r.path, kind: "root", depth: 0 })
             if (expanded[r.path]) walkDisk(r.path, 1, out)
         }
@@ -244,6 +263,8 @@ Item {
                 readonly property bool isRenaming: explorer.renaming.length > 0 && explorer.renaming === modelData.path
                 readonly property bool isDir: explorer.isDirRow(modelData)
                 readonly property bool isSection: modelData.kind === "section"
+                readonly property string git: explorer.gitState(modelData)
+                readonly property string branch: modelData.kind === "root" ? explorer.branchOf(modelData.path) : ""
                 Rectangle {
                     anchors.fill: parent
                     radius: explorer.theme.radius
@@ -281,7 +302,7 @@ Item {
                         visible: !row.isRenaming && !row.isSection
                         Layout.fillWidth: true
                         text: row.modelData.name
-                        color: row.active ? explorer.theme.bright : explorer.theme.muted
+                        color: row.active ? explorer.theme.bright : explorer.gitColor(row.git, explorer.theme.muted)
                         font.pixelSize: Math.round(12 * explorer.theme.scale)
                         elide: Text.ElideRight
                     }
@@ -304,6 +325,10 @@ Item {
                         font.pixelSize: Math.round(9 * explorer.theme.scale)
                         font.letterSpacing: 0.5
                     }
+                    // The git mark: the letter `git status --short` prints on a file, a
+                    // dot on a folder holding a change, the branch on the root.
+                    Text { visible: row.git.length > 0; text: row.modelData.kind === "dir" ? "•" : row.git; color: explorer.gitColor(row.git, explorer.theme.faint); font.pixelSize: Math.round(10 * explorer.theme.scale); font.bold: true }
+                    Text { visible: row.branch.length > 0; text: row.branch; color: explorer.theme.faint; font.family: explorer.theme.termFont; font.pixelSize: Math.round(10 * explorer.theme.scale); elide: Text.ElideRight; Layout.maximumWidth: 120 }
                 }
                 HoverHandler { id: rowHover }
                 // Drag a file or folder on disk onto a folder or root under the same root

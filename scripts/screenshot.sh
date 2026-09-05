@@ -227,6 +227,25 @@ cat > "$scratch/tabs.json" <<'JSON'
  {"kind":"tasks","title":"Tasks","slug":"","session":"","program":"","cwd":"","pinned":false}]
 JSON
 
+# A small repository for the folder scenes (`root:repo,expand:repo/src`): a committed
+# tree, a modified file, a staged new file, an untracked file; nothing of the box's git
+# configuration reaches it.
+if command -v git >/dev/null 2>&1; then
+  repo="$scratch/repo"
+  mkdir -p "$repo/src"
+  g() { HOME="$scratch" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -C "$repo" -c user.name=shot -c user.email=shot@example.invalid -c commit.gpgsign=false "$@" >/dev/null 2>&1; }
+  printf '# Orbit\n' > "$repo/README.md"
+  printf 'pub fn launch() {}\n' > "$repo/src/lib.rs"
+  if g init -q -b main && g add . && g commit -q -m "first"; then
+    printf 'pub fn launch() { println!("go") }\n' > "$repo/src/lib.rs"
+    printf 'pub fn dock() {}\n' > "$repo/src/dock.rs"
+    g add src/dock.rs || true
+    printf 'loose\n' > "$repo/notes.txt"
+  else
+    echo "scratch repository not seeded; the folder scenes show a plain folder" >&2
+  fi
+fi
+
 HOME="$scratch" XDG_CONFIG_HOME="$scratch/.config" XDG_RUNTIME_DIR="$scratch/run" \
   "$target/debug/rusty-mcp" --http "127.0.0.1:$port" >"$scratch/server.log" 2>&1 &
 server=$!

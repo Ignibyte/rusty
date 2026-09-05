@@ -51,10 +51,12 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-05T03:55:21.200Z"}
+  - id: openwiki-source-d4dc2c7ea0d931bfc9466b41
+    resource: repo://scripts/screenshot.sh
+generated: {by: "claude-code", at: "2026-09-05T04:09:53.999Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:55:21.200Z
+    at: 2026-09-05T04:09:53.999Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -256,8 +258,22 @@ cache and rebuilds; an error shows in its notice and changes nothing else. A tex
 markdown file's tab has Edit: a `TextArea` in the terminal face with no highlighter, a
 dirty mark, a save one and a half seconds after the last keystroke and on Ctrl+S through
 `writeText` (a sibling temporary file renamed over the path, the mode kept), Reload
-refused with a notice while dirty, the rendered view refreshed after a save. Git
-decorations are TICKET-020.
+refused with a notice while dirty, the rendered view refreshed after a save.
+
+Part three (TICKET-020) marks a root that lies in a git repository. `Folders.gitStatus`
+runs `git --no-optional-locks rev-parse --show-toplevel` and then `status
+--porcelain=v2 --branch -z --untracked-files=all -- .` in the root, parses the porcelain
+in Rust and answers `{repo, branch, files, dirs}`: paths relative to the root (a root that
+is a subfolder of a repository sees its own subtree), `M` for any change to a tracked
+file, `A` for an added one, `?` for an untracked one, and every folder above a change
+folded to the strongest state below it. The explorer fetches it once per root in
+`rebuild`, keeps it beside the listing cache and drops both on Refresh, a root change and
+every disk write; the rows only read it. A file shows its letter beside the extension and
+takes the colour (`gold`, `alive`, `accentSoft`), a folder holding a change shows a dot,
+the root row shows the branch in `faint` (`detached` when HEAD is). Outside a repository,
+or without `git`, the answer is `{repo: false}` and the tree is part two's. Nothing is
+written to the repository: `--no-optional-locks` keeps `status` from refreshing the index
+on disk.
 
 The Skills tab (`SkillsPage.qml`) carries a Scripts section beside the skill list, fed by
 `script_list` and `script_view` and saved through `script_update`. A script is edited
@@ -292,7 +308,8 @@ an agent run it are in `workflow-and-gates.md`.
   file are the back end's; a value reaches the page only through a tool answer.
 - The disk is not the store: a folder root is read and written by the app alone, no root
   reaches a brain tool, and no disk write overwrites anything — an existing target is
-  refused, a delete is a move to the trash, a text save is an atomic rename.
+  refused, a delete is a move to the trash, a text save is an atomic rename. A root's git
+  status is read the same way and the repository is never written.
 - The command path never starts Qt. It resolves and execs before any Qt object exists,
   so a script inherits the terminal it was typed in rather than the app's environment.
 
@@ -312,6 +329,9 @@ an agent run it are in `workflow-and-gates.md`.
   the vault folder itself takes disk writes past the index until the watcher's next
   burst, as any outside editor does; a text save over a symlink leaves a real file where
   the link was.
+- A `git` that is missing, a root outside any repository, or a root whose real path git
+  does not report as under its top level (a bind mount) all answer `{repo: false}`: the
+  tree shows no mark rather than a wrong one, and nothing is reported.
 
 ## Extension points
 
@@ -331,6 +351,13 @@ an agent run it are in `workflow-and-gates.md`.
   move inside the tree, the trash record and its free-name suffix, the atomic write
   keeping the mode. `scripts/screenshot.sh <out> "file:<path>,file:edit"` photographs the
   edit mode.
+- `cargo test -p rusty-app folders::` also covers the git read: the porcelain v2 parser on
+  a fixture (branch, `1`, `2`, `u` and `?` records, a detached head), the folding of
+  folders to the strongest state, a temporary repository built with `git init` under a
+  temporary tree with `HOME` and `GIT_CONFIG_GLOBAL` pointed away from the machine's
+  (modified, added, untracked, a subfolder root), and a plain folder.
+  `scripts/screenshot.sh <out> "root:repo,expand:repo/src"` photographs the marks against
+  the repository the script seeds.
 
 ## Primary sources
 

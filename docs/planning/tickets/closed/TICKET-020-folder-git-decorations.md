@@ -1,6 +1,6 @@
 ---
 title: TICKET-020-folder-git-decorations
-status: open
+status: done
 ticket_number: 020
 type: feature
 created: 2026-09-03

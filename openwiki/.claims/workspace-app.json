@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:1ca403456a21edf459f56e0d0776dbef53b75296ca2c2424ea70b318f073f805",
+  "pageVersion": "sha256:579005ab1b26db40315c2591d74b43729618cde14ccf73af0747ed4e2d939834",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -349,20 +349,20 @@
       "statement": "The explorer lists folders from the machine below the vault tree as roots kept per machine under `roots` in the workspace state (added through a folder picker, removed from their menu, expansion under the same `expanded` map keyed by absolute path); the disk is read by the app's `Folders` type (a cached listing with folders first and dotfiles skipped, a kind by extension then a sniff of the first eight kilobytes, text up to a megabyte, `xdg-open`), never through the back end; a file opens in a `file` tab (markdown rendered by `brain_render` given the text with a Source toggle, text as numbered monospace lines, an image fitted) or, for any other kind, through the desktop; a folder's menu opens one terminal tab per installed agent or a shell with that folder as the working directory, copies the path, reveals it, refreshes the listing; links, backlinks, graph and search never see the roots.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L19-L39",
-          "version": "repo-lines-v1:sha256:1293293a32058f721257ef8d5e79d2edad8965d54ad11a8273396933dfec9134:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1OWY2NTQ1MWUxMzJjN2IzZGE5ZjVkMzM5MTQ5NzJkOTY0ZjE2ODE2NDUyMjY2OTU5MGM4MzlhMTE4NzRjZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MTQ4MWFiZjlhNTE0ZjhmYWE5MzEzYjRjYzNmY2NiMWRkZmEyMjk0YTA0ZGZmMWU2NWYzZjY3ODVmYjhmNzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlZDMyMTg0YjVlOTM3OWM0MTRjNmVlOGNjYjBiYzUxYjRjMWE3NzcwMDlmMDU5YzA5ODhiNzk5OTg3ODg5ZDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzZjQ2NjNlYzg5NjNhY2ZlOTIzNzA4NTY4OGU0OGE1NzZjMGUwYWU4NWFjZWY0NmVhYzE0MTIzMTc5ZTExMWIifQ"
+          "resource": "repo://crates/rusty-app/src/folders.rs#L19-L41",
+          "version": "repo-lines-v1:sha256:64c2fdda00f89378cb7afe39d577b9dea7c15d66467c2f2e9431d52bcb8ff1a7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwNWY2OWU1NDAxMGE2ZjA1Mzc1MmE0ZjZlODRmODQ0MWU5Nzg5YzcyNDRiMzBhZjAwY2E5ZjhiMGFmYTIzZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNkYzUyNGU1NTc2OWVkNzVhNGI1YzAzODQwMzcwMDhiNWU0NDkyNzAyMjJlOWQ2YWE1ODA3OWViNWY0ZjU1YTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZkOTM2Mzk5ZmFkYWQ0M2VjOTQxOWM5MWRkMTgyYmQwYzAyMThiOGNmZWEyOTJjNzNiMjY3NjQ5NTQ0ZjAwZTgifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L172-L306",
+          "resource": "repo://crates/rusty-app/src/folders.rs#L186-L320",
           "version": "repo-lines-v1:sha256:c1291eb667e0f0770f19281d0c306f0587c3688ad116e19d63d75f26016d2704:eyJzZWxlY3RlZExpbmVDb3VudCI6MTM1LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhOGEyYzkyYzlkZDE0MjNkODdjNjIzNmZlZWFlYzhlNjg1NjgwNGJkZjZiZjcwNDllMWI1YjQ0YWFiYjEyNTJiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5YjhlZTkyZjc0ZDEyMGNiOWNiNjhkOTFkOGQyYTFhOGQ3NWFlMTMyMjIzNzE1YTRkYTI3MjE4OThjMWU4YzE4IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI0NGIxOWFlMWM1MzNlYmUwMGVjY2ZhM2QxYTM0ODc5NTkxOTUxYjNlZDE4MTdmYjgzZDM3NjcwZjNiYmE2MWYyIn0"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L32-L70",
-          "version": "repo-lines-v1:sha256:877537999de3ffb9cbc45a8c4b61259a00dc0fd6e88e4c19ec2679ec5380501b:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzc4NWRlYTdiMjExNjFhMTMwN2YyYzlhM2JmOTMxNmViZTE4YzEzMzc0Zjc3Zjk2M2M1ZmJjNjlkMzc1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlMTJjYjFmMDZiNWRlMWVjYmYwMWFjMGU5ZTlhM2RhZjM2NDUxMzA1YjkzMjcxZjFjYWVhMjgyODkxMjk2MTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkMWM4MmQ0MTQ0ODRmYTlmZTUxYWVkNTc3NDRlODRlMjg2OTg3OGExZjIwMTgyNTBkZjIyZDYzYmZiMTM5YTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4ODEwYzQxODUwYzg4MGQ2NDgzNWE3N2ZmZjY2OTAxOGY2NDcwYWE3ZDE1MTBhMDliZWIxYzcxZWY4MWU0MjQifQ"
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L32-L54",
+          "version": "repo-lines-v1:sha256:72d09efe3e9778da265db7666aed40f1ed8a7946915d09f65d653ecaa55125a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyMzc4NWRlYTdiMjExNjFhMTMwN2YyYzlhM2JmOTMxNmViZTE4YzEzMzc0Zjc3Zjk2M2M1ZmJjNjlkMzc1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkMWM4MmQ0MTQ0ODRmYTlmZTUxYWVkNTc3NDRlODRlMjg2OTg3OGExZjIwMTgyNTBkZjIyZDYzYmZiMTM5YTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM4ZDc4YTc0YTk1MTkxMmNiMmJiNmNmZDNkOWVjNTkxYjc1YzJhODk4NzBkNDk5ODM4NWNmZjhiYmM1MDA2MjMifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L370-L400",
-          "version": "repo-lines-v1:sha256:2ebf2426474828baffa96e0878701f82ab882844c5edea643e14e9559ecd42f6:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMmZlODY0YjNiYjNiZGU1ZDNiNjgwNzUxOTM0ZDE2OTFhYTJkMDhjZWE3MzFlNjhhOTFlNDIzZjAzZDZkNTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhYzA4NzI2ZjhmNTBlNWViMWJmNzk0ZjFlY2UwMDIxZjhmYTc0ZGE2ODFjZGE2MWEzMjY5ODRkOTZlODkyYTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhZmYyZWUzMjQ3ZmQ4NDliYjk2NDhhYzA0NGQwODNiNTAxMzI5ZTRhYmRlNjdkMDMyYWQ3ZGVjNjU0ODA3ZDEifQ"
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L396-L425",
+          "version": "repo-lines-v1:sha256:984d9f843f05a1c5cb1c52a6fba2e52e1c44961a482ed2e0623f6bcc7f2c94ab:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZiZWU2Nzc2NzVmZGRkZjVmNjJkOWNhYjQ4ODZmY2E5YjhjNjFjNWMxZDBkNGQ4NTUyNzdhYmUxOTI2YTNhOTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJjOTUzMDZhZTQ5M2U2NzgxMDEwNWU2MDJlYzhmNzE3YzU0OWJjOTdmZjNkZWMwNmUxODlkM2JhYzIyZTM5OTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZhZmYyZWUzMjQ3ZmQ4NDliYjk2NDhhYzA0NGQwODNiNTAxMzI5ZTRhYmRlNjdkMDMyYWQ3ZGVjNjU0ODA3ZDEifQ"
         },
         {
           "resource": "repo://crates/rusty-app/qml/Main.qml#L121-L131",
@@ -540,11 +540,11 @@
     },
     {
       "id": "claim_422d7b99298d492e9a867ddbe5d03d0b",
-      "statement": "Screenshot scenes exist for the chrome that only shows on demand: `RUSTY_SHOT_SCENE=rename` opens the rename dialog for the current tab, `plus` pops the tab strip's menu, `skills:collapse-scripts` (or `collapse-skills`) sets the Skills page's remembered layout before `view:skills` opens it, `file:<path>` opens a file tab (an absolute path as given, anything else under `HOME`) and `file:edit` puts the current file tab in edit mode, so each can be photographed offscreen against a scratch vault.",
+      "statement": "Screenshot scenes exist for the chrome that only shows on demand: `RUSTY_SHOT_SCENE=rename` opens the rename dialog for the current tab, `plus` pops the tab strip's menu, `skills:collapse-scripts` (or `collapse-skills`) sets the Skills page's remembered layout before `view:skills` opens it, `file:<path>` opens a file tab and `file:edit` puts it in edit mode, `root:<path>` adds a folder root and expands it once the roots have changed, `expand:<path>` opens any row — a scene path is taken as given when absolute and under `HOME` otherwise — so each can be photographed offscreen against a scratch vault.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/Main.qml#L419-L425",
-          "version": "repo-lines-v1:sha256:1491c75599f094d652b04d59ce3ac2b7dd3f3f17de8a64c6fabd3a77ff0609db:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTc4ZTYxZTU5N2Y4OTFlOWUzNmEzNDY5YjgyYzk3NjczMTAwYTllMGY4YmM5ODc0MTk4NzJiODViN2U1ODY5ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTkxM2U1MGQxZDU2ODBlMmM2NmFiYmNlNTE3Mjc2MzkyZWU1NDQ3ZDU1OWQxOWRmM2FmNDliNWMxMjMwNDJiOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNkMDlhYTUxYmRmZDNhNmFjYzYzMjhmMzA2Y2UzZTVmZjZmODZhZTMwYzc4OGU2NDUxM2ZjZTU0ODJmNDI5MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2VkMDEzMTg2ZGU1ZGI0YmI4YzE3ZDdjYTRiZmYwNjM3YzM2Y2FiYzIzMjc5ZDU2NTMxMTI5N2Y1NWIwNDAzNiJ9"
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L413-L431",
+          "version": "repo-lines-v1:sha256:86dfed06dee4056b5fdbf5fc4d6f9c21e8e2ceb86bf9c519dde39cb5a1e1ee75:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjMjExMmQwYWQwYTNlZTkyMTM1OTlmNDU0ZWI0ZmRiYWE1MTBiZjY5NjQ2OTQ5YmQ1ZGE3Yzc1NGRkYWVjODkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlOGI0MWQwMTRmZTgzOTg4NWUzNWI2MjA4YTRkNDllODY1MTc3ZTNkNzcxZGFkZTZmYWI2N2EzZjc1YmQ2MzUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE4ZDBlMGVmMGM2M2M2NjAzNDJmY2U1YWZmZWM5NDI0MGQ1ZDQxY2FkYzZlNDMxYmFlZmJmNTFhY2I5NWU1NGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNjM2FiYTUzYzU2ZmNkNGM3ZmQ5MGJmMDIzNGIwODUyZDA2ZDE0MDFlMWJiZGY2NjhiMjExZjJjMTNlZDYwM2UifQ"
         }
       ]
     },
@@ -601,23 +601,23 @@
       "statement": "The explorer's disk writes (new file, new folder, rename, move, delete) go through six `Folders` invokables that answer `{ok, path}` or `{ok, error}`: every write refuses an existing target, a name that is empty, a slash, `.` or `..` is refused before the disk is touched, delete moves the entry to the XDG home trash (`$XDG_DATA_HOME/Trash`, else `~/.local/share/Trash`) under `files/` with its `.trashinfo` record written first and a copy-then-remove across devices, and on `ok` the explorer drops the root's listing cache and rebuilds while an error shows in its notice and changes nothing else.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L41-L62",
-          "version": "repo-lines-v1:sha256:4494005800789ae66bb52e1087ec2f3e2c018257959fb1832061f0c291c5fec0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwMjZlZTAyMmEyYmMyZDFkYjEwZWMwY2E3ZDE1ZTEyNzI5ZjRjOGYwMTEyNTYyNWZkOTVhMzM0YjBmMTliZWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFjMmYzZDQyZmIwYTA0YjI0NzA1OTA2NzAxNGJjMTk3OTQyMGFiZjNjYTFkNjYzY2YyZDQ4ZTU0YWJhZTNhMjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE2NDg5MzI3NzY5NDU4ZjQxNWUzMWFhM2UyZjE2OWE4YzAzYjA5NGRhY2M4MzIyMDZiMzEyZDJmZjRiOTQxMTEifQ"
+          "resource": "repo://crates/rusty-app/src/folders.rs#L42-L63",
+          "version": "repo-lines-v1:sha256:3b6379ba0c1c8f7c81cbf317f43a6b02bab3c078d28b64a45da56c876e7dd23f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwMjZlZTAyMmEyYmMyZDFkYjEwZWMwY2E3ZDE1ZTEyNzI5ZjRjOGYwMTEyNTYyNWZkOTVhMzM0YjBmMTliZWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFjMmYzZDQyZmIwYTA0YjI0NzA1OTA2NzAxNGJjMTk3OTQyMGFiZjNjYTFkNjYzY2YyZDQ4ZTU0YWJhZTNhMjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2MjIxMDhkNjNhZjRkZjE2MzE5NmMxZjJiYWM5OWU1NTYyNDdiY2UyNDZkMGU3ZDMxN2JmMWIxNDk4NjJkNTUifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L120-L170",
-          "version": "repo-lines-v1:sha256:093b49b510a91b9c71dbe873e46878f1452072e4d65fc377485709e9bf5bfb4d:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2YmE5ZjZkZWFmMzYzNTA1MTFiMTIxZWYzYWZmMDJkNjk2YTZkNTIxNzYzM2VmZTM4OTE4NzFkNDc1YWU4ODIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg0NmFjMTYzOTE2MDgxYjA1YTM2MTRmMzJiZDQ4YzAzMjk4ODc5MWU2YzRkMDkzNGIyMTUyMGRhZDc4OGJmNGUifQ"
+          "resource": "repo://crates/rusty-app/src/folders.rs#L129-L169",
+          "version": "repo-lines-v1:sha256:f6efea84b452604a412b0b125f231c0f957d0a53fc94c608fd59aecd6b2b0dd2:eyJzZWxlY3RlZExpbmVDb3VudCI6NDEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2YmE5ZjZkZWFmMzYzNTA1MTFiMTIxZWYzYWZmMDJkNjk2YTZkNTIxNzYzM2VmZTM4OTE4NzFkNDc1YWU4ODIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ3MWU2MWQxYWI5Yjk0Njg2NmNjZTYzMjAzODI5M2VjZTRkZmI1MTNjYjA3YjlhYmFjMGMwMTZmZmYzZTQ1N2IifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L308-L376",
+          "resource": "repo://crates/rusty-app/src/folders.rs#L322-L390",
           "version": "repo-lines-v1:sha256:05ac4ba00e725d80040fb6fd56c8b86eca8201cefb8479ea789ba18912cb4a07:eyJzZWxlY3RlZExpbmVDb3VudCI6NjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA4Yjk0ZTFkNTcwN2M0OGM2OGZkMmY3ZWM5ZDdjZjEyZTAxODhlYjE1YjNjMmNjOGUwOTAxY2U1ZjcxZmI4MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4YjY4ZDg5ZWVmNzA1MDQzMWViMDdmNGQ5OTZiNTE1YzgxODg1YTY0OGY4ZDM3NzhlZWQxYzBmODg3MTdmNWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzMmFjNjYwNjFhMjJiNDlmMTM3NzYzYTlmM2RmMzUzMTU3N2VkMDEyNmQyODVhYzI0ODA4ZjZhYmE1NWI3ZmIifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/src/folders.rs#L378-L480",
+          "resource": "repo://crates/rusty-app/src/folders.rs#L392-L494",
           "version": "repo-lines-v1:sha256:4b59c4cdaa080140077722b14c34ff7f8ccc21e32dca2892d2bfe18d5ce30cb1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwNWVkMTU1NTk2ZjczMDg4MWY2YmZkMjQ0YTRkNmYzZDY3ODIxYTgzM2VhM2M2Nzg3M2Q4YzQ2ZjRiODBjNGIyIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MWVjMGZjYzQ4YmE4MTVjMDU1M2NiMjY5MTYzNjVlNmRjZGFlYmNiODNmYzNkNjhkMmE3MmNlYTljMTRmMmQ2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJmZGE2NGYyN2RhODk1ZjNmNzk2OThhOWI1N2QwMDQ5YWM5MmM1NDU5OWQxNzdhZDJlOWFkODM2MTM4NDM2YTc5IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJhM2M3MWQ4N2IzZDI1OTgzZmMxZDEwYTUzNzJkY2Q5YjdlNzEzMWVmY2FmZDJhOWYxZTk2NTkwYTZiYzQxZTg2In0"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L120-L144",
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L139-L163",
           "version": "repo-lines-v1:sha256:0198de3c0b565a37ef7534b48556b36946bfb13c005f0a1f1374c3d2f9bbebd3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3N2NkOWRiYWJiMjhjMWMyMDhlMzY0NWE4NDRkZTlkODM5ZDEyNDk0NWIzNGUwYzk1MTI2YzRjZDlhMTUzNjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlNmMyMGY4MDRmYWFlOTA1MTYyMTMyNWI1NTNmMjk3ZjliZmJiNzhlYTk5MTk3ZWM0MmRlZmY5NTQ3OTc2NjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNmYmZjMDQ1NDA4YTFkYzRhMzc4MmJhYTk4ZjE5MDc0YWY0NjdkYmI3NTQ4Yjc0ZGFjN2VlODlmZDM5ZTI2N2QifQ"
         }
       ]
@@ -627,20 +627,20 @@
       "statement": "A disk file or folder moves by a vertical `DragHandler` on its row (no target of its own) released over a `dir` or `root` row under the same root — never across roots, never onto the vault, a drop on its own folder a no-op — or by Move to… from its menu; F2 renames inline and Delete opens the delete dialog for disk and vault rows alike, the dialog naming the trash for a disk row and `archive/` for a vault row.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L226-L234",
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L245-L253",
           "version": "repo-lines-v1:sha256:568ee1fe6b898d92068db9b85879be154956a7056d6464009db96b36c8933218:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzA0ZDc1MTA4ZTQxNjFhNDFhNTBhODY4Y2EzZDVlOTY0MzBhYzhkNzhkM2JiM2NjY2ZiYTFjN2FhYjFmY2RkMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTUyMmM0MmNkMTljNmQwM2Q4MDhjNDUyNzIwNTUyODI1YjdlYTFjNWI0OTFiMjE4NTExY2FjNzQxNWNmOWQ5YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjI0N2YwZTA0NWI0MzMzNWVkNDBhMGZkNTg3ZTUyYjZjN2MxYzVlNjAzNTRhYjljYTY5MTIyMWYzYjg0MGViZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2IxMDE4MTdmMzhkYmFhY2M4ZmY2MWFkZWM5MTRiZGU3NTYxZjJkMTAyNzMzZWVjM2VmMzQ5MzE0OWMzNmYxMCJ9"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L309-L332",
-          "version": "repo-lines-v1:sha256:74066bf4aa4f192de76408b8e15ab35d81020a758b2ba621719e3d7bbb633d60:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5MmVkN2I3MTRhZWQ2YWViNTc1MTZiZTUwNzcwNzgzMmQzY2U1MDc4MzlkY2ZlZmVmZTJkOTI5YTc5YjVjZWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjNjQ3OWNjMjMwNDQwZmQ0MWU4MjI0MjE4Njc5Njk4NTU5ZDI4OTNiZDY3YjQzODBhZmFiODExYjM4YTU1YWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0MTIxYWY5NjUzNmIwODNiMzA5YTI0MTVhMTVlNjU4NDFlZTQ0YmU3MWY5ZGQ3MzQ3ZDQyNzRiOGIzZGZkYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI1MjkzNDMxMjdjMjBlMGViNjdlMTEyZTAyOTUzN2ExYmJjYWQ5MmUzNWUyNjVlMjRkYTBjMDg3OGY0NWQ4OGYifQ"
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L337-L360",
+          "version": "repo-lines-v1:sha256:63a015e5dd5e6f54ec5706300da0675cb0b90cdac817cc845a948fd0fa68ef55:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmZGZiMzRhMzc1ODEyMjM0MGYxOTk5Nzk3MTVjMzcxMjYxZDlmZWE0MjlmMzQ2OTQ3ZDU3OTk3ZjI0ZWE2NzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxMDIyOTE2NWI5MjdkNjk2NGUxOTk5MGFiNDJhNDQzMzZiM2E0YjE2ZTZiMTZlNDU5ODYwZmY2ZTFjMmQ2ZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU3MzE0ZGY4MjNhOWQwZjQ2YjM0YWZhMDlmNTNlMDc4YjJjNjJkZjA4NWQwMDgxZjRlNGU4ODY0MzUwMmNkYzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY3ZDE2YmRiMWMxNzdkNTczMTYyMjlhZjM1MTZlMzQ3YjUwZmRlMTc0YWIxMzhlZmZiMzRlN2E5MzExOTY4MDgifQ"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L386-L392",
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L411-L417",
           "version": "repo-lines-v1:sha256:bb6929952e55b706ac9dd1d955e2300bdeb852d4d9670249122e5db9037408ce:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmQ4NTAyNzc5MjNmODMxMTU4MmRjNmM3MTIxOTE1MTIyZDljYjI5NGQ3NWQ3NWU4ZmM1ZDEyZjg0M2M0ODg5OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmQ4NTAyNzc5MjNmODMxMTU4MmRjNmM3MTIxOTE1MTIyZDljYjI5NGQ3NWQ3NWU4ZmM1ZDEyZjg0M2M0ODg5OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGVkNWE5YTFkMWJlMjdiNjJjYzhlMmU1NGJkZWM4OGU5N2JiMWRlMmJjYWZkMWIzYzY4OTFlMTYzZGM3NDY2MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjRhNGJmYmM1NDVhZTIzYTIxZTExZWU5NjgyNWI0NDc0ZDc4NDlmYjUwNTUwM2RlYTgxOGE1YjEzNjNkOTFjNSJ9"
         },
         {
-          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L437-L479",
-          "version": "repo-lines-v1:sha256:d4a97f8770a34d6aff9aa511c91b1c551d831aabd5ad1b6d5c1a0036df5aa52b:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3ZDU1ODM2ZGE4NTE5MzJkNzg1Mzc2NDIyZWI1NDU2ZWM2YmZlYTc5YTQ4N2VkNzhmYWY5MmFlZDk2YWQxMzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjczMzg5ZDdkMGExZDliNDllZjI0ZTgwNDE3ZWFkY2Q4N2QzNmIzODMwOGM5ODYyMmI2NTNkMTAzNjVjMTg3MjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNkOGM4OGU4MDZjNjJkMTE4OTY5MzhiN2QwNmQwODJkOTJiNzU0NmU3ZDJhZjIyZGU0MGU5MmI4MDA0MjdmZTUifQ"
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L460-L504",
+          "version": "repo-lines-v1:sha256:d1223697acc22a75e16ce2e3909ede9a07f6e5d138d07e09c6656e6c4ef6cba4:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjMjQ3NGRmODBlNzNjOTU1NzI5ODNhNjZkYzA4MTZkMDk5YTRmMWJlNjgzYjAzODM4YmMzMzQzYzdhY2I0OGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZhMzMyYmY3ZGY4YmVmNjBhYjIyZGQyNjVmNzRhZTFmMTM5YWNkNjFhZjZlMjZiOWI5MzVjNGFhNDQ4Mzk3NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNkOGM4OGU4MDZjNjJkMTE4OTY5MzhiN2QwNmQwODJkOTJiNzU0NmU3ZDJhZjIyZGU0MGU5MmI4MDA0MjdmZTUifQ"
         }
       ]
     },
@@ -661,10 +661,52 @@
           "version": "repo-lines-v1:sha256:a078089caeb0dc2e8ae4c16bd96712d9e8ec5dd4b85b88921592dbe42cad4eb0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjliN2IxMGNjNjI2YWVlMTBhNmMzZWQ5N2I0ZjlkNzU0NGY5NDc1OGE2NGNhZGE2YmVhMWY2NTdjNmEyNDBkNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyNTBmNWY0NmUwMjU5NDQyZDI1ZDk1MDEyM2FkNjVkNzdhM2NiNDAzODc1M2MzNDRjNzBmM2IzODhlZDdkODAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxMzYwZTc4OTM3Mjc0OTA3NjlhYzM4ZTYxMjRhNzZhMGIyOGZkZGJiZjFlYTM1ZDJiOTk4MDYzMjNiMWZjODUifQ"
         }
       ]
+    },
+    {
+      "id": "claim_783095454d13489aa0ac6bedb1162a82",
+      "statement": "A folder root's git status is read by the app's `Folders` type and never written: `git --no-optional-locks rev-parse --show-toplevel` then `status --porcelain=v2 --branch -z --untracked-files=all -- .` in the root, parsed in Rust into `{repo, branch, files, dirs}` with paths relative to the root (a root that is a subfolder sees only its subtree) and every folder above a change folded to the strongest state below it (M over A over ?); the explorer fetches it once per root in `rebuild`, keeps it beside the listing cache and drops both on Refresh, a root change and every disk write, and rows only read it — the letter on a file, a dot on a folder, the branch on the root, in the `gold`, `alive`, `accentSoft` and `faint` tokens; outside a repository or without `git` the answer is `{repo:false}` and the tree is unmarked.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/src/folders.rs#L64-L70",
+          "version": "repo-lines-v1:sha256:a66843af9d86b485f1e6060af81f6fbd4c13dfdbc6dc0017731725d07b861bd6:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmRmMzUzN2MzNGRjOGNhMDU0YzFhNmNmODY5MDFhMGJlNjg2YzA1ZTUwODRkZjM3NmZmNGQwYzEzYWNhYzE0YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2VmOTA5ODcxZjNmMWNlZmRmMWUyM2ZhZjExNjEwZjVhNDY4M2M4MjJiYWQ1ZDU1N2QyYWNiYTE2YjJiNWY4ZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOThjOWZmYzU0MzFkZjE2ZGU2MTE0M2YyOGE0MWM3ZWJjMTViZGYyNGUzZDYzYzRhNWZiMzlkYjFmMmM5NjM2NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTllNzYzNTVjZjExOTk0ODBjM2Y5OTgzNmIxNDg2Yzg0MWQ4OTFmYWFkOTA0YzYwOGUwOTMwMjJkMzc1N2FlZSJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/folders.rs#L171-L175",
+          "version": "repo-lines-v1:sha256:119c12316cd9ca936017759b7fd711b2e75018728f167a9d960844bed17e448c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzlmNzU0NDc5NDUwMzIyZTU2ZGQ2ODk5NmIxMmVhMDM1MmJlZGU5Njk5YWUwYzZjOTEzMjI4MjEyN2E1ZGY1OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODFhZTQwODA3MWVhNzc0YTc5YmM2MTNmNGZkNDU2NTYzMmMyMWQ2MzRlMmRiZmZhYWQwYjM2ZGJmNzM4YzJmNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTUxNmIyY2YzODVjZmNkNjJiOWY5ZTg1NTVmNWMzY2RiNThiYTFiYWIxNzkzOTY1MzYxMTcyN2YwZWQ5NjllMCJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/src/folders.rs#L517-L674",
+          "version": "repo-lines-v1:sha256:34462ed774698e82a504139daeaf92dd9819f3b2b535c890418d2b1d6124eefb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTU4LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJhOWNlYzY4Y2ZmM2YxNzYzZTViNjU3MWM3N2MxMmYxYTBhZjBlY2ZiYjRkY2UwMDczYjFiMWFiMzEyOWI1Njk3IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzMDU2Njk4MWJlYmVkZjU1MzUxYTBkMGYzYWYzYzUwMmRiN2RhZTVkZmU4ZTc0MGU4MDY5Y2QxYWZmMjY4ZTRmIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI3YmM5OGQ2YjBkYzQ5MmM1MDE2ZGYxMDgwNWEzYTU0ZWI5YzE4NGE1YTYxMzdlN2Y0YmVjZmEwYzIyMDU1MGQwIn0"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L37-L39",
+          "version": "repo-lines-v1:sha256:9a8fb5047e51dffc68828011327323b7b0d6129f0f724d8fd77a5b2b361322b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmQ3ZjE3YWM2OWUyZTMxYzFkN2Q1YzExOGEzOWQwNWVjM2E3ZmE5YWRjNjg3MDcwMTI2OGE4Yjc0NDgxMzU4NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjJjYjIwODRjYWU1ZGU4MzBhNjEyZjg2YTAwMWI2ODc0NjdkOGZkYWRjZTRjZTg2NjYxMzNiODgxMWNmY2UyYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzAyNjQ0MjhiNjIwZGMyNTQ5Y2JhYTkwMTE2NTAxMjIwZGIyNTg5Y2I1YzQxZDg1NzNhNDJkNGM5ODRhZDhiYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2QxNjA1Y2I1NTVhYmZhMjU5Y2Q4NmJlYWMzMWI4MjJjNTEwMWUyYTViNTBjYjNjODJiZjEwZjNlYTlkNjIyZiJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L55-L70",
+          "version": "repo-lines-v1:sha256:b5e325a77f744d21fe8f54232ab85ad180c2c669fe6fc4a3fd2a14a517bb42e8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjYWY4NDNlNWU1ODE1OWY5MzIxZjlmODUxMjk2MDViMGZhYWZlYmIzYTdiM2ZiYzFiOTRmOGNlNTBlMjI5NzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3N2VhNTkzNmM0NGZiNGUxYWMxNjlkZmNkNTg4NTM5YzgwY2I1MDc4MTUyODJhOWZkMjQ5MDdjNGQzODY1ZjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3OTdjODMyOWVhYjQ4NjdkOGJjYzllMzE1N2QzOTkyYmFjNDI0MzdhZThjMzQwMzE2ZWYzYzU1N2Y3MzNhNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwYWFhNDQ4MjdiY2FjM2NlM2JlMDNiN2NjOTRhNjhmZGIwZjU3NWY4Y2Q2MDEwYWVkZWU3ODExYWY2ZjEzZmEifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L83-L87",
+          "version": "repo-lines-v1:sha256:ea4c215e38d0193a5515ea2795507ac0c8282369585eafd1be6a8959af282bce:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDI4YWFjMmRhY2YzMjBjMDE0NTQ4ODJhY2JiMDc5MjViOWI2YjE4OWFjOWQ5NmUxZmJkMjFjN2Y5M2M0MGYyYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjU1MDcxODJiYTk0ZjBiZTk0OTNmMGUxODgxMTdmZDIzMzQxNGE4ODI0ODkwNTgzY2NhMjlkYjQ5Nzk1NWJjNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTAzMTBjY2I2MThmMWZhZjMyYmJiYmVjYTY2NmU1OGMyZWQ3OTFlMmZjMDc4NzBmYTM3MzQ0MWI3ZDZkMTUzNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjA1OTU2NDE3NGFlMDg3MDQ1YjIxMjc0MmY0OGM1NzFiNDBmMDllMTc4ZGQ4YzFkMWE4MzBmNGEzZjM3MGI4OSJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L266-L267",
+          "version": "repo-lines-v1:sha256:13beb3af8cae0458281da4bb36055508864d59fcf371cf2fe51540e4035aaa07:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQ1NzJiYmZiNGVlZjNiOTUwZGE0M2M5YjQ3ZTg1MDhiYjQ5YzI0ZjQ3NTRjMTIwNmQ4MjU5NTcyZWI4NGVjMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ4N2RjZWJlODI1MzhlZmZjYTczNjgyYzY1ZTE1Y2IzOWY1NDEwM2NlYjQyYjM5MDRlYjE0M2Q5MTM3YmU5NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDAxOTVkMDI5YzU4NDU3ZmIzNGI5YTBkZTZlZDVhYTFhOWYxOWNlMjNiMGZmZGM4YjVhZWJlZGU0YTgyMjIzMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDFkZGNhMzFhNGFhYzU2MDA0M2NjZWFkMjczNjA4MGJmNjRhZmRlOWM4MTk2N2U3MDI3YWI3NzBjZjBjNWU1MSJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Explorer.qml#L326-L332",
+          "version": "repo-lines-v1:sha256:0ca7cd296b5acf5cc9787f9e96bfcc99c0d23526db82ba40ea520a9d3273a6a3:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWQ0ZjkzYWM3OTg3MTIyNDAwNDI3NGY0NTNmY2Q1NzFmNTJiMGE5NzZlMmEzMDlmODAxNzk4NDFlMzQwZWUzYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMGM2NDc5Y2MyMzA0NDBmZDQxZTgyMjQyMTg2Nzk2OTg1NTlkMjg5M2JkNjdiNDM4MGFmYWI4MTFiMzhhNTVhYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjdjNzZmMmY0NDIzZjdhOGNjZDY3Y2Q5NjUyOTllNDU1MzhkMGM3NTExMTM4MzY3MWVjZGExMzQzMzYzZDUwNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWQ3ZDE1NmNlODFiODE3YzcwYzhhNTQyMzNmMzdmNzkxNTY1NGUxYzU4YTQ2Nzk5MGIwMmM1NzYyZTA5ZTZkZCJ9"
+        },
+        {
+          "resource": "repo://scripts/screenshot.sh#L230-L247",
+          "version": "repo-lines-v1:sha256:0ceaab9b0759bc86afaa77fcc2921bdd7de38fb4e55786c2979519043fd6a2a1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhYjQ1Y2EzN2VjZTYzZjZkOTA2YzkwODU2YWJmNzY2MzA3Y2JmMmUzY2U4Mzk1OGQ4NjQ1MDFjMTViOWYwYWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUyZjU0MmU2NDhjNjk4ZmViMTk4NDM3YzA0OGQ4NTJkN2NhYmE1MGU3Njg3Y2E3ZWQ3Nzg3ODk0MmNmZmZhNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwNGQ0Y2VmZDU5NzBhOTcwNGJiMGQ3ZGU0OGUzMWVkZTJlZDcwMTMxYmYwZGE2ZDQ4YjNjODA1Y2I3MDNiMmQifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T03:55:21.200Z"
+    "at": "2026-09-05T04:09:53.999Z"
   }
 }

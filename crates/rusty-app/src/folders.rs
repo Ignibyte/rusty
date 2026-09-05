@@ -3,6 +3,7 @@
 //! store: nothing here reaches the back end, and the vault's rules stay with it
 //! (TICKET-016, part one).
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use cxx_qt_lib::QString;
@@ -59,6 +60,14 @@ mod qobject {
         /// Write `text` to `path` atomically (a sibling temp file, then a rename).
         #[qinvokable]
         fn write_text(self: &Folders, path: &QString, text: &QString) -> QString;
+
+        // Part three (TICKET-020): the git status of a root, read and never written.
+
+        /// The status of the repository holding `root`: `{"repo":false}` outside one,
+        /// else `{"repo":true,"branch":…,"files":{rel:state},"dirs":{rel:state}}` with
+        /// `M`, `A` or `?` per path relative to `root`.
+        #[qinvokable]
+        fn git_status(self: &Folders, root: &QString) -> QString;
     }
 }
 
@@ -156,6 +165,11 @@ impl qobject::Folders {
             Path::new(&path.to_string()),
             &text.to_string(),
         ))
+    }
+
+    /// See the bridge.
+    pub fn git_status(&self, root: &QString) -> QString {
+        QString::from(&git_status_json(Path::new(&root.to_string())))
     }
 }
 
@@ -499,6 +513,166 @@ pub fn write_atomic(path: &Path, text: &str) -> Result<PathBuf, String> {
     Ok(path.to_path_buf())
 }
 
+/// What `git status` says about the paths under a root: the branch, and each changed
+/// path with `M` (any change to a tracked file), `A` (added) or `?` (untracked).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct GitStatus {
+    pub branch: String,
+    pub files: Vec<(String, char)>,
+}
+
+/// `git` with the arguments, run in `dir` without taking the repository's optional locks
+/// (so `status` refreshes nothing on disk); `None` when the command fails or `git` is
+/// missing.
+fn git_output(dir: &Path, args: &[&str]) -> Option<Vec<u8>> {
+    let out = std::process::Command::new("git")
+        .arg("--no-optional-locks")
+        .args(args)
+        .current_dir(dir)
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    out.status.success().then_some(out.stdout)
+}
+
+/// The state of an `XY` pair from porcelain v2: `A` when either column adds, `M` for
+/// any other change to a tracked file, `None` when both columns are `.`.
+fn state_of(xy: &str) -> Option<char> {
+    let mut chars = xy.chars();
+    let (x, y) = (chars.next()?, chars.next()?);
+    if x == 'A' || y == 'A' {
+        return Some('A');
+    }
+    if "MTRCDU".contains(x) || "MTRCDU".contains(y) {
+        return Some('M');
+    }
+    None
+}
+
+/// The branch and the changed paths from `git status --porcelain=v2 --branch -z`:
+/// `# branch.head <name>`, `1`, `2` and `u` records with an `XY` pair and the path last,
+/// `?` records for untracked files. With `-z` a record ends in NUL and a `2` record's
+/// original path is the record after it. Paths are as git prints them, relative to the
+/// repository's top level.
+pub fn parse_status(out: &[u8]) -> GitStatus {
+    let mut status = GitStatus::default();
+    let mut records = out
+        .split(|b| *b == 0)
+        .map(|r| String::from_utf8_lossy(r).into_owned());
+    while let Some(record) = records.next() {
+        let (tag, rest) = record.split_once(' ').unwrap_or((record.as_str(), ""));
+        match tag {
+            "#" => {
+                if let Some(name) = rest.strip_prefix("branch.head ") {
+                    status.branch = name.trim().trim_matches(['(', ')']).to_string();
+                }
+            }
+            "?" => status.files.push((rest.to_string(), '?')),
+            "1" | "2" | "u" => {
+                let n = match tag {
+                    "1" => 8,
+                    "2" => 9,
+                    _ => 10,
+                };
+                let parts: Vec<&str> = rest.splitn(n, ' ').collect();
+                if tag == "2" {
+                    records.next();
+                }
+                if parts.len() == n {
+                    if let Some(state) = state_of(parts[0]) {
+                        status.files.push((parts[n - 1].to_string(), state));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    status
+}
+
+/// The status of the repository holding `root`, limited to the root's subtree and with
+/// paths relative to `root`; `None` outside a repository or without `git`.
+pub fn git_status_of(root: &Path) -> Option<GitStatus> {
+    let top = git_output(root, &["rev-parse", "--show-toplevel"])?;
+    let top = PathBuf::from(String::from_utf8_lossy(&top).trim());
+    let out = git_output(
+        root,
+        &[
+            "status",
+            "--porcelain=v2",
+            "--branch",
+            "-z",
+            "--untracked-files=all",
+            "--",
+            ".",
+        ],
+    )?;
+    let mut status = parse_status(&out);
+    let prefix = root
+        .canonicalize()
+        .ok()?
+        .strip_prefix(&top)
+        .ok()?
+        .to_string_lossy()
+        .into_owned();
+    if !prefix.is_empty() {
+        let prefix = format!("{prefix}/");
+        status.files = status
+            .files
+            .into_iter()
+            .filter_map(|(path, state)| {
+                path.strip_prefix(&prefix)
+                    .map(|rel| (rel.to_string(), state))
+            })
+            .collect();
+    }
+    Some(status)
+}
+
+/// Every folder above a marked path, carrying the strongest state below it: `M` over
+/// `A` over `?`.
+pub fn fold_dirs(files: &[(String, char)]) -> BTreeMap<String, char> {
+    fn rank(state: char) -> u8 {
+        match state {
+            'M' => 3,
+            'A' => 2,
+            '?' => 1,
+            _ => 0,
+        }
+    }
+    let mut dirs = BTreeMap::new();
+    for (path, state) in files {
+        let mut dir = path.as_str();
+        while let Some(i) = dir.rfind('/') {
+            dir = &dir[..i];
+            let entry = dirs.entry(dir.to_string()).or_insert(*state);
+            if rank(*state) > rank(*entry) {
+                *entry = *state;
+            }
+        }
+    }
+    dirs
+}
+
+/// `git_status_of` as the JSON the explorer reads.
+pub fn git_status_json(root: &Path) -> String {
+    let Some(status) = git_status_of(root) else {
+        return r#"{"repo":false}"#.to_string();
+    };
+    let files: serde_json::Map<String, serde_json::Value> = status
+        .files
+        .iter()
+        .map(|(path, state)| (path.clone(), serde_json::Value::String(state.to_string())))
+        .collect();
+    let dirs: serde_json::Map<String, serde_json::Value> = fold_dirs(&status.files)
+        .into_iter()
+        .map(|(path, state)| (path, serde_json::Value::String(state.to_string())))
+        .collect();
+    serde_json::json!({ "repo": true, "branch": status.branch, "files": files, "dirs": dirs })
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -627,6 +801,128 @@ mod tests {
         let again = trash_to(&dir.join("a"), &root).unwrap();
         assert_eq!(again, root.join("files").join("a.1"));
         assert!(root.join("info").join("a.1.trashinfo").is_file());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parse_status_reads_porcelain_v2() {
+        let out = [
+            "# branch.oid abc",
+            "# branch.head main",
+            "# branch.upstream origin/main",
+            "1 .M N... 100644 100644 100644 0000 0000 src/lib.rs",
+            "1 A. N... 000000 100644 100644 0000 0000 src/new.rs",
+            "1 .. N... 100644 100644 100644 0000 0000 untouched.rs",
+            "2 R. N... 100644 100644 100644 0000 0000 R100 docs/b.md",
+            "docs/a.md",
+            "u UU N... 100644 100644 100644 100644 0000 0000 0000 x.txt",
+            "? notes with space.txt",
+            "",
+        ]
+        .join("\0");
+        let s = parse_status(out.as_bytes());
+        assert_eq!(s.branch, "main");
+        assert_eq!(
+            s.files,
+            vec![
+                ("src/lib.rs".to_string(), 'M'),
+                ("src/new.rs".to_string(), 'A'),
+                ("docs/b.md".to_string(), 'M'),
+                ("x.txt".to_string(), 'M'),
+                ("notes with space.txt".to_string(), '?'),
+            ]
+        );
+        assert_eq!(
+            parse_status(b"# branch.head (detached)\0").branch,
+            "detached"
+        );
+        assert_eq!(parse_status(b""), GitStatus::default());
+    }
+
+    #[test]
+    fn fold_dirs_takes_the_strongest_state() {
+        let files = vec![
+            ("src/a/x.rs".to_string(), '?'),
+            ("src/a/y.rs".to_string(), 'A'),
+            ("src/b.rs".to_string(), 'M'),
+            ("top.txt".to_string(), '?'),
+        ];
+        let dirs = fold_dirs(&files);
+        assert_eq!(dirs.get("src/a"), Some(&'A'));
+        assert_eq!(dirs.get("src"), Some(&'M'));
+        assert_eq!(dirs.len(), 2);
+    }
+
+    /// `git` in a temporary repository with nothing of the machine's configuration.
+    fn git(dir: &Path, args: &[&str]) {
+        let ok = std::process::Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("HOME", dir)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_AUTHOR_NAME", "t")
+            .env("GIT_AUTHOR_EMAIL", "t@example.invalid")
+            .env("GIT_COMMITTER_NAME", "t")
+            .env("GIT_COMMITTER_EMAIL", "t@example.invalid")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        assert!(ok, "git {args:?}");
+    }
+
+    #[test]
+    fn git_status_marks_a_temporary_repository() {
+        if std::process::Command::new("git")
+            .arg("--version")
+            .output()
+            .is_err()
+        {
+            eprintln!("no git on this machine; skipped");
+            return;
+        }
+        let dir = tree("git");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["add", "."]);
+        git(
+            &dir,
+            &["-c", "commit.gpgsign=false", "commit", "-q", "-m", "one"],
+        );
+        std::fs::write(dir.join("alpha.md"), "# Alpha\nmore\n").unwrap();
+        std::fs::write(dir.join("a").join("new.rs"), "fn main() {}\n").unwrap();
+        git(&dir, &["add", "a/new.rs"]);
+        std::fs::write(dir.join("b").join("loose.txt"), "x\n").unwrap();
+        let s = git_status_of(&dir).expect("a repository");
+        assert_eq!(s.branch, "main");
+        let mut files = s.files.clone();
+        files.sort();
+        assert_eq!(
+            files,
+            vec![
+                ("a/new.rs".to_string(), 'A'),
+                ("alpha.md".to_string(), 'M'),
+                ("b/loose.txt".to_string(), '?'),
+            ]
+        );
+        // A root that is a subfolder sees its own subtree, relative to itself.
+        let sub = git_status_of(&dir.join("a")).unwrap();
+        assert_eq!(sub.files, vec![("new.rs".to_string(), 'A')]);
+        let json: serde_json::Value = serde_json::from_str(&git_status_json(&dir)).unwrap();
+        assert_eq!(json["repo"], true);
+        assert_eq!(json["branch"], "main");
+        assert_eq!(json["files"]["alpha.md"], "M");
+        assert_eq!(json["dirs"]["a"], "A");
+        assert_eq!(json["dirs"]["b"], "?");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn git_status_answers_no_repo_for_a_plain_folder() {
+        let dir = tree("plain");
+        assert_eq!(git_status_of(&dir), None);
+        assert_eq!(git_status_json(&dir), r#"{"repo":false}"#);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

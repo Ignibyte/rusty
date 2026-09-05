@@ -276,6 +276,9 @@ workflow in `CONSTITUTION.md`.
       dialog and delete under a folder root act on the disk through the app's `Folders` type,
       delete a move to the XDG trash with its record; a text or markdown file's tab has an
       edit mode with the note editor's autosave and Ctrl+S, saved atomically
+- [x] TICKET-020 Folders, part three (2026-09-05): a root in a git repository marks modified,
+      added and untracked files and the folders above them and carries its branch; one read
+      of `git status --porcelain=v2` per root, cached with the listing, never a write
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in
