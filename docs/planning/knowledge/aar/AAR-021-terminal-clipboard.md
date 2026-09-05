@@ -4,6 +4,7 @@ ticket: TICKET-021
 pipeline: 7034f494-16ee-4d43-bd21-8353ce4291f4
 status: closed
 created: 2026-09-05
+submitted: 2026-09-05
 ---
 
 # AAR-021: Terminal clipboard

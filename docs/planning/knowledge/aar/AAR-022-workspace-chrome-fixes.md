@@ -4,6 +4,7 @@ ticket: TICKET-022
 pipeline: e8f444c2-71de-4e14-8e1a-fff6b5c7ca14
 status: closed
 created: 2026-09-05
+submitted: 2026-09-05
 ---
 
 # AAR-022: Workspace chrome fixes
