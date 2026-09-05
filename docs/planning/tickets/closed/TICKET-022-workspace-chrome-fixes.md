@@ -1,6 +1,6 @@
 ---
 title: TICKET-022-workspace-chrome-fixes
-status: open
+status: done
 ticket_number: 022
 type: fix
 created: 2026-09-04

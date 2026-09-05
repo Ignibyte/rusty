@@ -267,6 +267,11 @@ workflow in `CONSTITUTION.md`.
       own selection state; the chords attach to the terminal item so plain Ctrl+C stays the
       interrupt, and the middle button takes an exclusive grab so the widget's native paste
       does not fire a second time
+- [x] TICKET-022 Workspace chrome fixes (2026-09-05): the sidebar splitters measure in the
+      scene, so a drag follows the pointer instead of the handle that moves under it; tabs
+      reorder by drag (the Tasks page's handler, turned sideways); the rename dialog lays its
+      field out; the tab strip's `+` is a menu — the page switcher, every top-bar agent by
+      name, the custom terminal
 - [ ] Brain: tiered context (abstract, overview, details per page and folder) and
       session-to-memory extraction, the two OpenViking ideas worth keeping
 

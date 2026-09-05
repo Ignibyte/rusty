@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:6675a0097b854ba4101dd30d1a7873e4f90d42e174406cb2ecf790072de05e37",
+  "pageVersion": "sha256:503ec64f9a7d8e423f0a6090cf039d2cc7b3a3fe1d9c2e71c48237e121e16d65",
   "claims": [
     {
       "id": "claim_ea61ceb0077d4de5a6e3321bc8cbed7f",
@@ -477,10 +477,76 @@
           "version": "repo-lines-v1:sha256:7002cb16dd4e9008d34ef649a693f6d2b6db787c568f491fb3d01ffaf4b485f3:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTUxNTQzNTNjY2RmNGI5ZGM1YjFiYjg3YWZkMjI2MmJkNTg4YmZlODE4NGUxOTI2YmQ3ZjU0NTYyY2Q3YTdmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGIwODQ0MmU2NzExM2JlZmYxNDU0MjM3ZmFjNGRhNTcxNzdiMDY2NzFmMzBmY2Y5YmVhNDkwYjBhN2IyNjVjNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjEsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSJ9"
         }
       ]
+    },
+    {
+      "id": "claim_dcc2c6bb97df4e67a41a5755a91a5991",
+      "statement": "The sidebar splitters measure a drag in scene coordinates (`mapToItem(null, …)` at press and at every move) rather than in the handle's own frame, because the pane resize moves the handle under the pointer and a delta measured from it would be measured from a moving origin; the left pane is clamped to 180–600 px and the right to 200–700 px, and the widths persist in the workspace state.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L772-L793",
+          "version": "repo-lines-v1:sha256:b3138b0dc160f843ce11f699bd305a9d69cc62c0f04e06724c6fc0e1e3314cca:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdjYWI4ZTk0ZTI0MzVlY2UzMzA0M2Y0OTkxZmMzMzIyZTEzOTZjMGE0MmEzZWI1NzJkMDE1MGNiODM3MDgyYTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwZDZhYTFiZjY2ZmY5OTUzYzVlNWViNmY3NDNiZTU0ZDFhZWMxNTdmMTAwMjE0N2FmMTE2NDg4MTUxMDhhOWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmNjc3YmNiMDJjZWViYjUyMzJlMmEwODEyN2Y2ZDZjYWZmNDFjOWY0MmU4NWMwMDVjNDVmYzg4OTQzMDUzZTkifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L56-L60",
+          "version": "repo-lines-v1:sha256:2638ff27e7898f100cdd8999a9b373aa0bd1e2e5fa6ebcd0c04c6e01820fcdff:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMGI3ODU5NWNkYTg3MzBjNmY5MjM5ZDhiZTgyNTEyYzkyZDZmNTRlMDc2M2M0MmYxYmM5YzUwYWMzNTM1ZGJiZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWE0YjE3NDUyZjhiODI1Zjg3ZDQ3YjQ5NzJlMzJkNzI4ZmNhOWFhOTkxNmJkOGVjNWUyMTkxMGI2ZWExMjdkZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGRhM2QyZjJlYmJmZTY1YzA4N2ZhNzZkNmFmYmFjMWJiYTE3MjUxZDIxYzBjNDU5M2Q2Y2YxYzYxNjA0MWFkMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTZkOGMxM2MzMDQyYTBlZTIwMjA2MTUxMDljMGQ0YzdiZDI2ZTAyNjc4YjMzMGVmODA1ZjZjMjI2NDk3OTlmOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_78c2284e2d7a48daa533f41e03cc0477",
+      "statement": "Document tabs reorder by drag: a `DragHandler` on each tab (left button, x axis only, no target of its own) records the origin when it activates and, when it releases, maps its centroid into the tab row, finds the tab whose span holds that x (`dropIndexAt`, which skips the row's spacer and `+` because only delegates carry an `index`), and calls the same `moveTab` the Ctrl+Shift+PgUp/PgDown keys and the tab menu use, so the order persists as it already did; the tab's tap handlers are untouched, and a press that becomes a drag never fires a select.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L970-L981",
+          "version": "repo-lines-v1:sha256:80c4772e9a233bde71f9a14504774c81d903d51e5d091f00bd8cec1a239a8090:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI0NTUxNDRjNTgzOWY5ZGVhZDRjNGI4MmY1YWQ2Yjc0NTFiMjhhZGE1NjFkNDZkYjM4ZDljMzRlYjAwZWEwOTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhYjIwMjFlYmNlYWViY2JjMGM0N2FjYzUwNjhjMjYzNmY3YmYyZGZiZjA1YTNmNWQ0N2FjNzE0Y2Q1YzRkMjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFhNTcyNTAyNmIzY2E1NWM2NWY2MzM2ODgzY2I0MjE0NjVkMmYxMTI4NDE0ZjQyN2RmY2IzYzc0ZTEwYmYwZTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxMmVmM2ZmM2FmNmYwYTkwMDdmYjhjNzY4N2U2ZDNhYWQzNzgwOTYxOTJiMjgzNDFkZDVhNTk3ZTZmM2I1MmIifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L1035-L1047",
+          "version": "repo-lines-v1:sha256:408ab544e645991d70e9fc560c56bec849f0cdb8519ba45135b2e2bd3060a2c1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkY2UxYjVhZmJkNjUwMjQ0NTcwNDg1MjY4ZDdiMWE3MmM5ZDQ3NTBkNDlkODFlYTNkYjRiY2VlNGY1MjRhNzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3YzI0NGE5MDg2MDhmNjc5MmU4ZTk3MDA4NzY1ODJiMGQ5NDkyZWYyMGNjN2YwYjEzMjk2Yjg1NDI4MTE0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRkZDY1NGVhOTIwNTE4YTA5ZjY5Nzk3YTY2Y2ViMWNiMjA4NzE3NmQ0MzZmMzgwM2YyZGJhNjUxYzBiYTljZjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNlMmQ0NzA4NTkxYWRkZjgwNDQxOWQ0MWFmZjE0YjNiMGVjZGEyNTZlNTEzOWRiMTA4NjM2YTU2MDMyMTY3MzkifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L294-L299",
+          "version": "repo-lines-v1:sha256:0bc7c80fc4e41c68bf51760f2265033f70553ce41a443f2d0d5d886006fb93df:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjcxNjk3MmQ0NDBkNGFhNDJkMjUyYTZhZDVhMTAzYjRhYWE2ZTZjN2U0MjNhNjE2MDlhOWM0OWE1ZDdjMjZmNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWRjMjk4NjgxYzVmZWI3MTBiN2E0NmY3Y2YyZDliM2ZiOTU2MWQ0YTRkMzEwMWYwNzY4ODAxNGM5MjQ2MzkyNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjVkYjVkNzgzMDAzNTY5M2M4NzY5MTBmZjgzZmJhMjQ1ZjllM2U2MWQwOWMwYTNjYmViNTMwZGE3OTUzYzM5MiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1ab254e6a5194bd883a9a3eac6fd00ca",
+      "statement": "The tab strip's `+` opens a menu under itself: the page switcher first (what the `+` always opened; Ctrl+T is unchanged), then one item per agent CLI the top bar lists (`win.agents`, built by an `Instantiator` inserted between two separators, because a `Repeater` does not parent items into a `Menu`) that opens that agent in a new terminal tab, then the custom terminal dialog (Ctrl+Shift+T, unchanged); its tooltip names both keys.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L606-L622",
+          "version": "repo-lines-v1:sha256:98ce13400baf182c42b066ea8657d0675e34d19415570e97bb3300d60ed0f800:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMmZlODY0YjNiYjNiZGU1ZDNiNjgwNzUxOTM0ZDE2OTFhYTJkMDhjZWE3MzFlNjhhOTFlNDIzZjAzZDZkNTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4NDYwNDRiNGE4MTIxYjYzYzZhMmJkNjRkOGIwOGQ5OWVjM2UyMTJhYTdiMGZlODk3MTUzMjRjNzIxYTliZmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU3NWE5YzNmNWI3YzdjNDUyYWZjNjkzYzNiOTNhMTc1OWY5MTNkOTBhZDI5YmRiYjQ2NjA1Y2EyNGMzNWU1ODcifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L1054-L1054",
+          "version": "repo-lines-v1:sha256:7f526e40d9fd5cdcca5e5a0e5afd945fc2b06067e14241372d76deb0fa638ae2:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2Y1MjZlNDBkOWZkNWNkY2NhNWU1YTBlNWFmZDk0NWZjMmIwNjA2N2UxNDI0MTM3MmQ3NmRlYjBmYTYzOGFlMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2Y1MjZlNDBkOWZkNWNkY2NhNWU1YTBlNWFmZDk0NWZjMmIwNjA2N2UxNDI0MTM3MmQ3NmRlYjBmYTYzOGFlMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGFjY2FkODk4YmZjMGFiNTNhMTQyYjM4NmQ2MmE5MWJkMDViMWIzYjI5OWMzNTBjNDdkOTI1MWUxNGM5YTE0YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjBmOThhYWI5ZmM4MGFhMTc2OTZlNjAxOTcwZWQ3OTBhMDNkNzMyYzExMDZhOTA2MzJmMzRlMDdkYTgyYmIyZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4808d0f578f843dc9888ce8c42529ad7",
+      "statement": "The rename-tab dialog lays its field out in a `ColumnLayout` with a preferred width, the shape the new-terminal dialog uses, because a bare child with an explicit `width` does not size a `Dialog`'s content and the field spilled past the dialog's right edge.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L625-L638",
+          "version": "repo-lines-v1:sha256:db831273831446eeac4e27ed6f084be394953d4c6b036940133fb8b711a15d30:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY5MjAzODkwMzhiM2I4YWY1ZjdlNGY4NmM4ZTZhZTZkNDJmZGUxMjdlNzEzNWFhNzc2NmRlZjFlYzllMDRjMmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZhMzMyYmY3ZGY4YmVmNjBhYjIyZGQyNjVmNzRhZTFmMTM5YWNkNjFhZjZlMjZiOWI5MzVjNGFhNDQ4Mzk3NGUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlhMDE1Nzc2ZGM3MzQxNzI4YzFkOGNhZmI1OGFiNjA3ZTM2NTE4MGJjYWFkYzZkM2M4MmY0ZWRkMDM2MTcwNTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_422d7b99298d492e9a867ddbe5d03d0b",
+      "statement": "Two screenshot scenes exist for the chrome that only shows on demand: `RUSTY_SHOT_SCENE=rename` opens the rename dialog for the current tab and `plus` pops the tab strip's menu, so both can be photographed offscreen against a scratch vault.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-app/qml/Main.qml#L414-L419",
+          "version": "repo-lines-v1:sha256:5d49935eaada982c1b1d6e7b4e2ab675f725e0b505ddc519722e206d389f344c:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjFlZDI2ZDM1N2MwYTQyYWVlODY5NGZhZWU0OTAxZjhhMjNjYmJhMTQ2YTlkNDlmNWY4NTcwNDVlMzc4ZTg1ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmU4YjQxZDAxNGZlODM5ODg1ZTM1YjYyMDhhNGQ0OWU4NjUxNzdlM2Q3NzFkYWRlNmZhYjY3YTNmNzViZDYzNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTMzZWJjMzk5N2VmMjBjMzg4MWEzYmQ3YWU3ZWNlZDczNWRiZTg3NzE2NDMyNzk0M2ExOWUzZWJmMzY0MjU3NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2MzYWJhNTNjNTZmY2Q0YzdmZDkwYmYwMjM0YjA4NTJkMDZkMTQwMWUxYmJkZjY2OGIyMTFmMmMxM2VkNjAzZSJ9"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T03:17:22.876Z"
+    "at": "2026-09-05T03:29:11.619Z"
   }
 }

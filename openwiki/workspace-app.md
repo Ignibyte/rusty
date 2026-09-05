@@ -47,10 +47,10 @@ sources:
     resource: repo://crates/rusty-app/src/terminals.rs
   - id: openwiki-source-62f5347acdae1a6fb6fd8a74
     resource: repo://crates/rusty-app/src/theme.rs
-generated: {by: "claude-code", at: "2026-09-05T03:17:22.876Z"}
+generated: {by: "claude-code", at: "2026-09-05T03:29:11.619Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:17:22.876Z
+    at: 2026-09-05T03:29:11.619Z
 ---
 
 # Workspace app: Obsidian's layout with terminals inside
@@ -112,6 +112,12 @@ every view backed by the MCP server that agents share.
   and never creates a window, so `rusty usb-reset` is a command and `rusty` alone is the
   app (TICKET-010). A name that matches nothing falls through to the window, which is why
   an unknown command opens the workspace rather than reporting an error.
+- The sidebar splitters measure a drag in scene coordinates — `mapToItem(null, …)` at
+  press and at every move — not in the handle's own frame (TICKET-022). The pane resize
+  moves the handle under the pointer, so a delta measured from it is measured from a
+  moving origin and the drag only tracked while the pointer stayed inside the 7px strip.
+  The left pane is clamped to 180–600 px, the right to 200–700 px; both widths persist
+  in the workspace state.
 - Layout: a top bar (`TopBar.qml`: the brand, the command button, one glyph per agent
   CLI on `PATH` with a click for a new tab and a right-click for the agent pane, the
   vault's state, memory, CPU, the clock), a ribbon (new note, daily note, graph, Tasks,
@@ -122,7 +128,20 @@ every view backed by the MCP server that agents share.
 - Tabs: one `ListModel` of `{kind, title, slug, session, program, cwd, pinned}`; kinds
   are `page`, `terminal` and the built-in views. Tabs persist across runs; a file from
   before the workspace loads as terminals. Opening a page from the explorer, search, a
-  link or the switcher navigates the current page tab unless it is pinned.
+  link or the switcher navigates the current page tab unless it is pinned. Tabs reorder
+  by drag (TICKET-022): a `DragHandler` on each tab — left button, x axis only, no
+  target of its own — records the origin when it activates and, on release, maps its
+  centroid into the row and finds the tab whose span holds it (`dropIndexAt`, which
+  skips the row's spacer and `+` because only delegates carry an `index`), then calls
+  the same `moveTab` the Ctrl+Shift+PgUp/PgDown keys and the tab menu use, so the order
+  persists as it already did. The tap handlers are untouched, and a press that becomes
+  a drag never fires a select. The strip's `+` opens a menu under itself: the page
+  switcher first (Ctrl+T, unchanged), one item per agent the top bar lists (an
+  `Instantiator` inserted between two separators — a `Repeater` does not parent items
+  into a `Menu`), then the custom terminal dialog (Ctrl+Shift+T, unchanged); its tooltip
+  names both keys. The rename dialog lays its field out in a `ColumnLayout` the way the
+  new-terminal dialog does, because a bare child with an explicit `width` does not size
+  a `Dialog`'s content and the field used to spill past the edge.
 - A page tab (`NoteTab`) asks `brain_render` with the theme's style and
   `brain_get_links`, shows the inline title (Enter renames through `brain_rename`), the
   properties, then the reading view as one rich-text block per top-level section, or

@@ -85,7 +85,7 @@ Item {
                 color: page.theme.foreground; opacity: 0.75; font.pixelSize: Math.round(13 * page.theme.scale)
                 wrapMode: Text.WrapAnywhere; Layout.fillWidth: true
             }
-            Text { text: "Click an agent in the top bar to open it in a new tab, right-click it for the agent pane · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { text: "Click an agent in the top bar, or choose one under the tab strip's +, to open it in a new tab; right-click an agent for the agent pane · drag a tab or a task's handle to reorder"; color: page.theme.foreground; opacity: 0.5; font.pixelSize: Math.round(12 * page.theme.scale); wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Button { text: "Re-read theme"; onClicked: page.theme.reload() }
             RowLayout {
                 spacing: 10

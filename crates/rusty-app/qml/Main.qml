@@ -414,6 +414,8 @@ ApplicationWindow {
                 const p = part.trim()
                 if (p === "switcher") switcher.show()
                 else if (p === "palette") palette.show()
+                else if (p === "rename") renameDialog.openFor(stack.currentIndex)
+                else if (p === "plus") plusMenu.popup(plusButton, 0, plusButton.height)
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
@@ -598,6 +600,27 @@ ApplicationWindow {
         }
     }
 
+    // What the strip's + offers: the page switcher it always opened, then the same agents
+    // the top bar does, then the custom terminal. The agents come from an Instantiator,
+    // which is how a Menu takes items from a model; a Repeater would not parent them into it.
+    Menu {
+        id: plusMenu
+        MenuItem { text: "Note or page…"; onTriggered: switcher.show() }
+        MenuSeparator {}
+        Instantiator {
+            model: win.agents
+            delegate: MenuItem {
+                required property string modelData
+                text: win.agentLabel(modelData)
+                onTriggered: win.openTerminal(modelData, "", "", "")
+            }
+            onObjectAdded: (index, object) => plusMenu.insertItem(index + 2, object)
+            onObjectRemoved: (index, object) => plusMenu.removeItem(object)
+        }
+        MenuSeparator {}
+        MenuItem { text: "Custom terminal…"; onTriggered: newTabDialog.openFresh() }
+    }
+
     Dialog {
         id: renameDialog
         title: "Rename tab"
@@ -607,7 +630,11 @@ ApplicationWindow {
         property int tabIndex: -1
         function openFor(i) { tabIndex = i; renameField.text = tabs.get(i).title; open(); renameField.forceActiveFocus(); renameField.selectAll() }
         onAccepted: win.renameTab(tabIndex, renameField.text)
-        TextField { id: renameField; width: 320; onAccepted: renameDialog.accept() }
+        // A bare child with an explicit width does not size a Dialog's content; the field
+        // spilled past the right edge. The layout is what newTabDialog uses.
+        ColumnLayout {
+            TextField { id: renameField; Layout.preferredWidth: 320; onAccepted: renameDialog.accept() }
+        }
     }
 
     // ── One tab's content ─────────────────────────────────────────────────
@@ -752,10 +779,13 @@ ApplicationWindow {
             cursorShape: Qt.SplitHCursor
             property real startX: 0
             property int startWidth: 0
-            onPressed: (mouse) => { startX = mouse.x; startWidth = sp.isLeft ? ui.leftWidth : ui.rightWidth }
+            // Scene coordinates: `mouse.x` is in this handle's own frame, and the handle
+            // moves as the pane resizes, so a delta measured from it is measured from a
+            // moving origin and the drag only tracks while the pointer stays inside.
+            onPressed: (mouse) => { startX = sp.mapToItem(null, mouse.x, 0).x; startWidth = sp.isLeft ? ui.leftWidth : ui.rightWidth }
             onPositionChanged: (mouse) => {
                 if (!pressed) return
-                const delta = mouse.x - startX
+                const delta = sp.mapToItem(null, mouse.x, 0).x - startX
                 if (sp.isLeft) ui.leftWidth = Math.max(180, Math.min(600, startWidth + delta))
                 else ui.rightWidth = Math.max(200, Math.min(700, startWidth - delta))
             }
@@ -936,6 +966,19 @@ ApplicationWindow {
                                 height: parent.height
                                 spacing: 0
                                 leftPadding: 0
+                                property int dragFrom: -1
+                                // The tab whose span holds x, or the last one to its left; only
+                                // the delegates carry an `index`, which skips the spacer and the +.
+                                function dropIndexAt(x) {
+                                    let last = 0
+                                    for (let i = 0; i < children.length; i++) {
+                                        const c = children[i]
+                                        if (c.index === undefined) continue
+                                        if (x >= c.x && x < c.x + c.width) return c.index
+                                        if (x >= c.x + c.width) last = c.index
+                                    }
+                                    return last
+                                }
                                 Repeater {
                                     model: tabs
                                     delegate: Item {
@@ -987,13 +1030,28 @@ ApplicationWindow {
                                         TapHandler { acceptedButtons: Qt.LeftButton; onTapped: stack.currentIndex = tabItem.index }
                                         TapHandler { acceptedButtons: Qt.MiddleButton; onTapped: win.closeTab(tabItem.index, false) }
                                         TapHandler { acceptedButtons: Qt.RightButton; onTapped: { tabMenu.tabIndex = tabItem.index; tabMenu.popup() } }
+                                        // Drag to reorder: the handler owns only the movement, so a click still
+                                        // selects and a press that becomes a drag never fires the tap.
+                                        DragHandler {
+                                            id: tabDrag
+                                            target: null
+                                            yAxis.enabled: false
+                                            onActiveChanged: {
+                                                if (active) { tabRow.dragFrom = tabItem.index; return }
+                                                if (tabRow.dragFrom < 0) return
+                                                const p = tabItem.mapToItem(tabRow, tabDrag.centroid.position.x, 0)
+                                                const to = tabRow.dropIndexAt(p.x)
+                                                if (to !== tabRow.dragFrom) win.moveTab(tabRow.dragFrom, to)
+                                                tabRow.dragFrom = -1
+                                            }
+                                        }
                                         ToolTip.visible: tabHover.hovered && tabItem.termTitle.length > 0
                                         ToolTip.text: tabItem.termTitle
                                         ToolTip.delay: 600
                                     }
                                 }
                                 Item { width: 4; height: 1 }
-                                SideTab { icon: "plus"; tip: "New tab (Ctrl+T)"; anchors.verticalCenter: parent.verticalCenter; onClicked: switcher.show() }
+                                SideTab { id: plusButton; icon: "plus"; tip: "New tab · Ctrl+T for a page, Ctrl+Shift+T for a terminal"; anchors.verticalCenter: parent.verticalCenter; onClicked: plusMenu.popup(plusButton, 0, plusButton.height) }
                             }
                         }
                         Rectangle { width: 7; height: 7; radius: 4; color: backend.connected ? theme.accent : (win.tokens.red || theme.muted); Layout.rightMargin: 6; ToolTip.visible: dotHover.hovered; ToolTip.text: backend.connected ? "rusty-mcp connected" : backend.status; HoverHandler { id: dotHover } }
