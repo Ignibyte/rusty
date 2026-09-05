@@ -136,6 +136,76 @@ ApplicationWindow {
         currentFolder: "file://" + diskFolders.home
         onAccepted: win.addRoot(String(selectedFolder))
     }
+    // Importing an Obsidian vault (TICKET-026): a picker, a plan to read, then the import.
+    FolderDialog {
+        id: importPicker
+        title: "Import an Obsidian vault"
+        currentFolder: "file://" + diskFolders.home
+        onAccepted: win.planImport(String(selectedFolder).replace(/^file:\/\//, ""))
+    }
+    function planImport(path) { importDialog.path = path; importDialog.plan = null; importDialog.report = null; importDialog.open(); ask("brain_import_plan", { path: path }, "importPlan") }
+    function runImport() { if (importDialog.path.length > 0 && importDialog.report === null) ask("brain_import", { path: importDialog.path }, "import") }
+    // The plan's bookmarks in the app's shape, added when not already there.
+    function mergeBookmarks(items) {
+        const list = bookmarkList.slice()
+        let added = 0
+        for (const b of items || []) {
+            const entry = b.kind === "search" ? { kind: "search", query: b.query, title: b.title }
+                : b.kind === "heading" ? { kind: "heading", path: b.path, heading: b.heading, title: b.title }
+                : { kind: b.kind, path: b.path, title: b.title }
+            if (bookmarkIndex(entry) < 0) { list.push(entry); added++ }
+        }
+        if (added > 0) ui.bookmarks = JSON.stringify(list)
+        return added
+    }
+    function importDetails(p) {
+        const lines = []
+        const section = function (title, items, none) { lines.push(title); if (items.length === 0) lines.push("  " + none); for (const i of items) lines.push("  " + i); lines.push("") }
+        section("Pages", p.pages, "none")
+        section("Attachments", p.attachments, "none")
+        section("Collisions (already in the brain, left as they are)", p.collisions, "none")
+        section("Unresolved links", p.unresolved_links, "none")
+        section("Tags", p.tags.map(function (t) { return "#" + t }), "none")
+        section("Bookmarks", p.bookmarks.map(function (b) { return b.kind + ": " + b.title + (b.query ? " (" + b.query + ")" : b.path ? " (" + b.path + (b.heading ? "#" + b.heading : "") + ")" : "") }), "none")
+        section("Bookmarks not carried", p.bookmarks_skipped, "none")
+        return lines.join("\n")
+    }
+    Dialog {
+        id: importDialog
+        title: "Import an Obsidian vault"
+        modal: true
+        anchors.centerIn: parent
+        property string path: ""
+        property var plan: null
+        property var report: null
+        readonly property var shown: report ? report.plan : plan
+        function count(n, word) { return n + " " + word + (n === 1 ? "" : "s") }
+        footer: DialogButtonBox {
+            Button { text: "Import"; DialogButtonBox.buttonRole: DialogButtonBox.ActionRole; enabled: importDialog.plan !== null && importDialog.report === null && (importDialog.plan.pages.length + importDialog.plan.attachments.length) > 0; onClicked: win.runImport() }
+            Button { text: importDialog.report ? "Close" : "Cancel"; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole; onClicked: importDialog.close() }
+        }
+        ColumnLayout {
+            spacing: 8
+            width: 560
+            Label { text: importDialog.path; elide: Text.ElideMiddle; Layout.fillWidth: true; font.family: theme.termFont }
+            Label { visible: importDialog.shown === null; text: win.notice.length > 0 ? win.notice : "Reading the vault…"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Label {
+                visible: importDialog.shown !== null
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                text: importDialog.report
+                    ? "Imported " + importDialog.count(importDialog.report.imported_pages, "page") + " and " + importDialog.count(importDialog.report.imported_attachments, "attachment") + "; " + importDialog.count(importDialog.report.links_rewritten, "link") + " rewritten to vault paths; " + importDialog.count(importDialog.report.plan.bookmarks.length, "bookmark") + " added. The report is " + importDialog.report.report_slug + "."
+                    : importDialog.plan
+                        ? "Will bring in " + importDialog.count(importDialog.plan.pages.length, "page") + " in " + importDialog.count(importDialog.plan.folders.length, "folder") + ", " + importDialog.count(importDialog.plan.attachments.length, "attachment") + ", " + importDialog.count(importDialog.plan.tags.length, "tag") + " and " + importDialog.count(importDialog.plan.bookmarks.length, "bookmark") + "; " + importDialog.count(importDialog.plan.collisions.length, "collision") + " skipped; " + importDialog.count(importDialog.plan.unresolved_links.length, "link") + " unresolved. The vault is read and never written."
+                        : ""
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 240
+                TextArea { readOnly: true; selectByMouse: true; text: importDialog.shown ? win.importDetails(importDialog.shown) : ""; font.family: theme.termFont; font.pixelSize: Math.round(11 * theme.scale); wrapMode: TextEdit.Wrap }
+            }
+        }
+    }
     Timer { interval: 2000; repeat: true; running: true; onTriggered: desk.refresh() }
 
     property var tree: null
@@ -389,6 +459,8 @@ ApplicationWindow {
             case "daily": win.openPage(JSON.parse(json).slug, false); break
             case "captured": win.notice = "captured to " + JSON.parse(json).slug; break
             case "appended": win.notice = "appended to the timeline"; break
+            case "importPlan": importDialog.plan = JSON.parse(json); break
+            case "import": { const r = JSON.parse(json); importDialog.report = r; const n = win.mergeBookmarks(r.plan.bookmarks); win.refreshData(); win.notice = "imported " + r.imported_pages + " pages" + (n > 0 ? ", " + n + " bookmarks added" : ""); break }
             }
         }
         function onDataChanged() { win.refreshData() }
@@ -437,6 +509,7 @@ ApplicationWindow {
                 else if (p.startsWith("expand:")) explorer.expandPath(shot.resolve(p.slice(7)))
                 else if (p.startsWith("tagfield:")) { if (win.currentNote) win.currentNote.focusTagAdd(p.slice(9)) }
                 else if (p.startsWith("agent:ask:")) { win.showRight("agent"); rightPane.askAgent(p.slice(10)) }
+                else if (p.startsWith("import:")) win.planImport(shot.resolve(p.slice(7)))
                 else if (p === "edit" && win.currentNote) { win.currentNote.editing = true }
                 else if (p.startsWith("right:")) win.showRight(p.slice(6))
                 else if (p.startsWith("left:")) win.showLeft(p.slice(5))
@@ -509,6 +582,7 @@ ApplicationWindow {
             { name: "Bookmarks: Show bookmarks", keys: "", run: function () { win.showLeft("bookmarks") } },
             { name: "Favorites: Add or remove the current file", keys: "Ctrl+D", enabled: win.currentNote !== null, run: function () { win.bookmarkCurrentPage() } },
             { name: "Folders: Add a folder from the machine", keys: "", enabled: true, run: function () { rootDialog.open() } },
+            { name: "Vault: Import an Obsidian vault…", keys: "", enabled: true, run: function () { importPicker.open() } },
             { name: "Bookmarks: Bookmark the current search", keys: "", enabled: searchPane.query.trim().length > 0, run: function () { win.addBookmark({ kind: "search", query: searchPane.query.trim(), title: searchPane.query.trim() }) } },
             { name: "Capture: Append a line to today's daily page", keys: "", run: function () { promptDialog.openFor("Capture to today's daily page", "", function (text) { win.capture(text, "daily") }) } },
             { name: "Capture: Append a line to the inbox", keys: "", run: function () { promptDialog.openFor("Capture to the inbox", "", function (text) { win.capture(text, "inbox") }) } },

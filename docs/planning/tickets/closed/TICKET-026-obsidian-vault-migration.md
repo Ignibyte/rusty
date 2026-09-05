@@ -1,6 +1,6 @@
 ---
 title: TICKET-026-obsidian-vault-migration
-status: open
+status: done
 ticket_number: 026
 type: migration
 created: 2026-09-04

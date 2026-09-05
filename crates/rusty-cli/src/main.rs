@@ -34,6 +34,7 @@ USAGE:\n\
   rusty-cli brain daily [--date YYYY-MM-DD]   (open or create the daily page)\n\
   rusty-cli brain types                       (page types, folders, counts)\n\
   rusty-cli brain migrate [--dry-run]         (timeline sections + vault-path links)\n\
+  rusty-cli brain import <vault> [--dry-run]  (bring an Obsidian vault in: pages, attachments, bookmarks; a report under inbox/)\n\
   rusty-cli brain reindex\n\
   rusty-cli brain embed [--all]               (vectors for stale pages, or every page)\n\
   rusty-cli brain semantic                    (embedding provider and index state)\n\
@@ -666,6 +667,59 @@ fn run_brain(sub: &str, rest: &[String]) {
                     }
                 }
                 Err(e) => fail(&e),
+            }
+        }
+        "import" => {
+            let (args, flags) = parse_with_bools(rest, &["dry-run"]);
+            let dry = flags.contains_key("dry-run");
+            let path = args.first().cloned().unwrap_or_default();
+            if path.is_empty() {
+                fail("usage: rusty-cli brain import <vault> [--dry-run]");
+            }
+            let print_plan = |p: &rusty_core::brain::import::ImportPlan| {
+                println!(
+                    "{}: {} pages in {} folders, {} attachments, {} tags, {} bookmarks; {} collisions skipped, {} unresolved links",
+                    p.name,
+                    p.pages.len(),
+                    p.folders.len(),
+                    p.attachments.len(),
+                    p.tags.len(),
+                    p.bookmarks.len(),
+                    p.collisions.len(),
+                    p.unresolved_links.len()
+                );
+                for c in &p.collisions {
+                    println!("  collision (left as it is): {c}");
+                }
+                for u in &p.unresolved_links {
+                    println!("  unresolved: {u}");
+                }
+                for b in &p.bookmarks_skipped {
+                    println!("  bookmark not carried: {b}");
+                }
+                for b in &p.bookmarks {
+                    println!("  bookmark: {} {} {}{}", b.kind, b.title, b.path, b.query);
+                }
+            };
+            if dry {
+                match brain().import_plan(std::path::Path::new(&path)) {
+                    Ok(p) => {
+                        print!("dry run: ");
+                        print_plan(&p);
+                    }
+                    Err(e) => fail(&e),
+                }
+            } else {
+                match brain().import_vault(std::path::Path::new(&path)) {
+                    Ok(r) => {
+                        print_plan(&r.plan);
+                        println!(
+                            "imported {} pages and {} attachments, {} links rewritten; the report is {}; the app adds the bookmarks when it next opens the import",
+                            r.imported_pages, r.imported_attachments, r.links_rewritten, r.report_slug
+                        );
+                    }
+                    Err(e) => fail(&e),
+                }
             }
         }
         "embed" => {

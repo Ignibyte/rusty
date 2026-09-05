@@ -246,6 +246,17 @@ if command -v git >/dev/null 2>&1; then
   fi
 fi
 
+# A small Obsidian vault for the import scene (`import:obsidian-vault`): two notes with
+# bare-name links, an attachment, a bookmarks file, and the folders the walk skips.
+ov="$scratch/obsidian-vault"
+mkdir -p "$ov/sub" "$ov/assets" "$ov/.obsidian" "$ov/.trash"
+printf '# Reading list\n\nStart with [[Orbit notes]] and [[A page that is not here]].\n\n#reading\n' > "$ov/Reading list.md"
+printf -- '---\ntags:\n  - launcher\n---\n\nNotes on [[Reading list]].\n\n## Ideas\n\nOne key.\n' > "$ov/sub/Orbit notes.md"
+printf 'not really a png\n' > "$ov/assets/sketch.png"
+printf '{"items":[{"type":"file","path":"Reading list.md","title":"Reading"},{"type":"group","title":"g","items":[{"type":"folder","path":"sub"},{"type":"search","query":"tag:launcher","title":"launcher"},{"type":"file","path":"sub/Orbit notes.md","subpath":"#Ideas"}]}]}' > "$ov/.obsidian/bookmarks.json"
+printf '{}' > "$ov/.obsidian/app.json"
+printf 'gone\n' > "$ov/.trash/old.md"
+
 # A stand-in for `claude -p` over stream-json for the agent pane scenes
 # (`right:agent,agent:ask:<text>`): one canned turn per message — a tool call, its
 # result, streamed text, a permission prompt, a result — and nothing leaves the machine.

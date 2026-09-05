@@ -8,6 +8,7 @@
 pub mod decisions;
 pub mod enrichment;
 pub mod frontmatter;
+pub mod import;
 pub mod links;
 pub mod render;
 pub mod semantic;
@@ -1803,6 +1804,198 @@ impl BrainManager {
         Ok(report)
     }
 
+    // ── Importing an Obsidian vault (TICKET-026) ──────────────────────
+
+    /// What importing the vault at `source` would do: the pages and attachments that
+    /// come in at their own paths, the collisions with the brain (skipped, never
+    /// overwritten), the tags, the links that would not resolve, and the bookmarks from
+    /// `.obsidian/bookmarks.json`. The source is read and never written.
+    #[cfg(test)]
+    fn page_exists_for_test(&self, slug: &str) -> bool {
+        self.vault.page_exists(slug)
+    }
+
+    pub fn import_plan(&self, source: &std::path::Path) -> Result<import::ImportPlan, String> {
+        let source = source
+            .canonicalize()
+            .map_err(|e| format!("{}: {e}", source.display()))?;
+        if source == self.vault.root() || source.starts_with(self.vault.root()) {
+            return Err("that folder is the brain itself".to_string());
+        }
+        let scan = import::scan_vault(&source)?;
+        let mut plan = import::ImportPlan {
+            source: source.display().to_string(),
+            name: source
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "vault".to_string()),
+            ..Default::default()
+        };
+        let mut incoming: Vec<(String, PathBuf)> = Vec::new();
+        for (slug, path) in &scan.pages {
+            if self.vault.page_exists(slug) {
+                plan.collisions.push(slug.clone());
+            } else {
+                plan.pages.push(slug.clone());
+                incoming.push((slug.clone(), path.clone()));
+            }
+        }
+        for (rel, _) in &scan.attachments {
+            if self.vault.exists(rel) {
+                plan.collisions.push(rel.clone());
+            } else {
+                plan.attachments.push(rel.clone());
+            }
+        }
+        let mut all = self.vault.list_all_files()?;
+        all.extend(incoming.iter().cloned());
+        let index = LinkIndex::build(&all);
+        let mut seen_tags = std::collections::HashSet::new();
+        for (slug, path) in &incoming {
+            let raw = std::fs::read_to_string(path)
+                .map_err(|e| format!("read {}: {e}", path.display()))?;
+            let body = match split_raw(&raw) {
+                Ok((_, body)) => body.to_string(),
+                Err(_) => raw.clone(),
+            };
+            let (_, _, unresolved) = index.rewrite_links(&body);
+            for target in unresolved {
+                let line = format!("{slug}: [[{target}]]");
+                if !plan.unresolved_links.contains(&line) {
+                    plan.unresolved_links.push(line);
+                }
+            }
+            let parsed = parse_lenient(&raw);
+            for tag in parsed
+                .frontmatter
+                .tags
+                .iter()
+                .map(|t| t.trim().trim_start_matches('#').to_string())
+                .chain(links::tags(&body))
+            {
+                if !tag.is_empty() && seen_tags.insert(tag.to_lowercase()) {
+                    plan.tags.push(tag);
+                }
+            }
+        }
+        let mut with_folders: Vec<String> = plan.pages.clone();
+        with_folders.extend(plan.attachments.iter().cloned());
+        plan.folders = import::folders_of(&with_folders);
+        let bookmarks_file = source.join(".obsidian").join("bookmarks.json");
+        if let Ok(json) = std::fs::read_to_string(&bookmarks_file) {
+            for b in import::parse_bookmarks(&json) {
+                let kept = match b.kind.as_str() {
+                    "search" => true,
+                    "folder" => plan.folders.contains(&b.path) || self.vault.is_folder(&b.path),
+                    _ => plan.pages.contains(&b.path) || self.vault.page_exists(&b.path),
+                };
+                if kept {
+                    plan.bookmarks.push(b);
+                } else {
+                    plan.bookmarks_skipped
+                        .push(format!("{} `{}`: no such page or folder", b.kind, b.path));
+                }
+            }
+        }
+        Ok(plan)
+    }
+
+    /// Import the vault at `source` as [`import_plan`](Self::import_plan) says: pages
+    /// first (the frontmatter as it was, bare-name links rewritten to vault paths), then
+    /// attachments, then a report page under `inbox/`; the index rebuilt and one commit.
+    /// Every path this run creates is recorded, and a failure removes them all, rebuilds
+    /// the index and answers with the error, so the brain is either the import whole or
+    /// as it was. The source is never written.
+    pub fn import_vault(&self, source: &std::path::Path) -> Result<import::ImportReport, String> {
+        let plan = self.import_plan(source)?;
+        let source = PathBuf::from(&plan.source);
+        let mut all = self.vault.list_all_files()?;
+        let incoming: Vec<(String, PathBuf)> = plan
+            .pages
+            .iter()
+            .map(|slug| (slug.clone(), source.join(format!("{slug}.md"))))
+            .collect();
+        all.extend(incoming.iter().cloned());
+        let index = LinkIndex::build(&all);
+        let mut report = import::ImportReport {
+            plan,
+            ..Default::default()
+        };
+        let mut created: Vec<PathBuf> = Vec::new();
+        let outcome = (|| -> Result<(), String> {
+            for (slug, path) in &incoming {
+                let raw = std::fs::read_to_string(path)
+                    .map_err(|e| format!("read {}: {e}", path.display()))?;
+                let (prefix, body) = match split_raw(&raw) {
+                    Ok((prefix, body)) => (prefix.to_string(), body.to_string()),
+                    Err(_) => (String::new(), raw.clone()),
+                };
+                let (body, n, _) = index.rewrite_links(&body);
+                report.links_rewritten += n;
+                self.vault.write_page(slug, &format!("{prefix}{body}"))?;
+                created.push(self.vault.root().join(format!("{slug}.md")));
+                report.imported_pages += 1;
+            }
+            for rel in &report.plan.attachments {
+                let from = source.join(rel);
+                let to = self.vault.root().join(rel);
+                if let Some(parent) = to.parent() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| format!("create {}: {e}", parent.display()))?;
+                }
+                std::fs::copy(&from, &to).map_err(|e| format!("copy {rel}: {e}"))?;
+                created.push(to);
+                report.imported_attachments += 1;
+            }
+            let stamp = chrono::Local::now();
+            let name: String = report
+                .plan
+                .name
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() {
+                        c.to_ascii_lowercase()
+                    } else {
+                        '-'
+                    }
+                })
+                .collect();
+            let base = format!(
+                "inbox/import-{}-{}",
+                stamp.format("%Y-%m-%d-%H%M"),
+                name.trim_matches('-')
+            );
+            // A second import in the same minute keeps the first report.
+            let mut slug = base.clone();
+            let mut n = 2;
+            while self.vault.page_exists(&slug) {
+                slug = format!("{base}-{n}");
+                n += 1;
+            }
+            let page = import::report_page(&report, &stamp.format("%Y-%m-%d").to_string());
+            self.vault.write_page(&slug, &page)?;
+            created.push(self.vault.root().join(format!("{slug}.md")));
+            report.report_slug = slug;
+            Ok(())
+        })();
+        if let Err(e) = outcome {
+            for path in &created {
+                let _ = std::fs::remove_file(path);
+            }
+            let _ = self.sync_all();
+            return Err(format!(
+                "import stopped: {e}; nothing of it remains in the brain"
+            ));
+        }
+        self.sync_all()?;
+        self.vault.git_commit(&format!(
+            "import: {} pages and {} attachments from {}",
+            report.imported_pages, report.imported_attachments, report.plan.name
+        ));
+        self.vault.flush_commits();
+        Ok(report)
+    }
+
     // ── Links ─────────────────────────────────────────────────────────
 
     /// Add a typed link between two pages.
@@ -2649,7 +2842,7 @@ fn normalize_date(date: Option<&str>) -> Result<String, String> {
 }
 
 /// What every wikilink target in the vault can resolve to.
-struct LinkIndex {
+pub(crate) struct LinkIndex {
     slugs: std::collections::HashSet<String>,
     /// lowercase basename → slugs
     by_basename: std::collections::HashMap<String, Vec<String>>,
@@ -2658,7 +2851,7 @@ struct LinkIndex {
 }
 
 impl LinkIndex {
-    fn build(files: &[(String, PathBuf)]) -> Self {
+    pub(crate) fn build(files: &[(String, PathBuf)]) -> Self {
         let mut index = LinkIndex {
             slugs: Default::default(),
             by_basename: Default::default(),
@@ -2719,7 +2912,7 @@ impl LinkIndex {
     /// Rewrite every `[[target]]` whose target resolves to a slug spelled differently.
     /// A title or alias used as the target becomes the display text, so the prose reads
     /// as before. Returns the text, how many links changed, and the unresolved targets.
-    fn rewrite_links(&self, text: &str) -> (String, usize, Vec<String>) {
+    pub(crate) fn rewrite_links(&self, text: &str) -> (String, usize, Vec<String>) {
         let mut out = String::with_capacity(text.len());
         let mut rewritten = 0;
         let mut unresolved = Vec::new();
@@ -4122,5 +4315,188 @@ mod tests {
         let json = serde_json::to_string(&rendered.rendered).unwrap();
         assert!(json.contains("Hello") && json.contains("text"), "{json}");
         let _ = fs::remove_dir_all(dir);
+    }
+
+    fn obsidian_vault(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("rusty_obsidian_{}_{name}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::create_dir_all(dir.join("assets")).unwrap();
+        fs::create_dir_all(dir.join(".obsidian")).unwrap();
+        fs::create_dir_all(dir.join(".trash")).unwrap();
+        fs::write(
+            dir.join("Note A.md"),
+            "# Note A\n\nSee [[Note B]] and [[Missing One]].\n\n![](assets/pic.png)\n\n#imported\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("sub/Note B.md"),
+            "---\ntags:\n  - alpha\n---\n\nBack to [[Note A]].\n\n## Heading\n\nText.\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("assets/pic.png"),
+            [0x89, b'P', b'N', b'G', 1, 2, 3],
+        )
+        .unwrap();
+        fs::write(dir.join(".obsidian/app.json"), "{}").unwrap();
+        fs::write(
+            dir.join(".obsidian/bookmarks.json"),
+            r##"{"items":[{"type":"file","path":"Note A.md","title":"A"},{"type":"group","title":"g","items":[{"type":"folder","path":"sub"},{"type":"search","query":"tag:alpha","title":"alpha"},{"type":"file","path":"sub/Note B.md","subpath":"#Heading"},{"type":"file","path":"nowhere/Nope.md"},{"type":"url","url":"https://example.invalid"}]}]}"##,
+        )
+        .unwrap();
+        fs::write(dir.join(".trash/old.md"), "gone").unwrap();
+        dir
+    }
+
+    fn snapshot(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
+        let mut out = Vec::new();
+        fn walk(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, Vec<u8>)>) {
+            for e in fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(root, &p, out);
+                } else {
+                    out.push((
+                        p.strip_prefix(root).unwrap().to_string_lossy().into_owned(),
+                        fs::read(&p).unwrap(),
+                    ));
+                }
+            }
+        }
+        walk(dir, dir, &mut out);
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn import_plan_reports_what_it_found() {
+        let (dir, bm) = test_brain("import_plan");
+        let source = obsidian_vault("plan");
+        // A page already in the brain under the same slug: a collision, left alone.
+        fs::create_dir_all(dir.join("sub")).unwrap();
+        fs::write(dir.join("sub/Note B.md"), "Mine.\n").unwrap();
+        bm.sync_all().unwrap();
+        let before = snapshot(&source);
+        let plan = bm.import_plan(&source).unwrap();
+        assert!(
+            plan.name.ends_with("_plan"),
+            "the source folder's name: {}",
+            plan.name
+        );
+        assert_eq!(plan.pages, vec!["Note A"]);
+        assert_eq!(plan.collisions, vec!["sub/Note B"]);
+        assert_eq!(plan.attachments, vec!["assets/pic.png"]);
+        assert_eq!(plan.folders, vec!["assets"]);
+        assert_eq!(plan.tags, vec!["imported"]);
+        assert_eq!(plan.unresolved_links, vec!["Note A: [[Missing One]]"]);
+        let kinds: Vec<&str> = plan.bookmarks.iter().map(|b| b.kind.as_str()).collect();
+        assert_eq!(kinds, ["file", "folder", "search", "heading"]);
+        assert_eq!(
+            plan.bookmarks_skipped,
+            vec!["file `nowhere/Nope`: no such page or folder"]
+        );
+        assert_eq!(snapshot(&source), before, "the source is never written");
+        assert_eq!(
+            fs::read_to_string(dir.join("sub/Note B.md")).unwrap(),
+            "Mine.\n"
+        );
+        assert!(bm.import_plan(&dir).is_err(), "the brain itself is refused");
+        assert!(bm.import_plan(&source.join("nowhere")).is_err());
+        cleanup(&dir);
+        cleanup(&source);
+    }
+
+    #[test]
+    fn import_vault_brings_pages_attachments_and_a_report() {
+        let (dir, bm) = test_brain("import_run");
+        let source = obsidian_vault("run");
+        let before = snapshot(&source);
+        let report = bm.import_vault(&source).unwrap();
+        assert_eq!((report.imported_pages, report.imported_attachments), (2, 1));
+        // [[Note B]] became [[sub/Note B]]; [[Note A]] already was its vault path.
+        assert_eq!(report.links_rewritten, 1);
+        let a = fs::read_to_string(dir.join("Note A.md")).unwrap();
+        assert!(
+            a.contains("[[sub/Note B]]") && a.contains("[[Missing One]]"),
+            "{a}"
+        );
+        let b = fs::read_to_string(dir.join("sub/Note B.md")).unwrap();
+        assert!(
+            b.starts_with("---\ntags:\n  - alpha\n---\n"),
+            "the frontmatter as it was: {b}"
+        );
+        assert!(b.contains("[[Note A]]"), "{b}");
+        assert_eq!(
+            fs::read(dir.join("assets/pic.png")).unwrap(),
+            [0x89, b'P', b'N', b'G', 1, 2, 3]
+        );
+        assert!(bm
+            .search("Missing", None, None)
+            .unwrap()
+            .iter()
+            .any(|r| r.slug == "Note A"));
+        let tags: Vec<String> = bm.tags().unwrap().into_iter().map(|t| t.tag).collect();
+        assert!(
+            tags.contains(&"alpha".to_string()) && tags.contains(&"imported".to_string()),
+            "{tags:?}"
+        );
+        let links = bm.get_links("sub/Note B").unwrap();
+        assert!(
+            links
+                .outbound
+                .iter()
+                .any(|l| l.to_slug == "Note A" && l.resolved),
+            "{:?}",
+            links.outbound
+        );
+        assert!(
+            report.report_slug.starts_with("inbox/import-"),
+            "{}",
+            report.report_slug
+        );
+        let page = bm
+            .read_page(&report.report_slug)
+            .unwrap()
+            .expect("the report page");
+        assert!(
+            page.compiled_truth.contains("[[Note A]]")
+                && page.compiled_truth.contains("Missing One"),
+            "{}",
+            page.compiled_truth
+        );
+        assert_eq!(report.plan.bookmarks.len(), 4);
+        assert_eq!(snapshot(&source), before, "the source is never written");
+        cleanup(&dir);
+        cleanup(&source);
+    }
+
+    #[test]
+    fn import_vault_rolls_back_when_a_write_fails() {
+        let (dir, bm) = test_brain("import_fail");
+        let source = obsidian_vault("fail");
+        // A file where the attachments' folder must go: the copy fails after the pages
+        // were written, and the pages go with it.
+        fs::write(dir.join("assets"), "in the way").unwrap();
+        let err = bm.import_vault(&source).unwrap_err();
+        assert!(err.contains("nothing of it remains"), "{err}");
+        assert!(!dir.join("Note A.md").exists() && !dir.join("sub/Note B.md").exists());
+        assert!(!bm.page_exists_for_test("Note A"));
+        assert!(bm.search("Missing", None, None).unwrap().is_empty());
+        assert!(
+            fs::read_dir(dir.join("inbox"))
+                .unwrap()
+                .flatten()
+                .next()
+                .is_none(),
+            "no report page"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join("assets")).unwrap(),
+            "in the way"
+        );
+        cleanup(&dir);
+        cleanup(&source);
     }
 }

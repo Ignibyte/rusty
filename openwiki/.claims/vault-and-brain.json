@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:80c44fb652089a5d77bd91283bd285280be922bdbc2cfd29e1da0003812a2185",
+  "pageVersion": "sha256:0637da07dcd5cf9213d56139cae19151f3a3b2a3f626ae1b4976caf8bd3e7f31",
   "claims": [
     {
       "id": "claim_68adc19bbd9b421d94fac143f471d633",
@@ -141,10 +141,28 @@
           "version": "repo-lines-v1:sha256:230aadfa4d5736aeef677815f7274cd90c6412b8c4a924e2efe94ef5908ddc6f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2ZGUwYTJhMDk2OGE5NjA0Y2Q0YzhlNWJkYWMzMGJkY2JiYTNjODYxYjJhMmVjNDQ0YmQ2ZWE2YzIyMGZmYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5NWI1YTkwNjllZmUwNzlmNTc3ZTJhMTg2NDAyNmRjM2E1MGIzN2VhNTUzMTE4NTRmNDNhMmI0OTM5MDIzOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiZDBiOGNiOTg1N2U2YzNjODRmNGViM2Q5OTMwNTFmZTc4ZGJmM2Y3ZjJkZWFiOTFhZGNjNmRhYTUwNDNhNDMifQ"
         }
       ]
+    },
+    {
+      "id": "claim_8dcfa97a81cb4146beb83c07539c561e",
+      "statement": "An Obsidian vault is imported by `import_plan` and `import_vault`: the source is walked read-only (dot-entries such as `.obsidian`, `.trash` and `.git` skipped), pages keep their paths as slugs and attachments their paths, a slug or path already in the brain is a collision that is skipped and named (never overwritten, never renamed), bare-name links are rewritten to vault paths by the migration's `LinkIndex` built over the brain's pages and the incoming ones (frontmatter byte for byte, unresolved targets reported), tags and `.obsidian/bookmarks.json` bookmarks are reported, a report page is written under `inbox/` (`import-<date>-<name>`, a suffix when that slug exists), the index is rebuilt and one commit records the pass; every path the run creates is recorded and a failure removes them all, rebuilds the index and returns the error, so the brain is the import whole or as it was.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-core/src/brain/mod.rs#L1818-L1901",
+          "version": "repo-lines-v1:sha256:9157521d1b280139850051d10076b531e16902c30e402772e237846558911c16:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjYzMzOTY3OGQwNGM3NDRmNjQzOGIwNTBiMTI3NWYyMmUwNDdhZTdiY2EzZGNjOTJhM2MzZDlhYzQzZTAyYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYzMmQyNjAwN2M1NjE2Zjg0MjQ0MjhkYzI2NTNhYjdjMWYyOTRjZDJkYmFiYjk3MDc4Yzg0MjkzOTRmMjc5ZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmMmU1ZGE3MTU0OWM4ZmZmZTZjMjBiOWNhNTcxNWJkYzZmM2NhMjM2NmVkMmRkMmY1M2E0ZmJmNGNlMTEyNWQifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/mod.rs#L1909-L1997",
+          "version": "repo-lines-v1:sha256:0f0b9f7517c8d705cc5092f14686e6e05623f2157660de5f9dd453b7b2422653:eyJzZWxlY3RlZExpbmVDb3VudCI6ODksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5ZTJmZTBmOWYyYzRlODQ5YjY2NWExNGUzMDllY2IwYjExNDQ5OWQxNWQ4MjkxZTczODJlYTUwMGYxMGRlY2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhNDA1OGJmYzE1OWVhNzZjN2E0NTkxNzM4OTk0Mjk4Y2M0MTY0NTViNTg1YjFiNDRiZGFhZjY4ZjFkMDVkOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkwNzk1NzY3N2I5MjMyNTZmNzdhMWQ0OGIwMjEwMzFjZmU1MWEyNjdjODY1OWE5ZWIyZGRlNzM1MzY2YTc5ZGIifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-core/src/brain/import.rs#L1-L252",
+          "version": "repo-lines-v1:sha256:b87a3fa2bc68bab4659238436e46b9a2417f1926a12673ea46cf6037ba2ee5ab:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUyLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIzMjM5MzIxZTllZGM2ZjJmOTM4YzUxMTI3NjI5ZDEyODU2MGYwMzVjNTIwNzRiOThlNjA2NGI2NmMyZjdhZTVkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MCwicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJkMTM2MGU3ODkzNzI3NDkwNzY5YWMzOGU2MTI0YTc2YTBiMjhmZGRiYmYxZWEzNWQyYjk5ODA2MzIzYjFmYzg1In0"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-03T05:46:21.914Z"
+    "at": "2026-09-05T05:00:58.441Z"
   }
 }

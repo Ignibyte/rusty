@@ -27,10 +27,10 @@ sources:
     resource: repo://crates/rusty-mcp/tests/smoke.rs
   - id: openwiki-source-f47a49d22d041953f356ca04
     resource: repo://omarchy/rusty-mcp.service
-generated: {by: "claude-code", at: "2026-09-05T03:04:53.524Z"}
+generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T03:04:53.524Z
+    at: 2026-09-05T04:56:03.642Z
 ---
 
 # MCP back end: one server for the app and the agents
@@ -132,6 +132,12 @@ router fails the test, and every tool must carry a description.
 - Resources: `rusty://tasks`, `memories`, `skills`, `notes`, `brain` and the templates
   `tasks/{group_id}`, `brain/{slug}`, `notes/{path}`, all JSON except a note's markdown.
 - Diagnostics go to stderr only; stdout is the protocol.
+- The Obsidian import (TICKET-026) is two tools over `BrainManager`: `brain_import_plan`
+  answers what an import of a vault path would do and writes nothing;
+  `brain_import` does it through `mutate`, so every client sees `DataChanged` once the
+  pages, attachments and the report page are in and the index is rebuilt. Neither writes
+  the source vault. `rusty-cli brain import <vault> [--dry-run]` calls the same two
+  methods and prints the plan and the report. The surface is 82 tools.
 
 ## Invariants
 
@@ -171,6 +177,8 @@ router fails the test, and every tool must carry a description.
 - `cargo test -p rusty-core decisions`: the consultation record, the decision page with
   its links and timeline entries, the follow-up's status and date, the due list, the
   typed edges; the smoke test walks the loop over stdio.
+- The router test's `EXPECTED` list names `brain_import_plan` and `brain_import`; the
+  import itself is tested in `rusty-core` (`vault-and-brain.md`).
 
 ## Primary sources
 

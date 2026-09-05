@@ -2,10 +2,10 @@
 type: "Reference"
 title: "Workspace app: Obsidian's layout with terminals inside"
 openwiki_generated: true
-generated: {by: "claude-code", at: "2026-09-05T04:40:31.961Z"}
+generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-05T04:40:31.961Z
+    at: 2026-09-05T04:56:03.642Z
 sources:
   - id: openwiki-source-4059556410fe6db8498fe8e9
     resource: repo://crates/rusty-app/build.rs
@@ -218,6 +218,14 @@ every view backed by the MCP server that agents share.
   `--permission-prompt-tool stdio` is what prompts on stdout. The terminal tabs stay
   tmux terminals (`AD-rusty-agents-are-terminals-001`, qualified); Codex has no print
   mode, so the pane is Claude-only and says so when `claude` is missing.
+- Importing an Obsidian vault (`Main.qml`; TICKET-026) is a palette command, "Vault:
+  Import an Obsidian vault…", that opens a folder picker and then `importDialog`. The
+  dialog asks `brain_import_plan` and shows the summary — pages, folders, attachments,
+  tags, bookmarks, collisions skipped, links unresolved, "The vault is read and never
+  written" — with the details in a monospace list; Import asks `brain_import`; the
+  answer's bookmarks are merged into `ui.bookmarks` through `bookmarkIndex` in the app's
+  own shapes (a file or folder path, a search query, a heading), the tree, pages and tags
+  refresh, and the dialog shows what came in and the report page's slug.
 - The graph (`GraphView`, tab kind `graph`, Ctrl+G, the ribbon, "Open local graph" on a
   page): `brain_graph` supplies nodes and edges; a force simulation on a timer
   (repulsion between every pair, springs on the edges toward the link distance, a pull
@@ -418,6 +426,8 @@ an agent run it are in `workflow-and-gates.md`.
   binary refused; a kill ending a waiting process).
   `scripts/screenshot.sh <out> "right:agent,agent:ask:<text>"` photographs a canned
   turn from the fake `claude` the script seeds.
+- `scripts/screenshot.sh <out> "import:obsidian-vault"` photographs the import dialog
+  with the plan for the small vault the script seeds.
 
 ## Primary sources
 

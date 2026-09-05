@@ -286,6 +286,10 @@ workflow in `CONSTITUTION.md`.
       Claude Code over stream-json — one process per page, sessions resumed by id, tool
       calls and results as items, permissions as Allow/Deny, Rusty as its MCP server —
       rendered by the app; the terminal tabs stay tmux terminals
+- [x] TICKET-026 Obsidian vault migration (2026-09-05): a plan, then an import at the vault's
+      own paths — collisions skipped and named, bare links rewritten, bookmarks carried into
+      the app, a report page under `inbox/`, a rollback that leaves the brain as it was; two
+      tools (82), `rusty-cli brain import`, a review dialog
 - [x] TICKET-023 Skills page layout (2026-09-05): a draggable split between the list and
       the detail, the Skills and Scripts sections collapsible from their headers (click, or
       Enter and Space when focused) with the open one taking the height, both remembered in

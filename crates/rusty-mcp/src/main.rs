@@ -617,6 +617,13 @@ pub struct RenameParams {
     pub to: String,
 }
 
+/// Parameters for `brain_import_plan` and `brain_import`.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+pub struct ImportParams {
+    /// The Obsidian vault folder to read; it is never written.
+    pub path: String,
+}
+
 /// Parameters for `brain_graph`.
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct GraphParams {
@@ -1263,6 +1270,34 @@ impl Rusty {
     #[tool(description = "Every wikilink in the vault whose target is no page, with its line")]
     fn brain_unresolved(&self) -> Result<CallToolResult, McpError> {
         json_result(self.core.brain_manager.unresolved())
+    }
+
+    #[tool(
+        description = "What importing an Obsidian vault would do: the pages, folders, attachments and tags that come in at their own paths, the collisions with the brain (skipped, never overwritten), the links that would not resolve, and the bookmarks from .obsidian/bookmarks.json; nothing is written"
+    )]
+    fn brain_import_plan(
+        &self,
+        Parameters(p): Parameters<ImportParams>,
+    ) -> Result<CallToolResult, McpError> {
+        json_result(
+            self.core
+                .brain_manager
+                .import_plan(std::path::Path::new(&p.path)),
+        )
+    }
+
+    #[tool(
+        description = "Import an Obsidian vault into the brain as brain_import_plan says: pages and attachments copied at their own paths (a slug already in the brain is skipped and reported), bare-name links rewritten to vault paths, a report page written under inbox/, the index rebuilt; the source vault is never written, and a failure part way leaves nothing of the import behind"
+    )]
+    fn brain_import(
+        &self,
+        Parameters(p): Parameters<ImportParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mutate(
+            self.core
+                .brain_manager
+                .import_vault(std::path::Path::new(&p.path)),
+        )
     }
 
     #[tool(
@@ -2065,6 +2100,8 @@ mod tests {
         "brain_rename",
         "brain_unresolved",
         "brain_tags",
+        "brain_import_plan",
+        "brain_import",
         "brain_set_property",
         "brain_remove_property",
         "brain_graph",

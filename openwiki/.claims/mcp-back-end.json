@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:86530f84eee09afba23223e1d1121423a0d6fac62af6d9f3661f1de873b17239",
+  "pageVersion": "sha256:a8633a06f84d1cf2860586a011ab87b84f8cd6398b82bc96e0960781104abecb",
   "claims": [
     {
       "id": "claim_7741605b75254aa6a8c8a6c539a41310",
@@ -55,12 +55,12 @@
       "statement": "The workspace tools `brain_tags`, `brain_set_property` and `brain_remove_property` are thin wrappers over the brain manager: every tag with its count, and one typed frontmatter key set or removed with the body untouched.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-mcp/src/main.rs#L1287-L1313",
-          "version": "repo-lines-v1:sha256:40a3b284c0f3c4a6b0c1e2a2b04fbf84865ba03889b2ae0ba0eef8eff777db9f:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyZmY4NmM2ZDg0NWZmNjdmZDMyZmI0ODMxZmI1ZjE1MTMzN2Y3YTI0ZWE0MzZmNWRiMGVlMDE1MDc5OTYxYjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhmNDQ2YTZiYzU0OTU3ZWE1ODVjM2U1MjQ5MWQ1NmZlNDU2NWNkNjZlMWY0OTcwMzE1NmNmM2FkMWU3YzBjNGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQzZjRkOWVmYjJkODc5OThmZDlkNTg1Yzc3ZWU2M2M3MGI3MWFlZjA3MmM1NWNlN2Q3MzJjOWI4MDY3NzM4Y2EifQ"
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1318-L1345",
+          "version": "repo-lines-v1:sha256:616d7bcf9140d87deef346849f10077b194ce32ce8a9122f521f56e357d88581:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhMTdhNmY0NjM1ZTNmOGUwZmY4N2RlODQ5YzQwNzk3YTY2Njk1ZWIwOGI4OWIxNDUwOGE4NDNhMTZjMDg5YWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhiNzU1OTEzOWEwYTU3ODdjMzMyZDU5OTdiMDRhNzNmMmMyZmFiMjZkZjJhNGY1MzFhZjU0Zjg3MmRkNmM5MmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBiMmE1MDQzNjc2YzlmODhiZTk0YWNhNzVlZmM1MGU2OTgxZWI0NWQ1ZDM4MGEwY2EwMWEwY2U3OGZkZmY1YTUifQ"
         },
         {
-          "resource": "repo://crates/rusty-mcp/src/main.rs#L1998-L2080",
-          "version": "repo-lines-v1:sha256:cf22752166891a982515fa49aa1bcdad7235b0d367143885be0159bfceddee98:eyJzZWxlY3RlZExpbmVDb3VudCI6ODMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyOWNjYmE5MmVjNzY1NjU1NzlhMjE5OThkMjIyYWU2NzVjN2Y5OTAzNzFmNWZmZDdhMmZkY2YzYTk5OTU1MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5NTkyODBmNjE1NmMxZjY1MWI1MjJiMWIxODYxNjNiNjZkYjQ1YWRiZmE5YmM2NzFiZWQwNzM1MjllZWMxZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5ZWMzYjNmYzljZWRmMDgyMDRiY2M0YWUwYTVmMTMwYzhkODEzYjgxNTQ0ZWQ0NGVhYWJjYTA4ODEzOTg2MzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWZmMGNkZTAyMzdkMTJlNzEwNTcwZmY1MmRiYTM5ZDg0NmZiMGUxMTdmMTQ4NWUxM2VjZjEyZTA4MzNmZjIifQ"
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L2034-L2117",
+          "version": "repo-lines-v1:sha256:2bbcf9a6da711661a0714b8e07d3e51ce4784efe59afd5d6e32b8e6262859c7a:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NWQ5YTVmYmE1ZDlhYzQ0YWY4M2M3ZjEwMDc3MzA3OTAzNzEzY2VhOGI2MDAwMTc0YzRjNzhlOTZiNGU3YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5NTkyODBmNjE1NmMxZjY1MWI1MjJiMWIxODYxNjNiNjZkYjQ1YWRiZmE5YmM2NzFiZWQwNzM1MjllZWMxZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwZjI2NTEzZWYzZjNlMzMxZmM2NTUyM2FlYTM4MjJmYmVmMmY1YTQ4MGYyYzhiNzZmODVjYzcwNjM5YjVlZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWZmMGNkZTAyMzdkMTJlNzEwNTcwZmY1MmRiYTM5ZDg0NmZiMGUxMTdmMTQ4NWUxM2VjZjEyZTA4MzNmZjIifQ"
         }
       ]
     },
@@ -105,8 +105,8 @@
       "statement": "The server carries no Obsidian bridge: the tool list holds no `obsidian_*` name, `rusty_core` has no `obsidian` module, and links, unresolved targets and renames are answered by `brain_get_links`, `brain_unresolved` and `brain_rename`.",
       "evidence": [
         {
-          "resource": "repo://crates/rusty-mcp/src/main.rs#L1998-L2080",
-          "version": "repo-lines-v1:sha256:cf22752166891a982515fa49aa1bcdad7235b0d367143885be0159bfceddee98:eyJzZWxlY3RlZExpbmVDb3VudCI6ODMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyOWNjYmE5MmVjNzY1NjU1NzlhMjE5OThkMjIyYWU2NzVjN2Y5OTAzNzFmNWZmZDdhMmZkY2YzYTk5OTU1MWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5NTkyODBmNjE1NmMxZjY1MWI1MjJiMWIxODYxNjNiNjZkYjQ1YWRiZmE5YmM2NzFiZWQwNzM1MjllZWMxZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ5ZWMzYjNmYzljZWRmMDgyMDRiY2M0YWUwYTVmMTMwYzhkODEzYjgxNTQ0ZWQ0NGVhYWJjYTA4ODEzOTg2MzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWZmMGNkZTAyMzdkMTJlNzEwNTcwZmY1MmRiYTM5ZDg0NmZiMGUxMTdmMTQ4NWUxM2VjZjEyZTA4MzNmZjIifQ"
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L2034-L2117",
+          "version": "repo-lines-v1:sha256:2bbcf9a6da711661a0714b8e07d3e51ce4784efe59afd5d6e32b8e6262859c7a:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NWQ5YTVmYmE1ZDlhYzQ0YWY4M2M3ZjEwMDc3MzA3OTAzNzEzY2VhOGI2MDAwMTc0YzRjNzhlOTZiNGU3YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5NTkyODBmNjE1NmMxZjY1MWI1MjJiMWIxODYxNjNiNjZkYjQ1YWRiZmE5YmM2NzFiZWQwNzM1MjllZWMxZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwZjI2NTEzZWYzZjNlMzMxZmM2NTUyM2FlYTM4MjJmYmVmMmY1YTQ4MGYyYzhiNzZmODVjYzcwNjM5YjVlZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWZmMGNkZTAyMzdkMTJlNzEwNTcwZmY1MmRiYTM5ZDg0NmZiMGUxMTdmMTQ4NWUxM2VjZjEyZTA4MzNmZjIifQ"
         },
         {
           "resource": "repo://crates/rusty-core/src/lib.rs#L1-L20",
@@ -263,10 +263,32 @@
           "version": "repo-lines-v1:sha256:9634000c9724c3356918854234e01d5f9b73e63983b265f86bd29d42a1a1b28c:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDQ1M2RlZDFhMWM0NDI5Nzk3MWNjOTkwMzAyZGI5NGRmMjBlNGUyN2RmYThmMGU1NzY2OTc2MGM3MmI0YjY5NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjk1OTI4MGY2MTU2YzFmNjUxYjUyMmIxYjE4NjE2M2I2NmRiNDVhZGJmYTliYzY3MWJlZDA3MzUyOWVlYzFkMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjczYTEzZmRjNjRiMjQ3YzhhMzNmMjJlZTUyM2NhMjhjNDIzM2JlMzVlYmVjNjk3NTRiYmFiNDI3MmU2YmE1ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjhhZmYwY2RlMDIzN2QxMmU3MTA1NzBmZjUyZGJhMzlkODQ2ZmIwZTExN2YxNDg1ZTEzZWNmMTJlMDgzM2ZmMiJ9"
         }
       ]
+    },
+    {
+      "id": "claim_bcb0648731d649cfa795f1359bdb26cc",
+      "statement": "Two tools carry the Obsidian import: `brain_import_plan` (read-only, the plan for a vault path) and `brain_import` (the import, through `mutate` so clients see `DataChanged`); both take the vault folder's path and never write the source; `rusty-cli brain import <vault> [--dry-run]` reaches the same two methods, so the surface is 82 tools.",
+      "evidence": [
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L620-L626",
+          "version": "repo-lines-v1:sha256:5ab4699f70ac2ea685c2425f82fd02e0df480e3fe848e3e66205cf323c48f1b3:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDI3NGVkZjkzZDNkZGQyODZhMTQ4NjdiYTZiZjk2NzI3ZmI0NzlhZjZhYzMzM2UxMTgxYmUyM2Q4MDY3YmJjNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGJkZmZkZDQyM2IzOGEzZjI5MWNmOGZkNTRlNjc5Yjc5ZjFlNzRiY2RmNTYyN2VkMjk2OGNiNGZmNDlkOGY1MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTgwYTQzNTE5NWJlZDAwNDg4MGYyZTRiMTU4MTE4NmRjYjQwZjMwNmQ4MGVhZTdlNjhiYjg4ZWJiNTkzOTI3MCJ9"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L1275-L1301",
+          "version": "repo-lines-v1:sha256:ab39736e175f3624def9c520fdc3c9202ba206fa2f1d863775021808f2cd53ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiMmIwYjA5YTk2MzVkZTNlN2NlZDkyYmYxNzdlNWJlMzM3MzRiMTgyNGZmMDkxN2Y0MTc0YjY4Y2UxYzg1YWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgzNzE2M2Y2Zjg0ZTVjNzdkYTViYmM2MmMyMDhmM2FlMGQxN2Q3ZGI5NGJlM2UzZmJlOTQzMWJmMWVhYmE1NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVkY2MwODkwMDQ2NGIwNjhmMDZiNTI1YTRiOGQ2M2M1OGRjYTU4YTIwZTE1MGZlODY4NmY5YmI0MjJlYTg5NjAifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-mcp/src/main.rs#L2034-L2117",
+          "version": "repo-lines-v1:sha256:2bbcf9a6da711661a0714b8e07d3e51ce4784efe59afd5d6e32b8e6262859c7a:eyJzZWxlY3RlZExpbmVDb3VudCI6ODQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NWQ5YTVmYmE1ZDlhYzQ0YWY4M2M3ZjEwMDc3MzA3OTAzNzEzY2VhOGI2MDAwMTc0YzRjNzhlOTZiNGU3YmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5NTkyODBmNjE1NmMxZjY1MWI1MjJiMWIxODYxNjNiNjZkYjQ1YWRiZmE5YmM2NzFiZWQwNzM1MjllZWMxZDMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwZjI2NTEzZWYzZjNlMzMxZmM2NTUyM2FlYTM4MjJmYmVmMmY1YTQ4MGYyYzhiNzZmODVjYzcwNjM5YjVlZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWZmMGNkZTAyMzdkMTJlNzEwNTcwZmY1MmRiYTM5ZDg0NmZiMGUxMTdmMTQ4NWUxM2VjZjEyZTA4MzNmZjIifQ"
+        },
+        {
+          "resource": "repo://crates/rusty-cli/src/main.rs#L672-L724",
+          "version": "repo-lines-v1:sha256:7bf60f83f0d1e20c69744f9626284b0144a94e821cb270644f2f0553314fd660:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmNzcxYjNhZTliYTU1NzRkNGE3ZjYwY2RiY2VmMDJmOWI2MjQ5NDhiMjhmYTQ4Y2JiZDlmYTk2MTJhNWIxODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2YjA0NDkxNDY5NzIyZTgzNjNhOTRlNDA0NDUzOGUwMTNhMmEyMTdlMzZiMWU1NjhiYTYwYWNiN2I0YzhmMmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM1NzUyYmRkYTVlMWQxZGNmZTE4NmFiNTJkZGU2ZjYwMDNiNTcyNDc3ZjkwZTE0YjgxNjVmN2EyNjI3OTA5Y2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdhZWRmYWZlMzYwMmVkN2U2NmNmOWMyZDk2YmVhYzRmMzI1ZGE3MDFkZTA4NWQ1MDUxZjMxYTEzZWYyZmE5NDIifQ"
+        }
+      ]
     }
   ],
   "verification": {
     "by": "openwiki/0.3.3",
-    "at": "2026-09-05T03:04:53.524Z"
+    "at": "2026-09-05T04:56:03.642Z"
   }
 }

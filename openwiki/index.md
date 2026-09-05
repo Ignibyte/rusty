@@ -10,4 +10,4 @@ okf_version: "0.2"
 - [Rusty engineering quickstart](quickstart.md)
 - [Vault and brain: files as the truth, SQLite as the index](vault-and-brain.md)
 - [Workflow and gates: how a change moves through this repository](workflow-and-gates.md)
-- [workspace-app](workspace-app.md)
+- [Workspace app: Obsidian's layout with terminals inside](workspace-app.md)

@@ -5,6 +5,8 @@ openwiki_generated: true
 sources:
   - id: openwiki-source-9c78ae52164f32a938f17cce
     resource: repo://crates/rusty-core/src/brain/frontmatter.rs
+  - id: openwiki-source-ffc9a1027ebb83d922f541ac
+    resource: repo://crates/rusty-core/src/brain/import.rs
   - id: openwiki-source-84bd94f4d6c1ff8ab953d365
     resource: repo://crates/rusty-core/src/brain/links.rs
   - id: openwiki-source-c7501cab00d475ec77094adb
@@ -13,10 +15,10 @@ sources:
     resource: repo://crates/rusty-core/src/brain/semantic.rs
   - id: openwiki-source-79e92c26a49d3b5ce7f4c00a
     resource: repo://crates/rusty-core/src/brain/vault.rs
-generated: {by: "claude-code", at: "2026-09-03T05:07:54.592Z"}
+generated: {by: "claude-code", at: "2026-09-05T04:56:03.642Z"}
 verified:
   - by: openwiki/0.3.3
-    at: 2026-09-03T05:46:21.914Z
+    at: 2026-09-05T05:00:58.441Z
 ---
 
 # Vault and brain: files as the truth, SQLite as the index
@@ -58,6 +60,21 @@ in the database can be rebuilt from the folder.
 - The timeline is the `## Timeline` section that runs to the end of the file; the body
   above it is the compiled truth. The bare `---` rule of older pages is read, never
   written; `rusty-cli brain migrate` rewrites it.
+- An Obsidian vault comes in through `import_plan` and `import_vault` (`brain/mod.rs`,
+  the pure parts in `brain/import.rs`; TICKET-026), reached by `brain_import_plan` and
+  `brain_import`, by `rusty-cli brain import <vault> [--dry-run]` and by the app's
+  dialog. The source is walked read-only with dot-entries skipped (`.obsidian`,
+  `.trash`, `.git`); a page keeps its path as its slug and an attachment its path; a
+  slug or path already in the brain is a collision, skipped and named, never
+  overwritten or renamed; bare-name links are rewritten to vault paths by the
+  migration's `LinkIndex` built over the brain's pages and the incoming ones, the
+  frontmatter byte for byte, unresolved targets reported; the tags and the bookmarks in
+  `.obsidian/bookmarks.json` (groups flattened; file, folder, search and heading kinds)
+  travel in the plan; the import writes pages, then attachments, then a report page
+  under `inbox/` (`import-<date>-<name>`, a suffix when the minute's name exists),
+  rebuilds the index and commits once. Every path the run creates is recorded, and a
+  failure removes them all, rebuilds the index and returns the error, so the brain is
+  the import whole or as it was.
 - Wikilinks are vault paths: `[[projects/orbit]]`, `[[projects/orbit|alias]]`,
   `[[projects/orbit#Heading]]`, `![[embed]]`. The scanner skips fenced and inline code.
 - Deletes are soft: a page or folder moves to `archive/<name>_<timestamp>`.
@@ -128,6 +145,9 @@ full text and nothing else changes.
 - A page with broken YAML opens with empty frontmatter; a strict operation on it errors.
 - A rename to an existing target is refused; a folder cannot move into itself.
 - `sync_all` on a vault with pages that link by bare name resolves them in a second pass.
+- An import that fails part way (a file where a folder must go, a disk full) leaves the
+  brain as it was: the files the run created are removed and the index rebuilt; the
+  folders it made may stay, empty. The source vault is never written in any path.
 
 ## Extension points
 
@@ -140,6 +160,12 @@ full text and nothing else changes.
 - `cargo test -p rusty-core brain::` covers parsing, the tree, folders, renames with
   every link spelling, the renderer, the scanner, the semantic index and migration.
 - `crates/rusty-core/tests/integration.rs` exercises the managers together.
+- `cargo test -p rusty-core import` covers the Obsidian import: the walk skipping
+  dot-entries, the bookmarks parse, the report page, the plan on a fixture vault (a
+  collision left alone, the tags, the unresolved link, bookmarks kept and not carried, the
+  source byte for byte as before, the brain itself refused), the import (links rewritten,
+  frontmatter kept, the attachment's bytes, search, tags and links after the run, the
+  report page, the source unchanged), and the rollback.
 
 ## Primary sources
 
